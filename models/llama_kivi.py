@@ -9,6 +9,8 @@ from torch import nn
 from quant.new_pack import triton_quantize_and_pack_along_last_dim
 from quant.matmul import cuda_bmm_fA_qB_outer
 
+from models.cage_config import get_cage_config
+
 from transformers.models.llama.configuration_llama import *
 from transformers.models.llama.modeling_llama import *
 from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
@@ -22,6 +24,7 @@ class LlamaAttention_KIVI(nn.Module):
     def __init__(self, config: LlamaConfig):
         super().__init__()
         self.config = config
+        self.cage_config = get_cage_config(config)
         self.attention_dropout = config.attention_dropout
         self.hidden_size = config.hidden_size
         self.num_heads = config.num_attention_heads
@@ -645,6 +648,7 @@ class LlamaModel_KIVI(LlamaPreTrainedModel):
 
     def __init__(self, config: LlamaConfig):
         super().__init__(config)
+        self.cage_config = get_cage_config(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
@@ -787,6 +791,7 @@ class LlamaForCausalLM_KIVI(LlamaPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
+        self.cage_config = get_cage_config(config)
         self.model = LlamaModel_KIVI(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
