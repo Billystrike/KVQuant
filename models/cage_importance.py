@@ -1,6 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
+
+
+@dataclass(frozen=True)
+class CageBucketAssignment:
+    bucket_indices: tuple[torch.Tensor, ...]
+    bucket_rank_map: torch.Tensor
+    num_buckets: int
+    valid_channel_counts: tuple[int, ...] | None = None
 
 
 def compute_key_importance(
@@ -101,6 +111,61 @@ def compute_value_importance(
     return _finalize_importance(importance, reduce_batch=reduce_batch)
 
 
+def assign_channel_buckets(
+    importance: torch.Tensor,
+    num_buckets: int = 3,
+    stable: bool = True,
+    pad_to_multiple: int | None = None,
+) -> CageBucketAssignment:
+    """Assign channels to high-to-low importance buckets for each KV head.
+
+    Args:
+        importance: Tensor shaped [H, D] or [B, H, D].
+        num_buckets: Requested number of buckets. The effective count is capped at D.
+        stable: Kept for API compatibility. Ties are always channel-index stable.
+        pad_to_multiple: If set, pad each bucket's channel dimension to this multiple.
+    """
+    importance = _prepare_bucket_importance(importance)
+    _require_positive_int("num_buckets", num_buckets)
+    if not isinstance(stable, bool):
+        raise ValueError(f"stable must be a bool, got {stable!r}")
+    if pad_to_multiple is not None:
+        _require_positive_int("pad_to_multiple", pad_to_multiple)
+
+    num_heads, head_dim = importance.shape
+    effective_num_buckets = min(num_buckets, head_dim)
+    bucket_sizes = _bucket_sizes(head_dim, effective_num_buckets)
+    del stable
+    sorted_indices = torch.argsort(importance, dim=-1, descending=True, stable=True)
+
+    bucket_rank_map = torch.empty(
+        (num_heads, head_dim),
+        dtype=torch.long,
+        device=importance.device,
+    )
+    bucket_indices = []
+    valid_channel_counts = []
+    start = 0
+    for bucket_id, bucket_size in enumerate(bucket_sizes):
+        end = start + bucket_size
+        indices = sorted_indices[:, start:end]
+        bucket_rank_map.scatter_(
+            dim=1,
+            index=indices,
+            src=torch.full_like(indices, bucket_id, dtype=torch.long),
+        )
+        valid_channel_counts.append(bucket_size)
+        bucket_indices.append(_pad_bucket_indices(indices, pad_to_multiple))
+        start = end
+
+    return CageBucketAssignment(
+        bucket_indices=tuple(bucket_indices),
+        bucket_rank_map=bucket_rank_map,
+        num_buckets=effective_num_buckets,
+        valid_channel_counts=tuple(valid_channel_counts) if pad_to_multiple is not None else None,
+    )
+
+
 def _group_output_projection_norm(
     o_proj_weight: torch.Tensor,
     num_heads: int,
@@ -113,6 +178,44 @@ def _group_output_projection_norm(
     if num_key_value_groups == 1:
         return column_norm
     return column_norm.view(num_key_value_heads, num_key_value_groups, head_dim).sum(dim=1)
+
+
+def _prepare_bucket_importance(importance: torch.Tensor) -> torch.Tensor:
+    if not isinstance(importance, torch.Tensor):
+        raise TypeError(f"importance must be a torch.Tensor, got {type(importance).__name__}")
+    if importance.ndim == 3:
+        if importance.shape[0] <= 0:
+            raise ValueError(f"importance batch dimension must be non-empty, got {tuple(importance.shape)}")
+        importance = importance.mean(dim=0)
+    elif importance.ndim != 2:
+        raise ValueError(f"importance must have shape [H, D] or [B, H, D], got {tuple(importance.shape)}")
+
+    if importance.shape[0] <= 0 or importance.shape[1] <= 0:
+        raise ValueError(f"importance must have non-empty head and channel dimensions, got {tuple(importance.shape)}")
+    return torch.nan_to_num(importance)
+
+
+def _bucket_sizes(head_dim: int, num_buckets: int) -> tuple[int, ...]:
+    base_size = head_dim // num_buckets
+    remainder = head_dim % num_buckets
+    small_bucket_count = num_buckets - remainder
+    sizes = [base_size] * small_bucket_count
+    sizes.extend([base_size + 1] * remainder)
+    return tuple(sizes)
+
+
+def _pad_bucket_indices(indices: torch.Tensor, pad_to_multiple: int | None) -> torch.Tensor:
+    if pad_to_multiple is None:
+        return indices
+
+    valid_count = indices.shape[1]
+    padded_count = ((valid_count + pad_to_multiple - 1) // pad_to_multiple) * pad_to_multiple
+    if padded_count == valid_count:
+        return indices
+
+    pad_count = padded_count - valid_count
+    pad_values = indices[:, -1:].expand(indices.shape[0], pad_count)
+    return torch.cat((indices, pad_values), dim=1)
 
 
 def _resolve_num_key_value_groups(
@@ -175,4 +278,9 @@ def _require_matching_shape(
         )
 
 
-__all__ = ["compute_key_importance", "compute_value_importance"]
+__all__ = [
+    "CageBucketAssignment",
+    "assign_channel_buckets",
+    "compute_key_importance",
+    "compute_value_importance",
+]
