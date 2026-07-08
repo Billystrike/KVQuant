@@ -1,21 +1,44 @@
 import math
 import warnings
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.nn import CrossEntropyLoss
 
 from quant.new_pack import triton_quantize_and_pack_along_last_dim
 from quant.matmul import cuda_bmm_fA_qB_outer
 
+from models.cage_cache import (
+    CageKeyCache,
+    CageValueCache,
+    is_cage_past_key_value,
+    pack_cage_past_key_value,
+    unpack_cage_past_key_value,
+)
 from models.cage_config import get_cage_config
+from models.cage_importance import assign_channel_buckets, compute_key_importance, compute_value_importance
+from models.cage_quant import fake_quant_k_by_channel_buckets, fake_quant_v_by_channel_buckets
 
 from transformers.models.llama.configuration_llama import *
 from transformers.models.llama.modeling_llama import *
+from transformers.models.llama.modeling_llama import (
+    LlamaMLP,
+    LlamaPreTrainedModel,
+    LlamaRMSNorm,
+    LlamaRotaryEmbedding,
+    apply_rotary_pos_emb,
+    repeat_kv,
+)
+from transformers.cache_utils import DynamicCache
 from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
+from transformers.utils import add_start_docstrings_to_model_forward, logging, replace_return_docstrings
 
 _CONFIG_FOR_DOC = "LlamaConfig"
+LLAMA_INPUTS_DOCSTRING = globals().get("LLAMA_INPUTS_DOCSTRING", "")
+logger = logging.get_logger(__name__)
 
 
 class LlamaAttention_KIVI(nn.Module):
@@ -55,6 +78,297 @@ class LlamaAttention_KIVI(nn.Module):
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+
+    def _cage_fake_forward(
+        self,
+        query_states: torch.Tensor,
+        key_states: torch.Tensor,
+        value_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor],
+        past_key_value: Optional[Tuple[torch.Tensor]],
+        bsz: int,
+        q_len: int,
+        kv_seq_len: int,
+        use_cache: bool,
+    ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor]]]:
+        cage_config = self.cage_config
+        if cage_config.cage_mode != "fake":
+            raise ValueError(f"Unsupported CAGE mode {cage_config.cage_mode!r}; only 'fake' is implemented")
+        if past_key_value is not None and not is_cage_past_key_value(past_key_value):
+            raise ValueError("CAGE fake attention received a non-CAGE past_key_value")
+        if past_key_value is not None and q_len != 1:
+            raise ValueError(
+                f"CAGE fake decode supports one token at a time, got q_len={q_len}"
+            )
+
+        if past_key_value is None:
+            key_importance = compute_key_importance(
+                query_states,
+                key_states,
+                num_key_value_groups=self.num_key_value_groups,
+            )
+            value_importance = compute_value_importance(
+                value_states,
+                self.o_proj.weight,
+                num_heads=self.num_heads,
+                num_key_value_heads=self.num_key_value_heads,
+                head_dim=self.head_dim,
+            )
+            key_assignment = assign_channel_buckets(
+                key_importance,
+                num_buckets=cage_config.cage_k_num_buckets,
+            )
+            value_assignment = assign_channel_buckets(
+                value_importance,
+                num_buckets=cage_config.cage_v_num_buckets,
+            )
+            key_bucket_indices = self._bucket_indices_like(key_assignment.bucket_indices, key_states)
+            value_bucket_indices = self._bucket_indices_like(value_assignment.bucket_indices, value_states)
+            key_group_sizes = tuple(cage_config.cage_k_group_sizes[: len(key_bucket_indices)])
+            key_clip_percentiles = tuple(cage_config.cage_k_clip_percentiles[: len(key_bucket_indices)])
+            value_group_sizes = tuple(cage_config.cage_v_group_sizes[: len(value_bucket_indices)])
+            value_clip_percentiles = tuple(cage_config.cage_v_clip_percentiles[: len(value_bucket_indices)])
+
+            key_states_for_attention = self._maybe_fake_quant_key_states(
+                key_states,
+                key_bucket_indices,
+                key_group_sizes,
+                key_clip_percentiles,
+            )
+            value_states_for_attention = self._maybe_fake_quant_value_states(
+                value_states,
+                value_bucket_indices,
+                value_group_sizes,
+                value_clip_percentiles,
+            )
+            key_full = None
+            value_full = None
+        else:
+            unpacked = unpack_cage_past_key_value(past_key_value)
+            key_bucket_indices = unpacked.key_cache.bucket_indices_like(key_states)
+            value_bucket_indices = unpacked.value_cache.bucket_indices_like(value_states)
+            key_group_sizes = unpacked.key_cache.key_group_sizes
+            key_clip_percentiles = unpacked.key_cache.key_clip_percentiles
+            value_group_sizes = unpacked.value_cache.value_group_sizes
+            value_clip_percentiles = unpacked.value_cache.value_clip_percentiles
+
+            previous_key_states = self._reconstruct_cage_states(
+                quant_buckets=unpacked.key_cache.key_quant_buckets,
+                full_states=unpacked.key_cache.key_full,
+                bucket_indices=key_bucket_indices,
+                reference=key_states,
+            )
+            previous_value_states = self._reconstruct_cage_states(
+                quant_buckets=unpacked.value_cache.value_quant_buckets,
+                full_states=unpacked.value_cache.value_full,
+                bucket_indices=value_bucket_indices,
+                reference=value_states,
+            )
+            if previous_key_states.shape[-2] != unpacked.kv_seq_len:
+                raise ValueError(
+                    "CAGE key cache length does not match kv_seq_len: "
+                    f"{previous_key_states.shape[-2]} vs {unpacked.kv_seq_len}"
+                )
+            if previous_value_states.shape[-2] != unpacked.kv_seq_len:
+                raise ValueError(
+                    "CAGE value cache length does not match kv_seq_len: "
+                    f"{previous_value_states.shape[-2]} vs {unpacked.kv_seq_len}"
+                )
+
+            quantized_key_history = self._maybe_fake_quant_key_states(
+                previous_key_states,
+                key_bucket_indices,
+                key_group_sizes,
+                key_clip_percentiles,
+            )
+            quantized_value_history = self._maybe_fake_quant_value_states(
+                previous_value_states,
+                value_bucket_indices,
+                value_group_sizes,
+                value_clip_percentiles,
+            )
+            key_states_for_attention = torch.cat((quantized_key_history, key_states), dim=2)
+            value_states_for_attention = torch.cat((quantized_value_history, value_states), dim=2)
+            key_full = key_states
+            value_full = value_states
+
+        attn_output = self._cage_compute_attention(
+            query_states=query_states,
+            key_states=key_states_for_attention,
+            value_states=value_states_for_attention,
+            attention_mask=attention_mask,
+            bsz=bsz,
+            q_len=q_len,
+            kv_seq_len=kv_seq_len,
+        )
+
+        next_cache = None
+        if use_cache:
+            if past_key_value is None:
+                key_quant_history = key_states_for_attention
+                value_quant_history = value_states_for_attention
+            else:
+                key_quant_history = key_states_for_attention[:, :, :-1, :].contiguous()
+                value_quant_history = value_states_for_attention[:, :, :-1, :].contiguous()
+
+            key_cache = CageKeyCache(
+                key_quant_buckets=self._gather_bucket_payloads(key_quant_history, key_bucket_indices),
+                key_full=key_full,
+                key_bucket_indices=key_bucket_indices,
+                key_group_sizes=key_group_sizes,
+                key_clip_percentiles=key_clip_percentiles,
+            )
+            value_cache = CageValueCache(
+                value_quant_buckets=self._gather_bucket_payloads(value_quant_history, value_bucket_indices),
+                value_full=value_full,
+                value_bucket_indices=value_bucket_indices,
+                value_group_sizes=value_group_sizes,
+                value_clip_percentiles=value_clip_percentiles,
+            )
+            next_cache = pack_cage_past_key_value(
+                key_cache=key_cache,
+                value_cache=value_cache,
+                kv_seq_len=kv_seq_len,
+            )
+        return attn_output, next_cache
+
+    def _cage_compute_attention(
+        self,
+        query_states: torch.Tensor,
+        key_states: torch.Tensor,
+        value_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor],
+        bsz: int,
+        q_len: int,
+        kv_seq_len: int,
+    ) -> torch.Tensor:
+        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
+        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
+        if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
+            raise ValueError(
+                f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
+                f" {attn_weights.size()}"
+            )
+        if attention_mask is not None:
+            if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
+                raise ValueError(
+                    f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.size()}"
+                )
+            attn_weights = attn_weights + attention_mask
+            attn_weights = torch.max(
+                attn_weights,
+                torch.tensor(
+                    torch.finfo(attn_weights.dtype).min,
+                    device=attn_weights.device,
+                    dtype=attn_weights.dtype,
+                ),
+            )
+        attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+        return torch.matmul(attn_weights, value_states)
+
+    def _project_attention_output(self, attn_output: torch.Tensor, bsz: int, q_len: int) -> torch.Tensor:
+        if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
+            raise ValueError(
+                f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
+                f" {attn_output.size()}"
+            )
+        attn_output = attn_output.transpose(1, 2).contiguous()
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+        if self.config.pretraining_tp > 1:
+            attn_output = attn_output.split(self.hidden_size // self.config.pretraining_tp, dim=2)
+            o_proj_slices = self.o_proj.weight.split(self.hidden_size // self.config.pretraining_tp, dim=1)
+            return sum([F.linear(attn_output[i], o_proj_slices[i]) for i in range(self.config.pretraining_tp)])
+        return self.o_proj(attn_output)
+
+    def _maybe_fake_quant_key_states(
+        self,
+        key_states: torch.Tensor,
+        bucket_indices: Tuple[torch.Tensor, ...],
+        group_sizes: Tuple[int, ...],
+        clip_percentiles: Tuple[float, ...],
+    ) -> torch.Tensor:
+        if not self.cage_config.cage_k_enable:
+            return key_states
+        return fake_quant_k_by_channel_buckets(
+            key_states,
+            bucket_indices=bucket_indices,
+            group_sizes=group_sizes,
+            clip_percentiles=clip_percentiles,
+            bits=2,
+        )
+
+    def _maybe_fake_quant_value_states(
+        self,
+        value_states: torch.Tensor,
+        bucket_indices: Tuple[torch.Tensor, ...],
+        group_sizes: Tuple[int, ...],
+        clip_percentiles: Tuple[float, ...],
+    ) -> torch.Tensor:
+        if not self.cage_config.cage_v_enable:
+            return value_states
+        return fake_quant_v_by_channel_buckets(
+            value_states,
+            bucket_indices=bucket_indices,
+            group_sizes=group_sizes,
+            clip_percentiles=clip_percentiles,
+            bits=2,
+        )
+
+    def _reconstruct_cage_states(
+        self,
+        quant_buckets: Tuple[torch.Tensor, ...],
+        full_states: Optional[torch.Tensor],
+        bucket_indices: Tuple[torch.Tensor, ...],
+        reference: torch.Tensor,
+    ) -> torch.Tensor:
+        reconstructed = None
+        if len(quant_buckets) > 0:
+            first_bucket = quant_buckets[0]
+            reconstructed = reference.new_zeros(
+                first_bucket.shape[0],
+                first_bucket.shape[1],
+                first_bucket.shape[2],
+                self.head_dim,
+            )
+            for bucket, indices in zip(quant_buckets, bucket_indices):
+                scatter_index = indices.view(1, indices.shape[0], 1, indices.shape[1]).expand_as(bucket)
+                reconstructed.scatter_(
+                    dim=-1,
+                    index=scatter_index,
+                    src=bucket.to(device=reference.device, dtype=reference.dtype),
+                )
+        if full_states is None:
+            if reconstructed is None:
+                return reference[:, :, :0, :]
+            return reconstructed
+        full_states = full_states.to(device=reference.device, dtype=reference.dtype)
+        if reconstructed is None:
+            return full_states
+        return torch.cat((reconstructed, full_states), dim=2)
+
+    def _gather_bucket_payloads(
+        self,
+        states: torch.Tensor,
+        bucket_indices: Tuple[torch.Tensor, ...],
+    ) -> Tuple[torch.Tensor, ...]:
+        payloads = []
+        for indices in bucket_indices:
+            gather_index = indices.view(1, indices.shape[0], 1, indices.shape[1]).expand(
+                states.shape[0],
+                states.shape[1],
+                states.shape[2],
+                indices.shape[1],
+            )
+            payloads.append(states.gather(dim=-1, index=gather_index).contiguous())
+        return tuple(payloads)
+
+    def _bucket_indices_like(
+        self,
+        bucket_indices: Tuple[torch.Tensor, ...],
+        tensor: torch.Tensor,
+    ) -> Tuple[torch.Tensor, ...]:
+        return tuple(index.to(device=tensor.device, dtype=torch.long) for index in bucket_indices)
 
     def forward(
         self,
@@ -103,6 +417,20 @@ class LlamaAttention_KIVI(nn.Module):
             kv_seq_len += past_key_value[-1]
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+        if self.cage_config.cage_enable:
+            attn_output, past_key_value = self._cage_fake_forward(
+                query_states=query_states,
+                key_states=key_states,
+                value_states=value_states,
+                attention_mask=attention_mask,
+                past_key_value=past_key_value,
+                bsz=bsz,
+                q_len=q_len,
+                kv_seq_len=kv_seq_len,
+                use_cache=use_cache,
+            )
+            attn_output = self._project_attention_output(attn_output, bsz, q_len)
+            return attn_output, None, past_key_value
         assert self.num_key_value_groups == 1
         # [bsz, nh, t, hd]
         if past_key_value is not None:
@@ -312,6 +640,20 @@ class LlamaFlashAttention_KIVI(LlamaAttention_KIVI):
             kv_seq_len += past_key_value[-1]
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+        if self.cage_config.cage_enable:
+            attn_output, past_key_value = self._cage_fake_forward(
+                query_states=query_states,
+                key_states=key_states,
+                value_states=value_states,
+                attention_mask=attention_mask,
+                past_key_value=past_key_value,
+                bsz=bsz,
+                q_len=q_len,
+                kv_seq_len=kv_seq_len,
+                use_cache=use_cache,
+            )
+            attn_output = self._project_attention_output(attn_output, bsz, q_len)
+            return attn_output, None, past_key_value
         # assert self.num_key_value_groups == 1
         # [bsz, nh, t, hd]
         if past_key_value is not None:
