@@ -20,6 +20,7 @@ from models.cage_cache import (
 from models.cage_config import get_cage_config
 from models.cage_importance import assign_channel_buckets, compute_key_importance, compute_value_importance
 from models.cage_quant import fake_quant_k_by_channel_buckets, fake_quant_v_by_channel_buckets
+from utils.cage_metrics import collect_cage_perturbation_metrics
 
 from transformers.models.llama.configuration_llama import *
 from transformers.models.llama.modeling_llama import *
@@ -61,6 +62,7 @@ class LlamaAttention_KIVI(nn.Module):
         self.v_bits = config.v_bits
         self.group_size = config.group_size
         self.residual_length = config.residual_length
+        self.last_cage_metrics = None
         assert getattr(config, "use_flash", False), "currently KIVI is only available for flash-attn. Please add ```config.use_flash = True```"
 
         if (self.head_dim * self.num_heads) != self.hidden_size:
@@ -141,6 +143,24 @@ class LlamaAttention_KIVI(nn.Module):
                 value_group_sizes,
                 value_clip_percentiles,
             )
+            if cage_config.cage_collect_metrics:
+                self.last_cage_metrics = collect_cage_perturbation_metrics(
+                    cage_config,
+                    query_states=query_states,
+                    key_states=key_states,
+                    key_states_hat=key_states_for_attention,
+                    value_states=value_states,
+                    value_states_hat=value_states_for_attention,
+                    o_proj_weight=self.o_proj.weight,
+                    key_importance=key_importance,
+                    value_importance=value_importance,
+                    attention_mask=attention_mask,
+                    num_key_value_groups=self.num_key_value_groups,
+                    metadata={
+                        "attention_module": self.__class__.__name__,
+                        "phase": "prefill",
+                    },
+                )
             key_full = None
             value_full = None
         else:

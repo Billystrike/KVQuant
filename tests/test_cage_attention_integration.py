@@ -1,7 +1,10 @@
+import json
 import sys
+import tempfile
 import types
 import unittest
 from importlib.machinery import ModuleSpec
+from pathlib import Path
 
 import torch
 from transformers.models.llama.configuration_llama import LlamaConfig
@@ -97,6 +100,32 @@ class CageAttentionIntegrationTest(unittest.TestCase):
         self.assertEqual(len(unpacked.value_cache.value_quant_buckets), 3)
         self.assertIsNone(unpacked.key_cache.key_full)
         self.assertIsNone(unpacked.value_cache.value_full)
+
+    def test_cage_prefill_collects_and_dumps_perturbation_metrics_when_enabled(self):
+        torch.manual_seed(0)
+        config = self._config()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config.cage_collect_metrics = True
+            config.cage_dump_dir = tmpdir
+            attention = LlamaFlashAttention_KIVI(config)
+            attention.eval()
+
+            hidden_states = torch.randn(1, 3, 16)
+            position_ids = torch.arange(3).unsqueeze(0)
+
+            attention(
+                hidden_states,
+                attention_mask=torch.zeros(1, 1, 3, 3),
+                position_ids=position_ids,
+                use_cache=True,
+            )
+
+            self.assertIsInstance(attention.last_cage_metrics, dict)
+            output_path = Path(tmpdir) / "cage_perturbation_metrics.jsonl"
+            record = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(record["phase"], "prefill")
+            self.assertEqual(record["attention_module"], "LlamaFlashAttention_KIVI")
+            self.assertIn("attention_logit_mse", record)
 
     def test_cage_decode_reuses_bucket_policy_and_appends_full_precision_token(self):
         torch.manual_seed(0)
