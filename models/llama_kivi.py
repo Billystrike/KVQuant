@@ -131,26 +131,34 @@ class LlamaAttention_KIVI(nn.Module):
             value_group_sizes = tuple(cage_config.cage_v_group_sizes[: len(value_bucket_indices)])
             value_clip_percentiles = tuple(cage_config.cage_v_clip_percentiles[: len(value_bucket_indices)])
 
-            key_states_for_attention = self._maybe_fake_quant_key_states(
-                key_states,
-                key_bucket_indices,
-                key_group_sizes,
-                key_clip_percentiles,
-            )
-            value_states_for_attention = self._maybe_fake_quant_value_states(
-                value_states,
-                value_bucket_indices,
-                value_group_sizes,
-                value_clip_percentiles,
-            )
+            key_quant_history, key_full = self._split_cage_key_history(key_states)
+            value_quant_history, value_full = self._split_cage_value_history(value_states)
+            if key_quant_history.shape[-2] > 0:
+                key_quant_history = self._maybe_fake_quant_key_states(
+                    key_quant_history,
+                    key_bucket_indices,
+                    key_group_sizes,
+                    key_clip_percentiles,
+                )
+            if value_quant_history is not None:
+                value_quant_history = self._maybe_fake_quant_value_states(
+                    value_quant_history,
+                    value_bucket_indices,
+                    value_group_sizes,
+                    value_clip_percentiles,
+                )
+            key_states_for_attention = key_states
+            value_states_for_attention = value_states
             if cage_config.cage_collect_metrics:
+                key_states_hat = self._concat_cage_history(key_quant_history, key_full)
+                value_states_hat = self._concat_cage_history(value_quant_history, value_full)
                 self.last_cage_metrics = collect_cage_perturbation_metrics(
                     cage_config,
                     query_states=query_states,
                     key_states=key_states,
-                    key_states_hat=key_states_for_attention,
+                    key_states_hat=key_states_hat,
                     value_states=value_states,
-                    value_states_hat=value_states_for_attention,
+                    value_states_hat=value_states_hat,
                     o_proj_weight=self.o_proj.weight,
                     key_importance=key_importance,
                     value_importance=value_importance,
@@ -161,8 +169,6 @@ class LlamaAttention_KIVI(nn.Module):
                         "phase": "prefill",
                     },
                 )
-            key_full = None
-            value_full = None
         else:
             unpacked = unpack_cage_past_key_value(past_key_value)
             key_bucket_indices = unpacked.key_cache.bucket_indices_like(key_states)
@@ -195,22 +201,41 @@ class LlamaAttention_KIVI(nn.Module):
                     f"{previous_value_states.shape[-2]} vs {unpacked.kv_seq_len}"
                 )
 
-            quantized_key_history = self._maybe_fake_quant_key_states(
-                previous_key_states,
-                key_bucket_indices,
-                key_group_sizes,
-                key_clip_percentiles,
-            )
-            quantized_value_history = self._maybe_fake_quant_value_states(
-                previous_value_states,
-                value_bucket_indices,
-                value_group_sizes,
-                value_clip_percentiles,
-            )
-            key_states_for_attention = torch.cat((quantized_key_history, key_states), dim=2)
-            value_states_for_attention = torch.cat((quantized_value_history, value_states), dim=2)
-            key_full = key_states
-            value_full = value_states
+            key_states_for_attention = torch.cat((previous_key_states, key_states), dim=2)
+            value_states_for_attention = torch.cat((previous_value_states, value_states), dim=2)
+
+            key_full = self._concat_cage_history(unpacked.key_cache.key_full, key_states)
+            key_quant_buckets = unpacked.key_cache.key_quant_buckets
+            if key_full.shape[-2] == self.residual_length:
+                quantized_key_block = self._maybe_fake_quant_key_states(
+                    key_full,
+                    key_bucket_indices,
+                    key_group_sizes,
+                    key_clip_percentiles,
+                )
+                key_quant_buckets = self._append_cage_bucket_payloads(
+                    key_quant_buckets,
+                    quantized_key_block,
+                    key_bucket_indices,
+                )
+                key_full = None
+
+            value_full = self._concat_cage_history(unpacked.value_cache.value_full, value_states)
+            value_quant_buckets = unpacked.value_cache.value_quant_buckets
+            overflow = value_full.shape[-2] - self.residual_length
+            if overflow > 0:
+                value_quant_history = self._maybe_fake_quant_value_states(
+                    value_full[:, :, :overflow, :].contiguous(),
+                    value_bucket_indices,
+                    value_group_sizes,
+                    value_clip_percentiles,
+                )
+                value_quant_buckets = self._append_cage_bucket_payloads(
+                    value_quant_buckets,
+                    value_quant_history,
+                    value_bucket_indices,
+                )
+                value_full = value_full[:, :, overflow:, :].contiguous()
 
         attn_output = self._cage_compute_attention(
             query_states=query_states,
@@ -225,21 +250,19 @@ class LlamaAttention_KIVI(nn.Module):
         next_cache = None
         if use_cache:
             if past_key_value is None:
-                key_quant_history = key_states_for_attention
-                value_quant_history = value_states_for_attention
-            else:
-                key_quant_history = key_states_for_attention[:, :, :-1, :].contiguous()
-                value_quant_history = value_states_for_attention[:, :, :-1, :].contiguous()
+                key_quant_buckets = self._gather_bucket_payloads(key_quant_history, key_bucket_indices)
+                value_quant_source = value_states[:, :, :0, :] if value_quant_history is None else value_quant_history
+                value_quant_buckets = self._gather_bucket_payloads(value_quant_source, value_bucket_indices)
 
             key_cache = CageKeyCache(
-                key_quant_buckets=self._gather_bucket_payloads(key_quant_history, key_bucket_indices),
+                key_quant_buckets=key_quant_buckets,
                 key_full=key_full,
                 key_bucket_indices=key_bucket_indices,
                 key_group_sizes=key_group_sizes,
                 key_clip_percentiles=key_clip_percentiles,
             )
             value_cache = CageValueCache(
-                value_quant_buckets=self._gather_bucket_payloads(value_quant_history, value_bucket_indices),
+                value_quant_buckets=value_quant_buckets,
                 value_full=value_full,
                 value_bucket_indices=value_bucket_indices,
                 value_group_sizes=value_group_sizes,
@@ -251,6 +274,35 @@ class LlamaAttention_KIVI(nn.Module):
                 kv_seq_len=kv_seq_len,
             )
         return attn_output, next_cache
+
+    def _split_cage_key_history(self, states: torch.Tensor):
+        remainder = states.shape[-2] % self.residual_length
+        if remainder == 0:
+            return states, None
+        return states[:, :, :-remainder, :].contiguous(), states[:, :, -remainder:, :].contiguous()
+
+    def _split_cage_value_history(self, states: torch.Tensor):
+        keep = min(states.shape[-2], self.residual_length)
+        if states.shape[-2] == keep:
+            return None, states
+        return states[:, :, :-keep, :].contiguous(), states[:, :, -keep:, :].contiguous()
+
+    def _append_cage_bucket_payloads(self, old_buckets, new_states, indices):
+        if new_states is None or new_states.shape[-2] == 0:
+            return old_buckets
+        new_buckets = self._gather_bucket_payloads(new_states, indices)
+        return tuple(
+            new if old is None else torch.cat((old, new), dim=2)
+            for old, new in zip(old_buckets, new_buckets)
+        )
+
+    @staticmethod
+    def _concat_cage_history(prefix, suffix):
+        if prefix is None:
+            return suffix
+        if suffix is None:
+            return prefix
+        return torch.cat((prefix, suffix), dim=2)
 
     def _cage_compute_attention(
         self,

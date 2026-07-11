@@ -36,7 +36,7 @@ def _install_optional_cuda_stubs():
 
 _install_optional_cuda_stubs()
 
-from models.cage_cache import is_cage_past_key_value, unpack_cage_past_key_value
+from models.cage_cache import unpack_cage_past_key_value
 from models.llama_kivi import LlamaFlashAttention_KIVI
 
 
@@ -76,30 +76,26 @@ class CageAttentionIntegrationTest(unittest.TestCase):
         attention._flash_attention_forward = _fail_if_original_flash_path_is_used
         return attention
 
-    def test_cage_prefill_uses_fake_path_and_returns_cage_cache(self):
+    def test_cage_prefill_attention_is_fp16_and_cache_uses_kivi_buffers(self):
         torch.manual_seed(0)
-        attention = self._attention()
-        hidden_states = torch.randn(1, 3, 16)
-        position_ids = torch.arange(3).unsqueeze(0)
-        attention_mask = torch.zeros(1, 1, 3, 3)
+        quantized = self._attention()
+        reference = self._attention()
+        reference.load_state_dict(quantized.state_dict())
+        reference.cage_config.cage_k_enable = False
+        reference.cage_config.cage_v_enable = False
+        hidden = torch.randn(1, 5, 16)
+        positions = torch.arange(5).unsqueeze(0)
+        mask = torch.zeros(1, 1, 5, 5)
 
-        output, attn_weights, past_key_value = attention(
-            hidden_states,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            use_cache=True,
-        )
+        actual, _, cache = quantized(hidden, attention_mask=mask, position_ids=positions, use_cache=True)
+        expected, _, _ = reference(hidden, attention_mask=mask, position_ids=positions, use_cache=False)
 
-        self.assertEqual(output.shape, (1, 3, 16))
-        self.assertIsNone(attn_weights)
-        self.assertTrue(is_cage_past_key_value(past_key_value))
-
-        unpacked = unpack_cage_past_key_value(past_key_value)
-        self.assertEqual(unpacked.kv_seq_len, 3)
-        self.assertEqual(len(unpacked.key_cache.key_quant_buckets), 3)
-        self.assertEqual(len(unpacked.value_cache.value_quant_buckets), 3)
-        self.assertIsNone(unpacked.key_cache.key_full)
-        self.assertIsNone(unpacked.value_cache.value_full)
+        torch.testing.assert_close(actual, expected)
+        unpacked = unpack_cage_past_key_value(cache)
+        self.assertEqual(unpacked.key_cache.key_quant_buckets[0].shape[-2], 4)
+        self.assertEqual(unpacked.key_cache.key_full.shape[-2], 1)
+        self.assertEqual(unpacked.value_cache.value_quant_buckets[0].shape[-2], 3)
+        self.assertEqual(unpacked.value_cache.value_full.shape[-2], 2)
 
     def test_cage_prefill_collects_and_dumps_perturbation_metrics_when_enabled(self):
         torch.manual_seed(0)
@@ -127,44 +123,27 @@ class CageAttentionIntegrationTest(unittest.TestCase):
             self.assertEqual(record["attention_module"], "LlamaFlashAttention_KIVI")
             self.assertIn("attention_logit_mse", record)
 
-    def test_cage_decode_reuses_bucket_policy_and_appends_full_precision_token(self):
-        torch.manual_seed(0)
+    def test_cage_decode_flushes_key_block_and_rolls_value_buffer(self):
         attention = self._attention()
-        prefill_hidden = torch.randn(1, 3, 16)
-        prefill_positions = torch.arange(3).unsqueeze(0)
-
-        _, _, prefill_cache = attention(
-            prefill_hidden,
-            attention_mask=torch.zeros(1, 1, 3, 3),
-            position_ids=prefill_positions,
+        prefill = torch.randn(1, 5, 16)
+        _, _, cache = attention(
+            prefill,
+            attention_mask=torch.zeros(1, 1, 5, 5),
+            position_ids=torch.arange(5).unsqueeze(0),
             use_cache=True,
         )
-        prefill_unpacked = unpack_cage_past_key_value(prefill_cache)
-
-        decode_hidden = torch.randn(1, 1, 16)
-        output, _, decode_cache = attention(
-            decode_hidden,
-            attention_mask=torch.zeros(1, 1, 1, 4),
-            position_ids=torch.tensor([[3]]),
-            past_key_value=prefill_cache,
+        _, _, updated = attention(
+            torch.randn(1, 1, 16),
+            attention_mask=torch.zeros(1, 1, 1, 6),
+            position_ids=torch.tensor([[5]]),
+            past_key_value=cache,
             use_cache=True,
         )
-
-        self.assertEqual(output.shape, (1, 1, 16))
-        decode_unpacked = unpack_cage_past_key_value(decode_cache)
-        self.assertEqual(decode_unpacked.kv_seq_len, 4)
-        self.assertEqual(decode_unpacked.key_cache.key_full.shape[-2], 1)
-        self.assertEqual(decode_unpacked.value_cache.value_full.shape[-2], 1)
-        for before, after in zip(
-            prefill_unpacked.key_cache.key_bucket_indices,
-            decode_unpacked.key_cache.key_bucket_indices,
-        ):
-            self.assertTrue(torch.equal(before, after))
-        for before, after in zip(
-            prefill_unpacked.value_cache.value_bucket_indices,
-            decode_unpacked.value_cache.value_bucket_indices,
-        ):
-            self.assertTrue(torch.equal(before, after))
+        unpacked = unpack_cage_past_key_value(updated)
+        self.assertIsNone(unpacked.key_cache.key_full)
+        self.assertEqual(unpacked.key_cache.key_quant_buckets[0].shape[-2], 6)
+        self.assertEqual(unpacked.value_cache.value_quant_buckets[0].shape[-2], 4)
+        self.assertEqual(unpacked.value_cache.value_full.shape[-2], 2)
 
 
 if __name__ == "__main__":
