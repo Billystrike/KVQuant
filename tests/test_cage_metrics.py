@@ -43,6 +43,9 @@ class CageMetricsTest(unittest.TestCase):
             "attention_output_mse",
             "post_o_proj_mse",
             "weighted_value_error",
+            "joint_attention_output_mse",
+            "joint_post_o_proj_mse",
+            "joint_attention_output_relative_error",
         }
         self.assertEqual(set(metrics), expected_keys)
         for value in metrics.values():
@@ -75,6 +78,28 @@ class CageMetricsTest(unittest.TestCase):
         for key, value in metrics.items():
             expected = 1.0 if key == "topk_attention_overlap" else 0.0
             self.assertEqual(value, expected)
+
+    def test_joint_metrics_are_zero_for_identical_cache(self):
+        inputs = self._small_inputs()
+        inputs["key_states_hat"] = inputs["key_states"]
+        inputs["value_states_hat"] = inputs["value_states"]
+
+        metrics = compute_cage_perturbation_metrics(**inputs)
+
+        self.assertEqual(metrics["joint_attention_output_mse"], 0.0)
+        self.assertEqual(metrics["joint_post_o_proj_mse"], 0.0)
+        self.assertEqual(metrics["joint_attention_output_relative_error"], 0.0)
+
+    def test_joint_metrics_respond_to_key_and_value_error(self):
+        inputs = self._small_inputs()
+        inputs["key_states_hat"] = inputs["key_states_hat"] + 0.25
+        inputs["value_states_hat"] = inputs["value_states_hat"] - 0.25
+
+        metrics = compute_cage_perturbation_metrics(**inputs)
+
+        self.assertGreater(metrics["joint_attention_output_mse"], 0.0)
+        self.assertGreater(metrics["joint_post_o_proj_mse"], 0.0)
+        self.assertGreater(metrics["joint_attention_output_relative_error"], 0.0)
 
     def test_collection_gate_skips_compute_and_dump_when_disabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:

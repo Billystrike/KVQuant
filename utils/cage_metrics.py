@@ -59,6 +59,11 @@ def compute_cage_perturbation_metrics(
     reference_value_output = torch.matmul(reference_scores.to(repeated_values.dtype), repeated_values)
     perturbed_value_output = torch.matmul(reference_scores.to(repeated_values_hat.dtype), repeated_values_hat)
     output_delta = reference_value_output - perturbed_value_output
+    joint_output = torch.matmul(
+        perturbed_scores.to(repeated_values_hat.dtype),
+        repeated_values_hat,
+    )
+    joint_delta = reference_value_output - joint_output
 
     return {
         "relative_k_reconstruction_error": _as_float(_relative_l2_error(key_states, key_states_hat)),
@@ -70,6 +75,11 @@ def compute_cage_perturbation_metrics(
         "attention_output_mse": _as_float(F.mse_loss(reference_value_output, perturbed_value_output)),
         "post_o_proj_mse": _as_float(_post_o_proj_mse(output_delta, o_proj_weight)),
         "weighted_value_error": _as_float(_weighted_channel_error(value_states, value_states_hat, value_importance)),
+        "joint_attention_output_mse": _as_float(F.mse_loss(reference_value_output, joint_output)),
+        "joint_post_o_proj_mse": _as_float(_post_o_proj_mse(joint_delta, o_proj_weight)),
+        "joint_attention_output_relative_error": _as_float(
+            _relative_l2_error(reference_value_output, joint_output)
+        ),
     }
 
 
