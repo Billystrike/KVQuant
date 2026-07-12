@@ -60,8 +60,10 @@ def load_and_resolve_manifest(path: str | Path) -> dict:
     model = _object("model", raw["model"])
     _require_exact_fields("model", model, _MODEL_FIELDS, _MODEL_FIELDS)
     _nonempty_string("model.reference", model["reference"])
+    _nonempty_string("model.dtype", model["dtype"])
     if model["dtype"] not in _SUPPORTED_DTYPES:
         raise ValueError(f"unsupported dtype {model['dtype']!r}")
+    _nonempty_string("model.device", model["device"])
     if model["device"] not in _SUPPORTED_DEVICES:
         raise ValueError(f"unsupported device {model['device']!r}")
     _positive_int("model.max_position_embeddings", model["max_position_embeddings"])
@@ -120,6 +122,7 @@ def expand_jobs(manifest: dict) -> list[dict]:
 def _resolve_method(value: Any, index: int) -> dict:
     item = _object(f"methods[{index}]", value)
     method = item.get("method")
+    _nonempty_string(f"methods[{index}].method", method)
     if method not in _METHOD_FIELDS:
         raise ValueError(f"unsupported method {method!r}")
     _require_exact_fields(f"methods[{index}]", item, _METHOD_FIELDS[method], _COMMON_METHOD_FIELDS)
@@ -192,7 +195,7 @@ def _positive_int(name: str, value: Any) -> None:
 
 
 def _bits(name: str, value: Any) -> None:
-    if value not in _SUPPORTED_BITS or isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, int) or value not in _SUPPORTED_BITS:
         raise ValueError(f"{name} must be one of {sorted(_SUPPORTED_BITS)}")
 
 

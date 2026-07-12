@@ -87,6 +87,44 @@ class CageExperimentConfigTests(unittest.TestCase):
             with self.subTest(manifest=manifest), self.assertRaises(ValueError):
                 self._load(manifest)
 
+    def test_unhashable_scalar_values_raise_value_error(self):
+        mutations = [
+            ("dtype-list", lambda manifest: manifest["model"].update(dtype=[])),
+            ("device-dict", lambda manifest: manifest["model"].update(device={})),
+            ("method-list", lambda manifest: manifest["methods"][0].update(method=[])),
+            ("k-bits-list", lambda manifest: manifest["methods"][1].update(k_bits=[])),
+            ("v-bits-dict", lambda manifest: manifest["methods"][1].update(v_bits={})),
+            ("cage-k-bits-dict", lambda manifest: manifest["methods"][2].update(k_bits={})),
+        ]
+        for name, mutate in mutations:
+            manifest = self._manifest()
+            mutate(manifest)
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                self._load(manifest)
+
+    def test_rejects_nested_unknown_and_missing_fields(self):
+        cases = []
+        unknown_model = self._manifest(); unknown_model["model"]["revision"] = "main"; cases.append(unknown_model)
+        missing_model = self._manifest(); del missing_model["model"]["reference"]; cases.append(missing_model)
+        unknown_measurement = self._manifest(); unknown_measurement["measurement"]["warmup"] = 1; cases.append(unknown_measurement)
+        missing_measurement = self._manifest(); del missing_measurement["measurement"]["seed"]; cases.append(missing_measurement)
+        for manifest in cases:
+            with self.subTest(manifest=manifest), self.assertRaises(ValueError):
+                self._load(manifest)
+
+    def test_rejects_invalid_cage_bucket_and_clip_settings(self):
+        mutations = [
+            lambda cage: cage.update(cage_k_group_sizes=[32, 0, 128]),
+            lambda cage: cage.update(cage_v_clip_percentiles=[0.999, 0, 0.99]),
+            lambda cage: cage.update(cage_k_num_buckets=2),
+            lambda cage: cage.update(cage_v_clip_percentiles=[0.999, 1.01, 0.99]),
+        ]
+        for mutate in mutations:
+            manifest = self._manifest()
+            mutate(manifest["methods"][2])
+            with self.subTest(method=manifest["methods"][2]), self.assertRaises(ValueError):
+                self._load(manifest)
+
 
 if __name__ == "__main__":
     unittest.main()
