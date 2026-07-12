@@ -90,6 +90,41 @@ class CageExperimentWorkerTest(unittest.TestCase):
                                    side_effect=AssertionError("weights must not load")):
                 self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 0)
 
+    def test_completed_run_skip_removes_stale_failure_without_loading_weights(self):
+        manifest = {
+            "model": {"reference": "model", "dtype": "float16", "device": "cpu",
+                      "max_position_embeddings": 16},
+            "prompts_file": "prompts.jsonl", "sample_ids": ["s"], "prompt_lengths": [2],
+            "methods": [{"id": "fp", "method": "fp16", "method_config": {}}],
+            "measurement": {"decode_tokens": 1, "seed": 1}, "output_dir": "out",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (root / "prompts.jsonl").write_text(
+                json.dumps({"sample_id": "s", "text": "hello"}) + "\n", encoding="utf-8"
+            )
+            run = root / "out" / "runs" / "completed.json"
+            run.parent.mkdir(parents=True)
+            run.write_text(json.dumps({"status": "completed"}), encoding="utf-8")
+            failure = root / "out" / "failures" / "completed.json"
+            failure.parent.mkdir(parents=True)
+            failure.write_text("{}", encoding="utf-8")
+            with mock.patch.object(self.worker, "_point_id", return_value="completed"), \
+                 mock.patch.object(self.worker, "_load_inputs_and_model",
+                                   side_effect=AssertionError("weights must not load")):
+                self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 0)
+            self.assertFalse(failure.exists())
+
+    def test_run_job_rejects_negative_job_index(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "manifest.json"
+            manifest.write_text("{}", encoding="utf-8")
+            with mock.patch.object(self.worker, "_load_manifest", return_value={}), \
+                 mock.patch.object(self.worker, "expand_jobs", return_value=[{"sentinel": True}]):
+                with self.assertRaisesRegex(ValueError, "job-index -1 out of range"):
+                    self.worker.run_job(manifest, -1)
+
     def test_validate_layer_counts_rejects_mismatch(self):
         with self.assertRaisesRegex(ValueError, "layer metric count 1.*layer memory count 2"):
             self.worker.attach_layer_context([{"layer_index": 0}], [{}, {}], "run", "cage", 8)

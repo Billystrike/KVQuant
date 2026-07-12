@@ -57,6 +57,13 @@ class CageExperimentIOTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, message):
                         load_prompt_records(path)
 
+    def test_prompt_jsonl_rejects_empty_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "prompts.jsonl"
+            path.write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "at least one record"):
+                load_prompt_records(path)
+
     def test_prepare_prompt_uses_exact_t_and_t_plus_one(self):
         tokenizer = _Tokenizer()
         result = prepare_prompt(tokenizer, "hello", 3)
@@ -141,9 +148,10 @@ class CageExperimentIOTests(unittest.TestCase):
             atomic_write_json(path, {"new": 1})
             self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"new": 1})
             lines = Path(directory) / "value.jsonl"
-            atomic_write_jsonl(lines, [{"x": 1}, {"x": 2}])
+            atomic_write_jsonl(lines, [{"z": 1, "a": "snow"}, {"b": 2, "a": 1}])
+            self.assertEqual(lines.read_bytes(), b'{"a":"snow","z":1}\n{"a":1,"b":2}\n')
             self.assertEqual([json.loads(x) for x in lines.read_text(encoding="utf-8").splitlines()],
-                             [{"x": 1}, {"x": 2}])
+                             [{"a": "snow", "z": 1}, {"a": 1, "b": 2}])
             self.assertEqual(sorted(p.name for p in Path(directory).iterdir()), ["value.json", "value.jsonl"])
 
     def test_aggregation_only_includes_completed_and_flattens_csv(self):

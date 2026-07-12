@@ -208,7 +208,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
     manifest_path = Path(manifest_path).resolve()
     manifest = _load_manifest(manifest_path)
     jobs = expand_jobs(manifest)
-    if job_index >= len(jobs):
+    if job_index < 0 or job_index >= len(jobs):
         raise ValueError(f"job-index {job_index} out of range for {len(jobs)} jobs")
     job = jobs[job_index]
     output_dir = _resolved_path(job["output_dir"], manifest_path)
@@ -221,7 +221,9 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
     for sample_id in job["sample_ids"]:
         for prompt_length in job["prompt_lengths"]:
             run_id = _point_id(job, prompts[sample_id], prompt_length, provenance["source_state"])
-            if not completed_run_exists(output_dir, run_id):
+            if completed_run_exists(output_dir, run_id):
+                remove_stale_failure(output_dir, run_id)
+            else:
                 pending.append((sample_id, prompt_length, run_id))
     if not pending:
         return 0
@@ -245,14 +247,14 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                     "device": device, "model_type": getattr(model.config, "model_type", None)}
     outcome = 0
     for sample_id, prompt_length, run_id in pending:
-            unusable = False
-            point = prepared[(sample_id, prompt_length)]
-            stage = "reference"
-            prompt_ids = continuation_ids = full_ids = None
-            prefill = reference_output = candidate_output = None
-            memory_record = layer_memory = layer_records = None
-            timing = {"load_seconds": float(load_duration)}
-            try:
+        unusable = False
+        point = prepared[(sample_id, prompt_length)]
+        stage = "reference"
+        prompt_ids = continuation_ids = full_ids = None
+        prefill = reference_output = candidate_output = None
+        memory_record = layer_memory = layer_records = None
+        timing = {"load_seconds": float(load_duration)}
+        try:
                 prompt_ids = point["prompt_ids"].to(device)
                 continuation_ids = point["continuation_ids"].to(device)
                 full_ids = torch.cat((prompt_ids, continuation_ids), dim=-1)
@@ -304,7 +306,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                 atomic_write_jsonl(output_dir / "layers" / f"{run_id}.jsonl", layer_records)
                 atomic_write_json(output_dir / "runs" / f"{run_id}.json", run_record)
                 remove_stale_failure(output_dir, run_id)
-            except Exception as error:
+        except Exception as error:
                 category = "cuda_out_of_memory" if isinstance(error, torch.cuda.OutOfMemoryError) else type(error).__name__
                 exit_code = classify_worker_failure(error, stage)
                 atomic_write_json(output_dir / "failures" / f"{run_id}.json",
@@ -313,7 +315,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                                    "message": str(error)})
                 if outcome == 0:
                     outcome = exit_code
-            finally:
+        finally:
                 try:
                     reset_experiment_capture(model)
                 except Exception as reset_error:
@@ -327,8 +329,8 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                 gc.collect()
                 if device == "cuda":
                     torch.cuda.empty_cache()
-            if unusable:
-                break
+        if unusable:
+            break
     del tokenizer, model
     gc.collect()
     if device == "cuda":
