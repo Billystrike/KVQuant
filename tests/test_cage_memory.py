@@ -5,6 +5,7 @@ import torch
 
 from models.cage_cache import CageKeyCache, CageValueCache, pack_cage_past_key_value
 from utils.cage_memory import (
+    build_memory_namespace,
     estimate_cage_cache_bytes,
     estimate_kivi_cache_bytes,
     sum_cache_summaries,
@@ -73,9 +74,34 @@ class CageMemoryTest(unittest.TestCase):
         self.assertEqual(total["bucket_index_bytes"], 7)
         self.assertEqual(total["cache_type"], "model_total")
 
+    def test_build_memory_namespace_uses_exact_worker_keys(self):
+        paper = {"cache_type": "model_total", "total_bytes": 10}
+        runtime = {"cache_type": "model_total", "total_bytes": 20}
+
+        memory = build_memory_namespace(
+            paper,
+            runtime,
+            max_allocated_bytes=30,
+            max_reserved_bytes=40,
+        )
+
+        self.assertEqual(
+            memory,
+            {
+                "paper_estimate": paper,
+                "runtime_tensors": runtime,
+                "cuda_peak_diagnostic": {
+                    "max_allocated_bytes": 30,
+                    "max_reserved_bytes": 40,
+                },
+            },
+        )
+
     def test_paper_summary_exposes_metadata_separately_from_bucket_indices(self):
         summary = summarize_cache_bytes(self._cage_cache())
 
+        self.assertIn("metadata_bytes", summary)
+        self.assertIn("bucket_index_bytes", summary)
         self.assertEqual(
             summary["metadata_bytes"],
             summary["key_scale_bytes"]
@@ -83,7 +109,13 @@ class CageMemoryTest(unittest.TestCase):
             + summary["key_min_or_zp_bytes"]
             + summary["value_min_or_zp_bytes"],
         )
-        self.assertNotEqual(summary["metadata_bytes"], summary["bucket_index_bytes"])
+        self.assertEqual(
+            summary["total_bytes"],
+            summary["payload_only_bytes"]
+            + summary["metadata_bytes"]
+            + summary["bucket_index_bytes"]
+            + summary["residual_full_precision_bytes"],
+        )
 
     def test_cage_fake_cache_summary_uses_packed_int2_payload_size(self):
         key_cache = CageKeyCache(

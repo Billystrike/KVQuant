@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Sequence
+from typing import Any, Sequence, TypedDict
 
 from models.cage_cache import is_cage_past_key_value, unpack_cage_past_key_value
 
@@ -16,6 +16,39 @@ _REQUIRED_BYTE_FIELDS = (
     "bucket_index_bytes",
     "residual_full_precision_bytes",
 )
+
+
+CacheSummary = dict[str, int | str]
+
+
+class CudaPeakDiagnostic(TypedDict):
+    max_allocated_bytes: int
+    max_reserved_bytes: int
+
+
+class MemoryNamespace(TypedDict):
+    paper_estimate: CacheSummary
+    runtime_tensors: CacheSummary
+    cuda_peak_diagnostic: CudaPeakDiagnostic
+
+
+def build_memory_namespace(
+    paper_summary: CacheSummary,
+    runtime_summary: CacheSummary,
+    *,
+    max_allocated_bytes: int,
+    max_reserved_bytes: int,
+) -> MemoryNamespace:
+    """Build the exact worker-facing cache memory namespace."""
+
+    return {
+        "paper_estimate": paper_summary,
+        "runtime_tensors": runtime_summary,
+        "cuda_peak_diagnostic": {
+            "max_allocated_bytes": int(max_allocated_bytes),
+            "max_reserved_bytes": int(max_reserved_bytes),
+        },
+    }
 
 
 def estimate_kivi_cache_bytes(
