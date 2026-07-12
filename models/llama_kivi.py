@@ -20,7 +20,8 @@ from models.cage_cache import (
 from models.cage_config import get_cage_config
 from models.cage_importance import assign_channel_buckets, compute_key_importance, compute_value_importance
 from models.cage_quant import fake_quant_k_by_channel_buckets, fake_quant_v_by_channel_buckets
-from utils.cage_metrics import collect_cage_perturbation_metrics
+from utils.cage_metrics import collect_cage_perturbation_metrics, compute_cage_perturbation_metrics
+from utils.kv_cache_reconstruction import reconstruct_kivi_cache
 
 from transformers.models.llama.configuration_llama import *
 from transformers.models.llama.modeling_llama import *
@@ -63,6 +64,13 @@ class LlamaAttention_KIVI(nn.Module):
         self.group_size = config.group_size
         self.residual_length = config.residual_length
         self.last_cage_metrics = None
+        self._kv_experiment_phase = "off"
+        self._kv_reference_query = None
+        self._kv_reference_key_history = None
+        self._kv_reference_value_history = None
+        self._kv_key_importance = None
+        self._kv_value_importance = None
+        self._kv_experiment_metrics = None
         assert getattr(config, "use_flash", False), "currently KIVI is only available for flash-attn. Please add ```config.use_flash = True```"
 
         if (self.head_dim * self.num_heads) != self.hidden_size:
@@ -80,6 +88,93 @@ class LlamaAttention_KIVI(nn.Module):
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+
+    def set_kv_experiment_phase(self, phase: str) -> None:
+        if phase not in {"off", "reference", "candidate"}:
+            raise ValueError(f"unsupported KV experiment phase: {phase}")
+        if phase == "reference":
+            self._kv_reference_query = None
+            self._kv_reference_key_history = None
+            self._kv_reference_value_history = None
+            self._kv_key_importance = None
+            self._kv_value_importance = None
+            self._kv_experiment_metrics = None
+        elif phase == "candidate" and self._kv_reference_query is None:
+            raise RuntimeError("reference query must be captured before candidate phase")
+        self._kv_experiment_phase = phase
+
+    def pop_kv_experiment_metrics(self):
+        metrics = self._kv_experiment_metrics
+        self._kv_experiment_metrics = None
+        return metrics
+
+    def _capture_kv_experiment_inputs(
+        self,
+        query_states: torch.Tensor,
+        key_states: torch.Tensor,
+        value_states: torch.Tensor,
+        past_key_value: Optional[Tuple[torch.Tensor]],
+    ) -> None:
+        if self._kv_experiment_phase == "reference":
+            self._kv_reference_query = query_states[:, :, -1:, :].detach()
+        elif self._kv_experiment_phase == "candidate" and past_key_value is None:
+            self._kv_reference_key_history = key_states.detach()
+            self._kv_reference_value_history = value_states.detach()
+            self._kv_key_importance = compute_key_importance(
+                query_states,
+                key_states,
+                num_key_value_groups=self.num_key_value_groups,
+            ).detach()
+            self._kv_value_importance = compute_value_importance(
+                value_states,
+                self.o_proj.weight,
+                num_heads=self.num_heads,
+                num_key_value_heads=self.num_key_value_heads,
+                head_dim=self.head_dim,
+            ).detach()
+
+    def _capture_kv_experiment_decode_metrics(
+        self,
+        current_key_states: torch.Tensor,
+        current_value_states: torch.Tensor,
+        reconstructed_key_history: torch.Tensor,
+        reconstructed_value_history: torch.Tensor,
+        attention_mask: Optional[torch.Tensor],
+    ) -> None:
+        if self._kv_experiment_phase != "candidate":
+            return
+        if self._kv_reference_key_history is None or self._kv_reference_value_history is None:
+            raise RuntimeError("candidate prefill history must be captured before decode")
+
+        exact_key_states = torch.cat(
+            (self._kv_reference_key_history, current_key_states.detach()), dim=2
+        )
+        exact_value_states = torch.cat(
+            (self._kv_reference_value_history, current_value_states.detach()), dim=2
+        )
+        reconstructed_key_states = torch.cat(
+            (reconstructed_key_history, current_key_states), dim=2
+        )
+        reconstructed_value_states = torch.cat(
+            (reconstructed_value_history, current_value_states), dim=2
+        )
+        metrics = compute_cage_perturbation_metrics(
+            query_states=self._kv_reference_query,
+            key_states=exact_key_states,
+            key_states_hat=reconstructed_key_states,
+            value_states=exact_value_states,
+            value_states_hat=reconstructed_value_states,
+            o_proj_weight=self.o_proj.weight,
+            key_importance=self._kv_key_importance,
+            value_importance=self._kv_value_importance,
+            attention_mask=attention_mask,
+            num_key_value_groups=self.num_key_value_groups,
+        )
+        self._kv_experiment_metrics = {
+            "phase": "teacher_forced_decode",
+            "query_source": "fp16_reference_final_position",
+            **metrics,
+        }
 
     def _cage_fake_forward(
         self,
@@ -200,6 +295,14 @@ class LlamaAttention_KIVI(nn.Module):
                     "CAGE value cache length does not match kv_seq_len: "
                     f"{previous_value_states.shape[-2]} vs {unpacked.kv_seq_len}"
                 )
+
+            self._capture_kv_experiment_decode_metrics(
+                current_key_states=key_states,
+                current_value_states=value_states,
+                reconstructed_key_history=previous_key_states,
+                reconstructed_value_history=previous_value_states,
+                attention_mask=attention_mask,
+            )
 
             key_states_for_attention = torch.cat((previous_key_states, key_states), dim=2)
             value_states_for_attention = torch.cat((previous_value_states, value_states), dim=2)
@@ -489,6 +592,7 @@ class LlamaAttention_KIVI(nn.Module):
             kv_seq_len += past_key_value[-1]
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+        self._capture_kv_experiment_inputs(query_states, key_states, value_states, past_key_value)
         if self.cage_config.cage_enable:
             attn_output, past_key_value = self._cage_fake_forward(
                 query_states=query_states,
@@ -506,6 +610,19 @@ class LlamaAttention_KIVI(nn.Module):
         assert self.num_key_value_groups == 1
         # [bsz, nh, t, hd]
         if past_key_value is not None:
+            if self._kv_experiment_phase == "candidate":
+                reconstructed_key_history, reconstructed_value_history = reconstruct_kivi_cache(
+                    past_key_value,
+                    group_size=self.group_size,
+                    bits=self.k_bits,
+                )
+                self._capture_kv_experiment_decode_metrics(
+                    current_key_states=key_states,
+                    current_value_states=value_states,
+                    reconstructed_key_history=reconstructed_key_history,
+                    reconstructed_value_history=reconstructed_value_history,
+                    attention_mask=attention_mask,
+                )
             key_states_quant_trans = past_key_value[0]
             key_states_full = past_key_value[1]
             key_scale_trans = past_key_value[2]
@@ -712,6 +829,7 @@ class LlamaFlashAttention_KIVI(LlamaAttention_KIVI):
             kv_seq_len += past_key_value[-1]
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+        self._capture_kv_experiment_inputs(query_states, key_states, value_states, past_key_value)
         if self.cage_config.cage_enable:
             attn_output, past_key_value = self._cage_fake_forward(
                 query_states=query_states,
@@ -729,6 +847,19 @@ class LlamaFlashAttention_KIVI(LlamaAttention_KIVI):
         # assert self.num_key_value_groups == 1
         # [bsz, nh, t, hd]
         if past_key_value is not None:
+            if self._kv_experiment_phase == "candidate":
+                reconstructed_key_history, reconstructed_value_history = reconstruct_kivi_cache(
+                    past_key_value,
+                    group_size=self.group_size,
+                    bits=self.k_bits,
+                )
+                self._capture_kv_experiment_decode_metrics(
+                    current_key_states=key_states,
+                    current_value_states=value_states,
+                    reconstructed_key_history=reconstructed_key_history,
+                    reconstructed_value_history=reconstructed_value_history,
+                    attention_mask=attention_mask,
+                )
             key_states_quant_trans = past_key_value[0]
             key_states_full = past_key_value[1]
             key_scale_trans = past_key_value[2]

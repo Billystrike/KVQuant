@@ -5,6 +5,7 @@ import types
 import unittest
 from importlib.machinery import ModuleSpec
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 from transformers.models.llama.configuration_llama import LlamaConfig
@@ -38,6 +39,7 @@ _install_optional_cuda_stubs()
 
 from models.cage_cache import unpack_cage_past_key_value
 from models.llama_kivi import LlamaFlashAttention_KIVI
+from utils.cage_experiment_hooks import begin_candidate_capture, begin_reference_capture
 
 
 class CageAttentionIntegrationTest(unittest.TestCase):
@@ -74,6 +76,16 @@ class CageAttentionIntegrationTest(unittest.TestCase):
             raise AssertionError("original flash path should not be used when CAGE fake mode is enabled")
 
         attention._flash_attention_forward = _fail_if_original_flash_path_is_used
+        return attention
+
+    def _kivi_attention(self):
+        config = self._config()
+        config.cage_enable = False
+        config.num_key_value_heads = config.num_attention_heads
+        config.residual_length = 4
+        attention = LlamaFlashAttention_KIVI(config).half()
+        attention.eval()
+        attention._flash_attention_forward = lambda query, *_args, **_kwargs: torch.zeros_like(query)
         return attention
 
     def test_cage_prefill_attention_is_fp16_and_cache_uses_kivi_buffers(self):
@@ -144,6 +156,116 @@ class CageAttentionIntegrationTest(unittest.TestCase):
         self.assertEqual(unpacked.key_cache.key_quant_buckets[0].shape[-2], 6)
         self.assertEqual(unpacked.value_cache.value_quant_buckets[0].shape[-2], 4)
         self.assertEqual(unpacked.value_cache.value_full.shape[-2], 2)
+
+    def test_cage_candidate_decode_uses_captured_fp16_reference_query(self):
+        torch.manual_seed(0)
+        attention = self._attention().half()
+        model = types.SimpleNamespace(
+            model=types.SimpleNamespace(
+                layers=[types.SimpleNamespace(self_attn=attention)]
+            )
+        )
+        hidden_states = torch.randn(1, 4, 16, dtype=torch.float16)
+
+        begin_reference_capture(model)
+        attention(
+            hidden_states,
+            attention_mask=torch.zeros(1, 1, 4, 4, dtype=torch.float16),
+            position_ids=torch.arange(4).unsqueeze(0),
+            use_cache=False,
+        )
+        self.assertEqual(attention._kv_reference_query.shape, (1, 4, 1, 4))
+        self.assertEqual(attention._kv_reference_query.dtype, torch.float16)
+
+        begin_candidate_capture(model)
+        _, _, cache = attention(
+            hidden_states[:, :3],
+            attention_mask=torch.zeros(1, 1, 3, 3, dtype=torch.float16),
+            position_ids=torch.arange(3).unsqueeze(0),
+            use_cache=True,
+        )
+        attention(
+            hidden_states[:, 3:],
+            attention_mask=torch.zeros(1, 1, 1, 4, dtype=torch.float16),
+            position_ids=torch.tensor([[3]]),
+            past_key_value=cache,
+            use_cache=True,
+        )
+
+        metrics = attention.pop_kv_experiment_metrics()
+        self.assertEqual(metrics["phase"], "teacher_forced_decode")
+        self.assertEqual(metrics["query_source"], "fp16_reference_final_position")
+        for field in (
+            "relative_k_reconstruction_error",
+            "attention_logit_mse",
+            "attention_score_kl",
+            "topk_attention_overlap",
+            "weighted_key_error",
+            "relative_v_reconstruction_error",
+            "attention_output_mse",
+            "post_o_proj_mse",
+            "weighted_value_error",
+            "joint_attention_output_mse",
+            "joint_post_o_proj_mse",
+            "joint_attention_output_relative_error",
+        ):
+            self.assertIn(field, metrics)
+
+    def test_kivi_candidate_decode_uses_the_same_captured_reference_query(self):
+        torch.manual_seed(1)
+        attention = self._kivi_attention()
+        model = types.SimpleNamespace(
+            model=types.SimpleNamespace(
+                layers=[types.SimpleNamespace(self_attn=attention)]
+            )
+        )
+        hidden_states = torch.randn(1, 2, 16, dtype=torch.float16)
+
+        begin_reference_capture(model)
+        attention(
+            hidden_states,
+            position_ids=torch.arange(2).unsqueeze(0),
+            use_cache=False,
+        )
+        begin_candidate_capture(model)
+        _, _, cache = attention(
+            hidden_states[:, :1],
+            position_ids=torch.tensor([[0]]),
+            use_cache=True,
+        )
+        attention(
+            hidden_states[:, 1:],
+            attention_mask=torch.zeros(1, 1, 1, 2, dtype=torch.float16),
+            position_ids=torch.tensor([[1]]),
+            past_key_value=cache,
+            use_cache=True,
+        )
+
+        metrics = attention.pop_kv_experiment_metrics()
+        self.assertIsNotNone(metrics)
+        self.assertEqual(metrics["query_source"], "fp16_reference_final_position")
+        self.assertIn("joint_attention_output_mse", metrics)
+
+    def test_kivi_decode_does_not_reconstruct_cache_when_capture_is_off(self):
+        attention = self._kivi_attention()
+        hidden_states = torch.randn(1, 2, 16, dtype=torch.float16)
+        _, _, cache = attention(
+            hidden_states[:, :1],
+            position_ids=torch.tensor([[0]]),
+            use_cache=True,
+        )
+
+        with patch(
+            "models.llama_kivi.reconstruct_kivi_cache",
+            side_effect=AssertionError("reconstruction should be capture-only"),
+        ):
+            attention(
+                hidden_states[:, 1:],
+                attention_mask=torch.zeros(1, 1, 1, 2, dtype=torch.float16),
+                position_ids=torch.tensor([[1]]),
+                past_key_value=cache,
+                use_cache=True,
+            )
 
 
 if __name__ == "__main__":
