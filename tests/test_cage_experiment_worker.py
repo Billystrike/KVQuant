@@ -48,11 +48,13 @@ class CageExperimentWorkerTest(unittest.TestCase):
 
     def test_aggregate_layer_metrics_ignores_layer_index(self):
         result = self.worker.aggregate_layer_metrics([
-            {"layer_index": 0, "mse": 1.0, "overlap": 0.5},
-            {"layer_index": 1, "mse": 3.0, "overlap": 1.0},
+            {"layer_index": 0, "prompt_length": 8, "method": "cage",
+             "relative_k_reconstruction_error": 1.0},
+            {"layer_index": 1, "prompt_length": 8, "method": "cage",
+             "relative_k_reconstruction_error": 3.0},
         ])
-        self.assertEqual(result["mse"], {"mean": 2.0, "median": 2.0, "max": 3.0})
-        self.assertNotIn("layer_index", result)
+        self.assertEqual(result, {"relative_k_reconstruction_error":
+                                  {"mean": 2.0, "median": 2.0, "max": 3.0}})
 
     def test_fp16_zero_records_have_identical_metric_schema(self):
         schema = self.worker.METRIC_NAMES
@@ -87,6 +89,27 @@ class CageExperimentWorkerTest(unittest.TestCase):
                  mock.patch.object(self.worker, "_load_inputs_and_model",
                                    side_effect=AssertionError("weights must not load")):
                 self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 0)
+
+    def test_validate_layer_counts_rejects_mismatch(self):
+        with self.assertRaisesRegex(ValueError, "layer metric count 1.*layer memory count 2"):
+            self.worker.attach_layer_context([{"layer_index": 0}], [{}, {}], "run", "cage", 8)
+
+    def test_release_reference_output_precedes_peak_reset_and_prefill(self):
+        events = []
+        reference = object()
+        released = self.worker.release_reference_output(reference, lambda: events.append("release"))
+        self.assertIsNone(released)
+        events.append("reset_peak")
+        events.append("prefill")
+        self.assertEqual(events, ["release", "reset_peak", "prefill"])
+
+    def test_success_removes_stale_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            failure = Path(directory) / "failures" / "run.json"
+            failure.parent.mkdir()
+            failure.write_text("{}", encoding="utf-8")
+            self.worker.remove_stale_failure(Path(directory), "run")
+            self.assertFalse(failure.exists())
 
 
 if __name__ == "__main__":

@@ -77,15 +77,38 @@ def apply_method_config(config: Any, method: str, values: dict[str, Any]) -> Any
 
 
 def aggregate_layer_metrics(layer_records: Sequence[dict[str, Any]]) -> dict[str, dict[str, float]]:
-    names = sorted({key for record in layer_records for key, value in record.items()
-                    if key != "layer_index" and isinstance(value, (int, float)) and not isinstance(value, bool)})
     result = {}
-    for name in names:
+    for name in METRIC_NAMES:
         values = [float(record[name]) for record in layer_records
                   if isinstance(record.get(name), (int, float)) and not isinstance(record.get(name), bool)]
+        if not values:
+            continue
         result[name] = {"mean": float(statistics.fmean(values)),
                         "median": float(statistics.median(values)), "max": float(max(values))}
     return result
+
+
+def attach_layer_context(layer_records: Sequence[dict[str, Any]], layer_memory: Sequence[dict[str, Any]],
+                         run_id: str, method: str, prompt_length: int) -> None:
+    if len(layer_records) != len(layer_memory):
+        raise ValueError(f"layer metric count {len(layer_records)} does not equal "
+                         f"layer memory count {len(layer_memory)}")
+    for record, memory in zip(layer_records, layer_memory):
+        record.update({"run_id": run_id, "method": method,
+                       "prompt_length": prompt_length, "memory": memory})
+
+
+def release_reference_output(reference_output: Any, cleanup=gc.collect) -> None:
+    del reference_output
+    cleanup()
+    return None
+
+
+def remove_stale_failure(output_dir: Path, run_id: str) -> None:
+    try:
+        (output_dir / "failures" / f"{run_id}.json").unlink()
+    except FileNotFoundError:
+        pass
 
 
 def fp16_zero_layer_records(layer_count: int) -> list[dict[str, Any]]:
@@ -223,6 +246,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                 timing["reference_seconds"] = time.perf_counter() - started
                 if job["method"] != "fp16":
                     begin_candidate_capture(model)
+                reference_output = release_reference_output(reference_output)
                 if device == "cuda":
                     torch.cuda.reset_peak_memory_stats()
                 stage = "prefill"
@@ -243,9 +267,8 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                 layer_count = len(model.model.layers)
                 layer_records = (fp16_zero_layer_records(layer_count) if job["method"] == "fp16"
                                  else collect_layer_metrics(model))
-                for record, memory in zip(layer_records, layer_memory):
-                    record.update({"run_id": run_id, "method": job["method"],
-                                   "prompt_length": prompt_length, "memory": memory})
+                attach_layer_context(layer_records, layer_memory, run_id,
+                                     job["method"], prompt_length)
                 timing["metric_seconds"] = time.perf_counter() - started
                 input_record = {"sample_id": sample_id, "text_sha256": point["text_sha256"],
                                 "prompt_length": prompt_length, "continuation_tokens": 1}
@@ -262,6 +285,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                               "runtime_diagnostics": timing, "provenance": provenance}
                 atomic_write_jsonl(output_dir / "layers" / f"{run_id}.jsonl", layer_records)
                 atomic_write_json(output_dir / "runs" / f"{run_id}.json", run_record)
+                remove_stale_failure(output_dir, run_id)
             except Exception as error:
                 category = "cuda_out_of_memory" if isinstance(error, torch.cuda.OutOfMemoryError) else type(error).__name__
                 retryable = category == "cuda_out_of_memory"
