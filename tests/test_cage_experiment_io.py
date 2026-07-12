@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import torch
 
@@ -13,6 +14,7 @@ from utils.cage_experiment_io import (
     atomic_write_jsonl,
     collect_provenance,
     load_prompt_records,
+    normalize_command_arguments,
     prepare_prompt,
     stable_run_id,
     source_state_identity,
@@ -39,6 +41,22 @@ class CageExperimentIOTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "sample_id"):
                 load_prompt_records(path)
 
+    def test_prompt_jsonl_rejects_representative_malformed_records(self):
+        cases = {
+            "invalid JSON": "{not-json}\n",
+            "JSON object": "[]\n",
+            "unknown fields": '{"sample_id":"a","text":"x","extra":1}\n',
+            "sample_id": '{"sample_id":"","text":"x"}\n',
+            "text": '{"sample_id":"a","text":"  "}\n',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "prompts.jsonl"
+            for message, contents in cases.items():
+                with self.subTest(message=message):
+                    path.write_text(contents, encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, message):
+                        load_prompt_records(path)
+
     def test_prepare_prompt_uses_exact_t_and_t_plus_one(self):
         tokenizer = _Tokenizer()
         result = prepare_prompt(tokenizer, "hello", 3)
@@ -62,6 +80,41 @@ class CageExperimentIOTests(unittest.TestCase):
             self.assertIsNone(provenance["cuda_runtime"])
             self.assertIsNone(provenance["cuda_driver"])
             self.assertIsNone(provenance["gpu_name"])
+
+    def test_command_path_arguments_are_normalized_relative_to_repo_root(self):
+        root = Path(__file__).parents[1].resolve()
+        expected_manifest = (root / "config" / "manifest.json").resolve().as_posix()
+        expected_output = (root / "results").resolve().as_posix()
+        expected_prompts = (root / "data" / "prompts.jsonl").resolve().as_posix()
+        first = normalize_command_arguments([
+            "runner.py", "--manifest", ".\\config\\.\\manifest.json",
+            "--output-dir=.\\tmp\\..\\results", "--prompts-file", "data/./prompts.jsonl",
+            "--job-index", "3",
+        ], root)
+        second = normalize_command_arguments([
+            "runner.py", "--manifest", "config/manifest.json",
+            "--output-dir=results", "--prompts-file", "data/prompts.jsonl",
+            "--job-index", "3",
+        ], root)
+        self.assertEqual(first, second)
+        self.assertEqual(first, [
+            "runner.py", "--manifest", expected_manifest,
+            f"--output-dir={expected_output}", "--prompts-file", expected_prompts,
+            "--job-index", "3",
+        ])
+        self.assertEqual(
+            normalize_command_arguments(["runner.py", "--manifest=config/../manifest.json"], root),
+            ["runner.py", f"--manifest={(root / 'manifest.json').as_posix()}"],
+        )
+
+    def test_provenance_stores_normalized_command_arguments(self):
+        root = Path(__file__).parents[1].resolve()
+        argv = ["runner.py", "--manifest", ".\\config\\..\\manifest.json", "--job-index=2"]
+        with mock.patch("utils.cage_experiment_io.sys.argv", argv):
+            provenance = collect_provenance(root)
+        self.assertEqual(provenance["command"], [
+            "runner.py", "--manifest", (root / "manifest.json").as_posix(), "--job-index=2",
+        ])
 
     def test_source_identity_hashes_untracked_code_but_not_output_data(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -105,6 +158,25 @@ class CageExperimentIOTests(unittest.TestCase):
                 row = next(csv.DictReader(handle))
             self.assertEqual(row["model.name"], "m")
             self.assertEqual(row["score"], "1")
+
+    def test_aggregation_csv_uses_union_of_completed_record_columns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "runs").mkdir()
+            atomic_write_json(root / "runs" / "a.json", {"run_id": "a", "status": "completed", "left": 1})
+            atomic_write_json(root / "runs" / "b.json", {"run_id": "b", "status": "completed", "right": 2})
+            aggregate_completed_runs(root)
+            with (root / "summary" / "runs.csv").open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(rows[0], {"run_id": "a", "left": "1", "right": "", "status": "completed"})
+            self.assertEqual(rows[1], {"run_id": "b", "left": "", "right": "2", "status": "completed"})
+
+    def test_aggregation_with_no_completed_runs_writes_empty_summaries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "runs").mkdir()
+            atomic_write_json(root / "runs" / "failed.json", {"run_id": "x", "status": "failed"})
+            self.assertEqual(aggregate_completed_runs(root), [])
+            self.assertEqual((root / "summary" / "runs.jsonl").read_text(encoding="utf-8"), "")
+            self.assertEqual((root / "summary" / "runs.csv").read_text(encoding="utf-8"), "")
 
 
 if __name__ == "__main__":

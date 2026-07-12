@@ -22,6 +22,7 @@ _EXPERIMENT_CODE_SUFFIXES = {
     ".py", ".pyi", ".cu", ".cuh", ".c", ".cc", ".cpp", ".h", ".hpp",
     ".sh", ".ps1", ".toml", ".yaml", ".yml",
 }
+_PATH_COMMAND_FLAGS = {"--manifest", "--output-dir", "--prompts-file"}
 
 @dataclass(frozen=True)
 class PromptRecord:
@@ -133,6 +134,43 @@ def _cuda_driver_version() -> Any:
         return None
 
 
+def normalize_command_arguments(
+    command_args: Iterable[Any], repo_root: str | Path,
+) -> list[str]:
+    """Return portable command arguments with experiment paths made absolute.
+
+    Values belonging to ``--manifest``, ``--output-dir``, and
+    ``--prompts-file`` are resolved against ``repo_root`` when relative,
+    normalized to collapse ``.`` and ``..``, and emitted with forward slashes.
+    Both ``--flag value`` and ``--flag=value`` forms retain their original
+    shape. All other arguments are preserved after conversion to ``str``.
+    """
+    root = Path(repo_root).resolve()
+    arguments = [str(argument) for argument in command_args]
+
+    def normalize_path(value: str) -> str:
+        path = Path(value)
+        if not path.is_absolute():
+            path = root / path
+        return path.resolve().as_posix()
+
+    normalized: list[str] = []
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument in _PATH_COMMAND_FLAGS and index + 1 < len(arguments):
+            normalized.extend((argument, normalize_path(arguments[index + 1])))
+            index += 2
+            continue
+        flag, separator, value = argument.partition("=")
+        if separator and flag in _PATH_COMMAND_FLAGS:
+            normalized.append(f"{flag}={normalize_path(value)}")
+        else:
+            normalized.append(argument)
+        index += 1
+    return normalized
+
+
 def collect_provenance(repo_root: str | Path) -> dict[str, Any]:
     source = source_state_identity(repo_root)
     has_cuda = torch.cuda.is_available()
@@ -146,7 +184,7 @@ def collect_provenance(repo_root: str | Path) -> dict[str, Any]:
         "cuda_driver": _cuda_driver_version() if has_cuda else None,
         "gpu_name": torch.cuda.get_device_name(0) if has_cuda else None,
         "deterministic_seed": int(torch.initial_seed()),
-        "command": [str(argument) for argument in sys.argv],
+        "command": normalize_command_arguments(sys.argv, repo_root),
     }
 
 
@@ -218,6 +256,8 @@ def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
         fields.remove("run_id"); fields.insert(0, "run_id")
 
     def write_csv(handle: Any) -> None:
+        if not fields:
+            return
         writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="raise", lineterminator="\n")
         writer.writeheader()
         writer.writerows(flat_rows)
@@ -227,6 +267,6 @@ def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
 
 __all__ = [
     "PromptRecord", "aggregate_completed_runs", "atomic_write_json", "atomic_write_jsonl",
-    "collect_provenance", "load_prompt_records", "prepare_prompt", "source_state_identity",
-    "stable_run_id",
+    "collect_provenance", "load_prompt_records", "normalize_command_arguments", "prepare_prompt",
+    "source_state_identity", "stable_run_id",
 ]
