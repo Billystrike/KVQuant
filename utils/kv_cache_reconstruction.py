@@ -11,7 +11,8 @@ from models.cage_cache import unpack_cage_past_key_value
 def reconstruct_kivi_cache(
     past_key_value: Any,
     group_size: int,
-    bits: int,
+    k_bits: int,
+    v_bits: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Reconstruct dense key/value histories from a KIVI packed cache tuple."""
 
@@ -25,7 +26,7 @@ def reconstruct_kivi_cache(
             k_scale.unsqueeze(-1),
             k_min.unsqueeze(-1),
             group_size,
-            bits,
+            k_bits,
         ).transpose(2, 3).contiguous()
     v_quant = None
     if v_code is not None:
@@ -34,7 +35,7 @@ def reconstruct_kivi_cache(
             v_scale.unsqueeze(-1),
             v_min.unsqueeze(-1),
             group_size,
-            bits,
+            v_bits,
         )
     return _concat_history(k_quant, k_full), _concat_history(v_quant, v_full)
 

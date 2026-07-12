@@ -614,7 +614,8 @@ class LlamaAttention_KIVI(nn.Module):
                 reconstructed_key_history, reconstructed_value_history = reconstruct_kivi_cache(
                     past_key_value,
                     group_size=self.group_size,
-                    bits=self.k_bits,
+                    k_bits=self.k_bits,
+                    v_bits=self.v_bits,
                 )
                 self._capture_kv_experiment_decode_metrics(
                     current_key_states=key_states,
@@ -851,7 +852,8 @@ class LlamaFlashAttention_KIVI(LlamaAttention_KIVI):
                 reconstructed_key_history, reconstructed_value_history = reconstruct_kivi_cache(
                     past_key_value,
                     group_size=self.group_size,
-                    bits=self.k_bits,
+                    k_bits=self.k_bits,
+                    v_bits=self.v_bits,
                 )
                 self._capture_kv_experiment_decode_metrics(
                     current_key_states=key_states,

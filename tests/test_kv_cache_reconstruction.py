@@ -2,6 +2,7 @@ import sys
 import types
 import unittest
 from importlib.machinery import ModuleSpec
+from unittest.mock import patch
 
 import torch
 
@@ -49,12 +50,28 @@ class KvCacheReconstructionTest(unittest.TestCase):
             17,
         )
 
-        key, value = reconstruct_kivi_cache(past_key_value, group_size=16, bits=2)
+        key, value = reconstruct_kivi_cache(
+            past_key_value, group_size=16, k_bits=2, v_bits=2
+        )
 
         self.assertEqual(key.shape, (1, 1, 17, 16))
         self.assertEqual(value.shape, (1, 1, 17, 16))
         torch.testing.assert_close(key, self._expected())
         torch.testing.assert_close(value, self._expected())
+
+    def test_kivi_reconstruction_uses_separate_key_and_value_widths(self):
+        code = torch.zeros(1, 1, 16, 1, dtype=torch.int32)
+        scale = torch.ones(1, 1, 16, 1, dtype=torch.float16)
+        minimum = torch.zeros_like(scale)
+        cache = (code, None, scale, minimum, code, None, scale, minimum, 16)
+
+        with patch(
+            "quant.new_pack.unpack_and_dequant_vcache",
+            return_value=torch.zeros(1, 1, 16, 16, dtype=torch.float16),
+        ) as unpack:
+            reconstruct_kivi_cache(cache, group_size=16, k_bits=2, v_bits=4)
+
+        self.assertEqual([call.args[-1] for call in unpack.call_args_list], [2, 4])
 
     def test_kivi_reconstruction_handles_quant_only_and_full_only_histories(self):
         zero_codes = torch.zeros(1, 1, 16, 1, dtype=torch.int32)
@@ -65,12 +82,14 @@ class KvCacheReconstructionTest(unittest.TestCase):
         quant_key, quant_value = reconstruct_kivi_cache(
             (zero_codes, None, unit_scales, zero_mins, zero_codes, None, unit_scales, zero_mins, 16),
             group_size=16,
-            bits=2,
+            k_bits=2,
+            v_bits=2,
         )
         full_key, full_value = reconstruct_kivi_cache(
             (None, full, None, None, None, full, None, None, 1),
             group_size=16,
-            bits=2,
+            k_bits=2,
+            v_bits=2,
         )
 
         torch.testing.assert_close(quant_key, torch.zeros(1, 1, 16, 16, dtype=torch.float16))
