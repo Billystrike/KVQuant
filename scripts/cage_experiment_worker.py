@@ -41,6 +41,21 @@ METRIC_NAMES = (
     "joint_attention_output_relative_error",
 )
 
+WORKER_EXIT_CODES = {0, 2, 3, 4, 5}
+
+
+def classify_worker_failure(error: BaseException, stage: str, *, unusable: bool = False) -> int:
+    """Map worker failures onto the documented orchestration contract."""
+    if stage == "input":
+        return 2
+    if isinstance(error, torch.cuda.OutOfMemoryError):
+        return 3
+    if stage == "load":
+        return 4
+    if unusable or stage in {"runtime", "capture_reset"}:
+        return 5
+    return 5
+
 
 def _nonnegative(value: str) -> int:
     number = int(value)
@@ -214,20 +229,23 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
     try:
         tokenizer, prepared, model, load_duration = _load_inputs_and_model(job, prompts)
     except Exception as error:
+        exit_code = classify_worker_failure(error, "load")
+        category = "cuda_out_of_memory" if exit_code == 3 else type(error).__name__
         for _, _, run_id in pending:
             atomic_write_json(output_dir / "failures" / f"{run_id}.json",
                               {"schema_version": 1, "run_id": run_id, "status": "failed",
-                               "category": type(error).__name__, "stage": "load",
+                               "category": category, "stage": "load",
                                "retryable": False, "message": str(error)})
         gc.collect()
         if job["model"]["device"] == "cuda":
             torch.cuda.empty_cache()
-        return 1
+        return exit_code
     device = job["model"]["device"]
     model_record = {"reference": job["model"]["reference"], "dtype": job["model"]["dtype"],
                     "device": device, "model_type": getattr(model.config, "model_type", None)}
-    unusable = False
+    outcome = 0
     for sample_id, prompt_length, run_id in pending:
+            unusable = False
             point = prepared[(sample_id, prompt_length)]
             stage = "reference"
             prompt_ids = continuation_ids = full_ids = None
@@ -288,34 +306,43 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                 remove_stale_failure(output_dir, run_id)
             except Exception as error:
                 category = "cuda_out_of_memory" if isinstance(error, torch.cuda.OutOfMemoryError) else type(error).__name__
-                retryable = category == "cuda_out_of_memory"
+                exit_code = classify_worker_failure(error, stage)
                 atomic_write_json(output_dir / "failures" / f"{run_id}.json",
                                   {"schema_version": 1, "run_id": run_id, "status": "failed",
-                                   "category": category, "stage": stage, "retryable": retryable,
+                                   "category": category, "stage": stage, "retryable": False,
                                    "message": str(error)})
-                unusable = False
+                if outcome == 0:
+                    outcome = exit_code
             finally:
                 try:
                     reset_experiment_capture(model)
-                except Exception:
-                    unusable = job["method"] != "fp16"
+                except Exception as reset_error:
+                    if job["method"] != "fp16":
+                        outcome = classify_worker_failure(
+                            reset_error, "capture_reset", unusable=True
+                        )
+                        unusable = True
                 del prompt_ids, continuation_ids, full_ids, prefill
                 del reference_output, candidate_output, memory_record, layer_memory, layer_records
                 gc.collect()
                 if device == "cuda":
                     torch.cuda.empty_cache()
             if unusable:
-                return 1
+                break
     del tokenizer, model
     gc.collect()
     if device == "cuda":
         torch.cuda.empty_cache()
-    return 0
+    return outcome
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    return run_job(args.manifest, args.job_index)
+    try:
+        return run_job(args.manifest, args.job_index)
+    except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
+        print(f"manifest/input error: {error}", file=sys.stderr)
+        return classify_worker_failure(error, "input")
 
 
 if __name__ == "__main__":

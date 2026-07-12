@@ -37,3 +37,12 @@ Independent review identified pre-skip model loading, missing layer identity/mem
 - GREEN: focused worker suite passed 9/9 with the target Python environment.
 - Regression: full CPU suite passed 91/91 with the target Python environment.
 - The worker now aggregates only `METRIC_NAMES`, releases the reference forward output and runs collection before CUDA peak reset/prefill, rejects metric/memory layer-count mismatches before writes, and removes a stale failure record only after both authoritative success files are written.
+
+## Exit-Code Contract Review Fix
+
+- Added a shared classifier covering every documented worker failure outcome:
+  input 2, CUDA OOM 3, non-OOM load 4, and transient/unusable runtime 5.
+- Load and point failures use the classifier; usable point failures retain
+  structured records and continuation, while capture-reset failure stops use
+  of the now-unusable model with code 5.
+- A source scan verifies there are no explicit code-1 worker exits.

@@ -132,6 +132,32 @@ class CageRunMatrixTest(unittest.TestCase):
             self.assertEqual(resolved["jobs"][0]["prompts_file"], resolved["prompts_file"])
             self.assertEqual(resolved["jobs"][0]["output_dir"], resolved["output_dir"])
 
+    def test_shared_input_failure_stops_later_jobs_and_still_aggregates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = self._write_manifest(root, method_count=3)
+            with mock.patch.object(
+                self.matrix.subprocess, "run",
+                return_value=subprocess.CompletedProcess([], 2),
+            ) as run, mock.patch.object(self.matrix, "aggregate_completed_runs") as aggregate:
+                result = self.matrix.run_matrix(manifest_path)
+            self.assertEqual(result, 2)
+            self.assertEqual(run.call_count, 1)
+            aggregate.assert_called_once_with(root / "output")
+
+    def test_transient_failure_twice_attempts_exactly_twice_then_continues(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest_path = self._write_manifest(Path(directory), method_count=2)
+            results = [
+                subprocess.CompletedProcess([], 5),
+                subprocess.CompletedProcess([], 5),
+                subprocess.CompletedProcess([], 0),
+            ]
+            with mock.patch.object(self.matrix.subprocess, "run", side_effect=results) as run:
+                result = self.matrix.run_matrix(manifest_path, retry_transient_once=True)
+            self.assertEqual(result, 5)
+            self.assertEqual(run.call_count, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

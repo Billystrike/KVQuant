@@ -44,3 +44,25 @@ warning and a Git global-ignore permission warning; neither affected results.
 ## Commit
 
 Commit message: `feat: orchestrate resumable CAGE experiments`.
+
+## End-to-End Exit-Code Review Fix
+
+The Task 7 worker now uses one explicit failure classifier for the documented
+Task 8 contract: shared manifest/input validation is 2, CUDA OOM is 3,
+non-OOM tokenizer/model/config loading failure is 4, and transient runtime or
+capture-reset/unusable-model failure is 5. No worker path explicitly returns
+the undocumented code 1. Point failures remain structured and later points
+continue while model state is usable.
+
+Additional Task 8 regressions prove that code 2 stops later jobs but still
+aggregates completed records, and that code 5 with retry enabled is attempted
+exactly twice before later jobs continue and the defined code 5 outcome is
+returned.
+
+Review-fix verification with
+`D:\A_develop_tool\miniconda\envs\llm-compressor\python.exe`:
+
+- focused Task 7+8 suite: 19 tests passed;
+- full CPU suite: 101 tests passed;
+- worker/orchestrator `py_compile`: passed;
+- source scan for explicit code-1 exits: no matches.

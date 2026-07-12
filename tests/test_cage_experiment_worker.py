@@ -111,6 +111,29 @@ class CageExperimentWorkerTest(unittest.TestCase):
             self.worker.remove_stale_failure(Path(directory), "run")
             self.assertFalse(failure.exists())
 
+    def test_failure_classifier_maps_load_oom_and_transient_without_code_one(self):
+        load_error = RuntimeError("checkpoint is corrupt")
+        oom = self.worker.torch.cuda.OutOfMemoryError("CUDA out of memory")
+        transient = RuntimeError("capture reset failed")
+
+        self.assertEqual(self.worker.classify_worker_failure(load_error, "load"), 4)
+        self.assertEqual(self.worker.classify_worker_failure(oom, "prefill"), 3)
+        self.assertEqual(
+            self.worker.classify_worker_failure(transient, "capture_reset", unusable=True), 5
+        )
+        possible_codes = {
+            self.worker.classify_worker_failure(error, stage, unusable=unusable)
+            for error, stage, unusable in (
+                (ValueError("bad manifest"), "input", False),
+                (load_error, "load", False),
+                (oom, "decode", False),
+                (transient, "runtime", False),
+                (transient, "capture_reset", True),
+            )
+        }
+        self.assertNotIn(1, possible_codes)
+        self.assertEqual(possible_codes, {2, 3, 4, 5})
+
 
 if __name__ == "__main__":
     unittest.main()
