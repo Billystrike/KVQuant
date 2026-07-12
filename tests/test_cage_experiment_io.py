@@ -1,0 +1,111 @@
+import csv
+import json
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+import torch
+
+from utils.cage_experiment_io import (
+    aggregate_completed_runs,
+    atomic_write_json,
+    atomic_write_jsonl,
+    collect_provenance,
+    load_prompt_records,
+    prepare_prompt,
+    stable_run_id,
+    source_state_identity,
+)
+
+
+class _Tokenizer:
+    def __call__(self, text, **kwargs):
+        self.call = (text, kwargs)
+        return {"input_ids": torch.tensor([[9, 8, 7, 6]])}
+
+
+class CageExperimentIOTests(unittest.TestCase):
+    def test_prompt_jsonl_is_strict_and_unique(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "prompts.jsonl"
+            path.write_text('{"sample_id":"a","text":"hello"}\n', encoding="utf-8")
+            records = load_prompt_records(path)
+            self.assertEqual(records["a"].text, "hello")
+            path.write_text('{"sample_id":"a","text":"x"}\n{"sample_id":"a","text":"y"}\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate"):
+                load_prompt_records(path)
+            path.write_text('{"text":"x"}\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "sample_id"):
+                load_prompt_records(path)
+
+    def test_prepare_prompt_uses_exact_t_and_t_plus_one(self):
+        tokenizer = _Tokenizer()
+        result = prepare_prompt(tokenizer, "hello", 3)
+        self.assertEqual(result["prompt_ids"].tolist(), [[9, 8, 7]])
+        self.assertEqual(result["continuation_ids"].tolist(), [[6]])
+        self.assertTrue(result["prompt_ids"].is_contiguous())
+        self.assertEqual(tokenizer.call[1], {"add_special_tokens": True, "return_tensors": "pt"})
+        with self.assertRaisesRegex(ValueError, "need 5"):
+            prepare_prompt(tokenizer, "hello", 4)
+
+    def test_run_id_is_canonical(self):
+        self.assertEqual(stable_run_id({"b": 2, "a": {"d": 4, "c": 3}}),
+                         stable_run_id({"a": {"c": 3, "d": 4}, "b": 2}))
+
+    def test_provenance_has_cpu_cuda_fields(self):
+        provenance = collect_provenance(Path(__file__).parents[1])
+        for key in ("source_state", "dirty", "python", "pytorch", "transformers",
+                    "cuda_runtime", "cuda_driver", "gpu_name", "deterministic_seed", "command"):
+            self.assertIn(key, provenance)
+        if not torch.cuda.is_available():
+            self.assertIsNone(provenance["cuda_runtime"])
+            self.assertIsNone(provenance["cuda_driver"])
+            self.assertIsNone(provenance["gpu_name"])
+
+    def test_source_identity_hashes_untracked_code_but_not_output_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "tracked.txt").write_text("base", encoding="utf-8")
+            subprocess.run(["git", "add", "tracked.txt"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
+            (root / "result.json").write_text("{}", encoding="utf-8")
+            self.assertFalse(source_state_identity(root)["dirty"])
+            (root / "experiment.py").write_text("VALUE = 1\n", encoding="utf-8")
+            first = source_state_identity(root)
+            self.assertTrue(first["dirty"])
+            self.assertEqual(first["untracked_paths"], ["experiment.py"])
+            (root / "experiment.py").write_text("VALUE = 2\n", encoding="utf-8")
+            self.assertNotEqual(first["dirty_sha256"], source_state_identity(root)["dirty_sha256"])
+
+    def test_atomic_writers_replace_and_leave_no_temporary_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "value.json"
+            path.write_text("old", encoding="utf-8")
+            atomic_write_json(path, {"new": 1})
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"new": 1})
+            lines = Path(directory) / "value.jsonl"
+            atomic_write_jsonl(lines, [{"x": 1}, {"x": 2}])
+            self.assertEqual([json.loads(x) for x in lines.read_text(encoding="utf-8").splitlines()],
+                             [{"x": 1}, {"x": 2}])
+            self.assertEqual(sorted(p.name for p in Path(directory).iterdir()), ["value.json", "value.jsonl"])
+
+    def test_aggregation_only_includes_completed_and_flattens_csv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "runs").mkdir(); (root / "failures").mkdir()
+            atomic_write_json(root / "runs" / "b.json", {"run_id": "b", "status": "failed"})
+            atomic_write_json(root / "runs" / "a.json", {"run_id": "a", "status": "completed", "model": {"name": "m"}, "score": 1})
+            atomic_write_json(root / "failures" / "c.json", {"run_id": "c", "status": "failed"})
+            records = aggregate_completed_runs(root)
+            self.assertEqual([x["run_id"] for x in records], ["a"])
+            with (root / "summary" / "runs.csv").open(encoding="utf-8", newline="") as handle:
+                row = next(csv.DictReader(handle))
+            self.assertEqual(row["model.name"], "m")
+            self.assertEqual(row["score"], "1")
+
+
+if __name__ == "__main__":
+    unittest.main()
