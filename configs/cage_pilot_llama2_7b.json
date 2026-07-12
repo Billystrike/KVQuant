@@ -1,0 +1,25 @@
+{
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "device": "cuda",
+    "max_position_embeddings": 4096
+  },
+  "prompts_file": "/root/autodl-tmp/cage_pilot_prompts.jsonl",
+  "sample_ids": ["doc-001", "doc-002", "doc-003"],
+  "prompt_lengths": [512, 1024, 2048, 4096],
+  "methods": [
+    {"id": "fp16", "method": "fp16"},
+    {"id": "kivi-g32-r32", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 32},
+    {"id": "kivi-g32-r64", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 64},
+    {"id": "kivi-g32-r128", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 128},
+    {"id": "kivi-g64-r64", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 64, "residual_length": 64},
+    {"id": "kivi-g64-r128", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 64, "residual_length": 128},
+    {"id": "kivi-g128-r128", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 128, "residual_length": 128},
+    {"id": "cage-r32", "method": "cage", "residual_length": 32, "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]},
+    {"id": "cage-r64", "method": "cage", "residual_length": 64, "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]},
+    {"id": "cage-r128", "method": "cage", "residual_length": 128, "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]}
+  ],
+  "measurement": {"decode_tokens": 1, "seed": 0},
+  "output_dir": "/root/autodl-tmp/cage_pareto_pilot"
+}
