@@ -7,11 +7,84 @@ from models.cage_cache import CageKeyCache, CageValueCache, pack_cage_past_key_v
 from utils.cage_memory import (
     estimate_cage_cache_bytes,
     estimate_kivi_cache_bytes,
+    sum_cache_summaries,
     summarize_cache_bytes,
+    summarize_fp16_cache_bytes,
+    summarize_runtime_cache_bytes,
 )
 
 
 class CageMemoryTest(unittest.TestCase):
+    def _cage_cache(self):
+        key_cache = CageKeyCache(
+            key_quant_buckets=(
+                torch.zeros(1, 2, 4, 1, dtype=torch.float16),
+                torch.zeros(1, 2, 4, 3, dtype=torch.float16),
+            ),
+            key_full=torch.zeros(1, 2, 1, 4, dtype=torch.float16),
+            key_bucket_indices=(torch.tensor([[0], [0]]), torch.tensor([[1, 2, 3], [1, 2, 3]])),
+            key_group_sizes=(2, 4),
+            key_clip_percentiles=(1.0, 1.0),
+        )
+        value_cache = CageValueCache(
+            value_quant_buckets=(
+                torch.zeros(1, 2, 4, 1, dtype=torch.float16),
+                torch.zeros(1, 2, 4, 3, dtype=torch.float16),
+            ),
+            value_full=torch.zeros(1, 2, 1, 4, dtype=torch.float16),
+            value_bucket_indices=(torch.tensor([[0], [0]]), torch.tensor([[1, 2, 3], [1, 2, 3]])),
+            value_group_sizes=(2, 4),
+            value_clip_percentiles=(1.0, 1.0),
+        )
+        return pack_cage_past_key_value(key_cache, value_cache)
+
+    def test_cage_runtime_summary_counts_fake_tensors(self):
+        cache = self._cage_cache()
+
+        paper = summarize_cache_bytes(cache)
+        runtime = summarize_runtime_cache_bytes(cache)
+
+        self.assertGreater(runtime["total_bytes"], paper["payload_only_bytes"])
+        self.assertEqual(runtime["key_payload_bytes"], 64)
+        self.assertEqual(runtime["value_payload_bytes"], 64)
+        self.assertEqual(runtime["bucket_index_bytes"], 128)
+        self.assertEqual(runtime["cache_type"], "cage_fake_runtime")
+
+    def test_fp16_summary_counts_key_and_value_as_full_precision(self):
+        key = torch.zeros(1, 2, 5, 4, dtype=torch.float16)
+        value = torch.zeros(1, 2, 5, 4, dtype=torch.float16)
+
+        summary = summarize_fp16_cache_bytes((key, value))
+
+        self.assertEqual(summary["residual_full_precision_bytes"], key.nbytes + value.nbytes)
+        self.assertEqual(summary["payload_only_bytes"], 0)
+        self.assertEqual(summary["metadata_bytes"], 0)
+        self.assertEqual(summary["cache_type"], "fp16")
+
+    def test_sum_cache_summaries_adds_every_byte_field(self):
+        total = sum_cache_summaries([
+            {"total_bytes": 10, "payload_only_bytes": 4, "metadata_bytes": 3},
+            {"total_bytes": 20, "payload_only_bytes": 8, "bucket_index_bytes": 7},
+        ])
+
+        self.assertEqual(total["total_bytes"], 30)
+        self.assertEqual(total["payload_only_bytes"], 12)
+        self.assertEqual(total["metadata_bytes"], 3)
+        self.assertEqual(total["bucket_index_bytes"], 7)
+        self.assertEqual(total["cache_type"], "model_total")
+
+    def test_paper_summary_exposes_metadata_separately_from_bucket_indices(self):
+        summary = summarize_cache_bytes(self._cage_cache())
+
+        self.assertEqual(
+            summary["metadata_bytes"],
+            summary["key_scale_bytes"]
+            + summary["value_scale_bytes"]
+            + summary["key_min_or_zp_bytes"]
+            + summary["value_min_or_zp_bytes"],
+        )
+        self.assertNotEqual(summary["metadata_bytes"], summary["bucket_index_bytes"])
+
     def test_cage_fake_cache_summary_uses_packed_int2_payload_size(self):
         key_cache = CageKeyCache(
             key_quant_buckets=(

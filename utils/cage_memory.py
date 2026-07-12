@@ -167,6 +167,54 @@ def summarize_cache_bytes(past_key_value: Any) -> dict[str, int | str]:
     raise ValueError("past_key_value must be a CAGE cache or original KIVI cache tuple")
 
 
+def summarize_runtime_cache_bytes(past_key_value: Any) -> dict[str, int | str]:
+    """Summarize tensor bytes actually retained by one runtime cache layer."""
+
+    if past_key_value is None:
+        return _finalize_summary(cache_type="empty_runtime")
+    if is_cage_past_key_value(past_key_value):
+        unpacked = unpack_cage_past_key_value(past_key_value)
+        key_cache = unpacked.key_cache
+        value_cache = unpacked.value_cache
+        return _finalize_summary(
+            cache_type="cage_fake_runtime",
+            key_payload_bytes=_tensor_sequence_nbytes(key_cache.key_quant_buckets),
+            value_payload_bytes=_tensor_sequence_nbytes(value_cache.value_quant_buckets),
+            bucket_index_bytes=_tensor_sequence_nbytes(key_cache.key_bucket_indices)
+            + _tensor_sequence_nbytes(value_cache.value_bucket_indices),
+            residual_full_precision_bytes=_tensor_nbytes(key_cache.key_full)
+            + _tensor_nbytes(value_cache.value_full),
+        )
+    if isinstance(past_key_value, tuple) and len(past_key_value) >= 9:
+        summary = _summarize_kivi_tuple_bytes(past_key_value)
+        summary["cache_type"] = "kivi_runtime"
+        return summary
+    raise ValueError("past_key_value must be a CAGE cache or original KIVI cache tuple")
+
+
+def summarize_fp16_cache_bytes(past_key_value: tuple[Any, Any]) -> dict[str, int | str]:
+    """Summarize a conventional FP16 key/value cache layer."""
+
+    if not isinstance(past_key_value, tuple) or len(past_key_value) != 2:
+        raise ValueError("FP16 past_key_value must be a (key, value) tuple")
+    return _finalize_summary(
+        cache_type="fp16",
+        residual_full_precision_bytes=_tensor_nbytes(past_key_value[0])
+        + _tensor_nbytes(past_key_value[1]),
+    )
+
+
+def sum_cache_summaries(layer_summaries: Sequence[dict[str, int | str]]) -> dict[str, int | str]:
+    """Add every numeric byte field present across layer summaries."""
+
+    total: dict[str, int | str] = {"cache_type": "model_total"}
+    for summary in layer_summaries:
+        for field, value in summary.items():
+            if field != "cache_type" and isinstance(value, int):
+                total[field] = int(total.get(field, 0)) + value
+    return total
+
+
 def _summarize_cage_cache_bytes(past_key_value: Any) -> dict[str, int | str]:
     unpacked = unpack_cage_past_key_value(past_key_value)
     key_cache = unpacked.key_cache
@@ -278,6 +326,12 @@ def _estimate_cage_value_meta_bytes(
 def _finalize_summary(cache_type: str, **fields: int) -> dict[str, int | str]:
     summary = {field: int(fields.get(field, 0)) for field in _REQUIRED_BYTE_FIELDS}
     summary["payload_only_bytes"] = int(summary["key_payload_bytes"] + summary["value_payload_bytes"])
+    summary["metadata_bytes"] = int(
+        summary["key_scale_bytes"]
+        + summary["value_scale_bytes"]
+        + summary["key_min_or_zp_bytes"]
+        + summary["value_min_or_zp_bytes"]
+    )
     summary["total_bytes"] = int(sum(summary[field] for field in _REQUIRED_BYTE_FIELDS))
     summary["cache_type"] = cache_type
     return summary
