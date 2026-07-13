@@ -1,4 +1,5 @@
 import importlib.util
+import copy
 import json
 import sys
 import tempfile
@@ -33,6 +34,77 @@ class CageExperimentWorkerTest(unittest.TestCase):
         self.assertEqual((args.manifest, args.job_index), ("resolved.json", 2))
         with self.assertRaises(SystemExit):
             self.worker.parse_args(["--manifest", "x", "--job-index", "-1"])
+
+    def _resolved_cage_manifest(self, output_dir):
+        manifest = {
+            "model": {"reference": "model", "dtype": "float16", "device": "cpu",
+                      "max_position_embeddings": 16},
+            "prompts_file": str(Path(output_dir).parent / "prompts.jsonl"),
+            "sample_ids": ["s"],
+            "prompt_lengths": [2],
+            "methods": [{
+                "id": "cage-r2",
+                "method": "cage",
+                "method_config": {
+                    "k_bits": 2, "v_bits": 2, "residual_length": 2,
+                    "cage_mode": "fake", "cage_k_enable": True,
+                    "cage_v_enable": True, "cage_k_importance": "q2_var",
+                    "cage_k_group_sizes": [2], "cage_k_clip_percentiles": [1.0],
+                    "cage_k_num_buckets": 1, "cage_v_importance": "wo_var",
+                    "cage_v_group_sizes": [2], "cage_v_clip_percentiles": [1.0],
+                    "cage_v_num_buckets": 1,
+                },
+            }],
+            "measurement": {"decode_tokens": 1, "seed": 7},
+            "output_dir": str(output_dir),
+        }
+        manifest["jobs"] = self.worker.expand_jobs(manifest)
+        return manifest
+
+    def test_worker_strictly_validates_resolved_cage_method_config(self):
+        mutations = [
+            lambda config: config.update(k_bits=4),
+            lambda config: config.update(v_bits=4),
+            lambda config: config.update(cage_k_enable=False),
+            lambda config: config.update(cage_v_enable=False),
+            lambda config: config.update(cage_k_importance="variance"),
+            lambda config: config.update(cage_v_importance="variance"),
+            lambda config: config.pop("cage_k_num_buckets"),
+            lambda config: config.update(unknown=True),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            valid = self._resolved_cage_manifest(root / "out")
+            path = root / "manifest.resolved.json"
+            path.write_text(json.dumps(valid), encoding="utf-8")
+            self.assertEqual(self.worker._load_manifest(path)["methods"], valid["methods"])
+            for mutate in mutations:
+                with self.subTest(mutation=mutate):
+                    invalid = copy.deepcopy(valid)
+                    mutate(invalid["methods"][0]["method_config"])
+                    path.write_text(json.dumps(invalid), encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        self.worker._load_manifest(path)
+
+    def test_invalid_resolved_manifest_exits_two_before_tokenizer_or_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self._resolved_cage_manifest(root / "out")
+            manifest["methods"][0]["method_config"]["k_bits"] = 4
+            path = root / "manifest.resolved.json"
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            (root / "prompts.jsonl").write_text(
+                json.dumps({"sample_id": "s", "text": "long enough"}) + "\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(self.worker, "_prepare_inputs") as prepare, \
+                 mock.patch.object(self.worker, "_load_model") as load:
+                self.assertEqual(
+                    self.worker.main(["--manifest", str(path), "--job-index", "0"]),
+                    2,
+                )
+            prepare.assert_not_called()
+            load.assert_not_called()
 
     def test_point_id_uses_only_point_local_scientific_identity(self):
         sample = types.SimpleNamespace(sample_id="doc-001", text="same scientific input")

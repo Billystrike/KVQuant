@@ -48,6 +48,8 @@ Each authoritative run JSON uses schema version 1 and exactly these top-level fi
 
 `run_id` contains only point-local scientific identity. It excludes job/matrix IDs, sample/length selection lists, prompt-file paths, and output paths, so the six acceptance points are the same points in the full matrix and are reused rather than duplicated. A point is resumable only when both its run JSON and matching non-empty layer JSONL pass the shared strict validator, including contiguous layer indices, context, metrics, cache partitions, and model-wide byte sums. Invalid completed artifacts are rerun and atomically replaced; aggregation rejects invalid completed points before changing either summary and ignores non-completed run records.
 
+Before tokenizer or model construction, the worker strictly revalidates `manifest.resolved.json`, including exact resolved method configuration, the scoped CAGE constraints, and any embedded expanded jobs. Invalid resolved manifests exit with code 2.
+
 Worker exit codes are 0 success, 2 deterministic manifest/input/point error, 3 CUDA OOM, 4 model construction/load error, and 5 positively identified transient unusable process/model state. Only code 5 is marked retryable and retried once by `--retry-transient-once`.
 
 Run IDs include resolved configuration, model, source sample/hash, prompt length, and Git source state. Completed run files are atomic and are skipped on an identical rerun; completed points survive later failures. Only transient process failures are retried once with the flag above. OOM, input/configuration, and model-load failures are not silently treated as completed results. Changing code, input text, model, or configuration changes identity rather than reusing an incompatible result.

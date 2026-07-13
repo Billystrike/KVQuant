@@ -12,6 +12,7 @@ _TOP_FIELDS = {
     "model", "prompts_file", "sample_ids", "prompt_lengths", "methods",
     "measurement", "output_dir",
 }
+_RESOLVED_METHOD_FIELDS = {"id", "method", "method_config"}
 _MODEL_FIELDS = {"reference", "dtype", "device", "max_position_embeddings"}
 _MEASUREMENT_FIELDS = {"decode_tokens", "seed"}
 _COMMON_METHOD_FIELDS = {"id", "method"}
@@ -55,6 +56,12 @@ def load_and_resolve_manifest(path: str | Path) -> dict:
         raise ValueError(f"cannot load manifest {manifest_path}: {error}") from error
     if not isinstance(raw, dict):
         raise ValueError("manifest must be a JSON object")
+    return _resolve_manifest_object(raw)
+
+
+def _resolve_manifest_object(raw: dict[str, Any]) -> dict:
+    """Resolve and validate one raw manifest object."""
+
     _require_exact_fields("manifest", raw, _TOP_FIELDS, _TOP_FIELDS)
 
     model = _object("model", raw["model"])
@@ -102,6 +109,60 @@ def load_and_resolve_manifest(path: str | Path) -> dict:
         "measurement": copy.deepcopy(measurement),
         "output_dir": raw["output_dir"],
     }
+
+
+def validate_resolved_manifest(raw: Any) -> dict:
+    """Strictly validate a canonical worker-facing resolved manifest."""
+
+    manifest = _object("resolved manifest", raw)
+    allowed_top_fields = _TOP_FIELDS | {"jobs"}
+    _require_exact_fields("resolved manifest", manifest, allowed_top_fields, _TOP_FIELDS)
+    methods = manifest["methods"]
+    if not isinstance(methods, list) or not methods:
+        raise ValueError("resolved manifest methods must be a non-empty list")
+
+    raw_methods = []
+    for index, value in enumerate(methods):
+        item = _object(f"resolved methods[{index}]", value)
+        _require_exact_fields(
+            f"resolved methods[{index}]",
+            item,
+            _RESOLVED_METHOD_FIELDS,
+            _RESOLVED_METHOD_FIELDS,
+        )
+        method = item["method"]
+        _nonempty_string(f"resolved methods[{index}].method", method)
+        if method not in _METHOD_FIELDS:
+            raise ValueError(f"unsupported method {method!r}")
+        config = _object(f"resolved methods[{index}].method_config", item["method_config"])
+        expected_config_fields = _METHOD_FIELDS[method] - _COMMON_METHOD_FIELDS
+        _require_exact_fields(
+            f"resolved methods[{index}].method_config",
+            config,
+            expected_config_fields,
+            expected_config_fields,
+        )
+        raw_methods.append({
+            "id": item["id"],
+            "method": method,
+            **copy.deepcopy(config),
+        })
+
+    raw_manifest = {
+        key: copy.deepcopy(value)
+        for key, value in manifest.items()
+        if key != "jobs"
+    }
+    raw_manifest["methods"] = raw_methods
+    resolved = _resolve_manifest_object(raw_manifest)
+    expected_jobs = expand_jobs(resolved)
+    if "jobs" in manifest:
+        if manifest["jobs"] != expected_jobs:
+            raise ValueError(
+                "resolved manifest jobs must exactly match canonical expanded methods"
+            )
+        resolved["jobs"] = expected_jobs
+    return resolved
 
 
 def expand_jobs(manifest: dict) -> list[dict]:
@@ -227,4 +288,4 @@ def _positive_int_list(name: str, value: Any) -> list[int]:
     return list(value)
 
 
-__all__ = ["expand_jobs", "load_and_resolve_manifest"]
+__all__ = ["expand_jobs", "load_and_resolve_manifest", "validate_resolved_manifest"]

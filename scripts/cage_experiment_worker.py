@@ -19,7 +19,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from utils.cage_experiment_config import expand_jobs, load_and_resolve_manifest
+from utils.cage_experiment_config import (
+    expand_jobs, load_and_resolve_manifest, validate_resolved_manifest,
+)
 from utils.cage_experiment_hooks import (
     begin_candidate_capture, begin_reference_capture, collect_layer_metrics,
     reset_experiment_capture,
@@ -161,8 +163,12 @@ def completed_run_exists(output_dir: Path, run_id: str) -> bool:
 
 def _load_manifest(path: Path) -> dict[str, Any]:
     raw = json.loads(path.read_text(encoding="utf-8"))
-    if raw.get("methods") and "method_config" in raw["methods"][0]:
-        return raw
+    methods = raw.get("methods") if isinstance(raw, dict) else None
+    if isinstance(methods, list) and any(
+        isinstance(method, dict) and "method_config" in method
+        for method in methods
+    ):
+        return validate_resolved_manifest(raw)
     return load_and_resolve_manifest(path)
 
 
