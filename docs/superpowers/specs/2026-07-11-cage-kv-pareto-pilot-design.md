@@ -220,7 +220,7 @@ Layer values and the model-wide sum across all 32 layers are both retained.
 
 ### 8.2 Runtime diagnostics
 
-`memory.runtime_tensors` reports the bytes occupied by tensors actually stored by the prototype. `memory.cuda_peak_diagnostic` reports peak allocated and reserved CUDA memory for debugging.
+`memory.runtime_tensors` reports the bytes occupied by tensors actually stored by the prototype. `memory.cuda_peak_diagnostic` reports peak allocated and reserved CUDA memory for the whole experiment point, sampled after decode and metric reconstruction. Paper/runtime cache byte summaries remain snapshots of the prefill cache at exactly T tokens; the T+1 decode cache is never used for those summaries.
 
 These namespaces must remain separate. The fake CAGE tensors may be FP16 and must not be presented as a compressed runtime implementation. Runtime timing and peak memory are diagnostics, not evidence of CAGE latency or implementation-level memory advantages.
 
@@ -279,17 +279,20 @@ The resolved method configuration records all effective values, including defaul
 
 Each layer JSONL record contains:
 
-- run identifier and layer index;
+- integer `schema_version == 1`, run identifier, and layer index;
 - method and prompt length;
 - layer memory summary;
+- `memory.cache_structure.key` and `.value`, each with `total_tokens`, `quantized_history_tokens`, and `fp16_residual_tokens`;
 - reconstruction metrics;
 - Key functional metrics;
 - Value functional metrics;
 - joint functional metrics.
 
+Version 1 uses exact run top-level and layer-row field sets; unknown fields are rejected. Extension requires a new documented schema version rather than ad hoc fields.
+
 ### 10.3 Stable identifiers and derived summaries
 
-The stable run identifier is derived from the resolved configuration, sample identifier and text hash, prompt length, model identity, and source-state identity. Source-state identity contains the Git commit and, when the worktree is dirty, a deterministic hash of the tracked and untracked experiment-code changes. Completed run records are written atomically.
+The stable run identifier is derived only from point-local scientific identity: normalized model identity, method name and fully resolved method configuration, measurement protocol including seed, sample identifier and text hash, prompt length, and source-state identity. Matrix/storage fields (`job_id`, sample/length selection lists, prompt-file path, output directory, and matrix IDs) are excluded. Therefore overlapping acceptance/full points share identifiers and acceptance output is reused in the common output directory. Source-state identity contains the Git commit and, when the worktree is dirty, a deterministic hash of the tracked and untracked experiment-code changes. Completed run records are written atomically.
 
 `summary/runs.jsonl` is the canonical combined summary. CSV is a flattened plotting convenience and is not the authoritative source for nested experiment data.
 
@@ -303,7 +306,7 @@ Before model loading, the runner validates:
 - sufficient token length without silent shortening;
 - native model context limit, including the prompt and decode/query token;
 - method name and known manifest fields;
-- bit width, group sizes, residual length, bucket count, and method-specific constraints;
+- bit width, group sizes, residual length, bucket count, and method-specific constraints; scoped CAGE requires 2-bit Key and Value, both sides enabled, `q2_var` Key importance, and `wo_var` Value importance;
 - completeness of the resolved configuration;
 - the KIVI decode invariant `residual_length % group_size == 0`.
 
@@ -313,10 +316,12 @@ Unknown fields and invalid configurations fail explicitly.
 
 - A model/method/config job runs in its own process.
 - Completed experiment points survive a later failure in the same job.
-- OOM, invalid input, invalid configuration, model-load failure, and unexpected runtime failure use distinct failure categories.
-- Only eligible transient process failures are retried automatically, at most once.
+- Resume skips only a version-1 run JSON whose matching non-empty layer JSONL passes the complete row-count, index, context, metric, cache-structure, and recursive memory-sum validator. Invalid artifacts are rerun and atomically overwritten. Aggregation uses the same validator and validates all completed points before replacing either summary.
+- Exit 2 is a deterministic manifest/input/point error, 3 is CUDA OOM, 4 is model construction/load failure, and 5 is a positively identified transient unusable process/model state. Failure-record `retryable` is true exactly for code 5.
+- Only code 5 is retried automatically, at most once.
 - A deterministic OOM for an unchanged configuration is not retried in a loop.
-- Aggregation rejects incomplete runs and incompatible schema versions.
+- Non-completed run records are ignored by aggregation; invalid completed records are rejected.
+- Non-finite source, cache, reconstruction, logit, output, or final metric values fail the point explicitly and never produce a completed record.
 
 ## 12. Testing strategy
 

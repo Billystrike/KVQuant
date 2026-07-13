@@ -171,7 +171,9 @@ def normalize_command_arguments(
     return normalized
 
 
-def collect_provenance(repo_root: str | Path) -> dict[str, Any]:
+def collect_provenance(
+    repo_root: str | Path, *, deterministic_seed: int,
+) -> dict[str, Any]:
     source = source_state_identity(repo_root)
     has_cuda = torch.cuda.is_available()
     return {
@@ -183,7 +185,7 @@ def collect_provenance(repo_root: str | Path) -> dict[str, Any]:
         "cuda_runtime": torch.version.cuda if has_cuda else None,
         "cuda_driver": _cuda_driver_version() if has_cuda else None,
         "gpu_name": torch.cuda.get_device_name(0) if has_cuda else None,
-        "deterministic_seed": int(torch.initial_seed()),
+        "deterministic_seed": int(deterministic_seed),
         "command": normalize_command_arguments(sys.argv, repo_root),
     }
 
@@ -234,31 +236,6 @@ def _flatten(value: Any, prefix: str = "") -> dict[str, Any]:
     return flattened
 
 
-_COMPLETED_RUN_FIELDS = {
-    "schema_version", "run_id", "status", "model", "method", "input", "quantization",
-    "measurement", "memory", "metrics_aggregate", "runtime_diagnostics", "provenance",
-}
-
-
-def _validate_completed_run(path: Path, record: dict[str, Any]) -> None:
-    missing = sorted(_COMPLETED_RUN_FIELDS - set(record))
-    if missing:
-        raise ValueError(f"invalid completed run record {path}: missing required fields {missing}")
-    schema_version = record["schema_version"]
-    if type(schema_version) is not int or schema_version != 1:
-        raise ValueError(
-            f"invalid completed run record {path}: schema_version must be integer 1"
-        )
-    run_id = record["run_id"]
-    if not isinstance(run_id, str) or not run_id.strip():
-        raise ValueError(f"invalid completed run record {path}: run_id must be a non-empty string")
-    if run_id != path.stem:
-        raise ValueError(
-            f"invalid completed run record {path}: run_id {run_id!r} must match filename stem "
-            f"{path.stem!r}"
-        )
-
-
 def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
     """Rebuild canonical JSONL and flattened CSV summaries from completed runs."""
     root = Path(output_dir)
@@ -272,8 +249,9 @@ def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
                 raise ValueError(f"cannot load run record {path}: {error}") from error
             if not isinstance(record, dict) or record.get("status") != "completed":
                 continue
-            _validate_completed_run(path, record)
-            records.append(record)
+            from utils.cage_experiment_schema import validate_completed_point
+
+            records.append(validate_completed_point(root, path.stem))
     records.sort(key=lambda record: str(record.get("run_id", "")))
     summary = root / "summary"
     atomic_write_jsonl(summary / "runs.jsonl", records)

@@ -130,6 +130,21 @@ class CageExperimentConfigTests(unittest.TestCase):
             with self.subTest(method=manifest["methods"][2]), self.assertRaises(ValueError):
                 self._load(manifest)
 
+    def test_rejects_cage_values_outside_scoped_core_pilot(self):
+        mutations = [
+            lambda cage: cage.update(k_bits=4),
+            lambda cage: cage.update(v_bits=4),
+            lambda cage: cage.update(cage_k_enable=False),
+            lambda cage: cage.update(cage_v_enable=False),
+            lambda cage: cage.update(cage_k_importance="variance"),
+            lambda cage: cage.update(cage_v_importance="variance"),
+        ]
+        for mutate in mutations:
+            manifest = self._manifest()
+            mutate(manifest["methods"][2])
+            with self.subTest(method=manifest["methods"][2]), self.assertRaises(ValueError):
+                self._load(manifest)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -17,6 +17,10 @@
 - CAGE Key buffer length is `T % R`; Value buffer length is `min(T, R)`.
 - Primary metric query is the final-position query captured from an FP16 T+1-token reference pass.
 - `memory.paper_estimate`, `memory.runtime_tensors`, and `memory.cuda_peak_diagnostic` must never be merged.
+- Point identity excludes matrix selection and storage paths so overlapping acceptance/full points share a `run_id` in the common output directory.
+- Resume and aggregation share the strict version-1 run/layer validator; a run is complete only with a valid matching layer JSONL, finite complete metrics, auditable Key/Value cache structure, and exact recursive paper/runtime byte sums.
+- Scoped CAGE accepts only 2-bit Key and Value with both sides enabled and the `q2_var`/`wo_var` policies. Non-finite tensors or metrics fail the point rather than being sanitized.
+- Cache bytes and Key/Value token partitions are summarized from prefill T; point CUDA peaks are sampled after decode and metric reconstruction.
 - Do not claim latency, throughput, realized compressed runtime memory, or downstream task quality.
 - Preserve `scripts/cage_smoke.py` behavior and all existing tests.
 
@@ -525,7 +529,7 @@ def stable_run_id(payload: dict) -> str:
 
 `source_state_identity` records `git rev-parse HEAD`; when dirty, hash `git diff --binary HEAD` plus sorted untracked experiment-code paths and contents. Atomic writers create a temporary file in the destination directory, flush and `os.fsync`, then call `os.replace`.
 
-`collect_provenance` records source identity, dirty flag, Python, PyTorch, Transformers, CUDA runtime, CUDA driver, GPU name, deterministic seed, and normalized command arguments. CUDA-only values are `None` on CPU tests rather than omitted.
+`collect_provenance` records source identity, dirty flag, Python, PyTorch, Transformers, CUDA runtime, CUDA driver, GPU name, the explicitly supplied resolved manifest seed, and normalized command arguments. CUDA-only values are `None` on CPU tests rather than omitted.
 
 - [ ] **Step 4: Run and commit**
 
@@ -586,7 +590,7 @@ layer_metrics = collect_layer_metrics(model)
 
 Summarize memory from `prefill.past_key_values`, so the memory axis is exactly T tokens. FP16 emits zero metric dictionaries with the same schema. Record load, reference, prefill, decode, and metric durations as diagnostics only.
 
-Build `run_id` from resolved job config, sample ID/text hash, prompt length, model identity, and source-state identity. Write `layers/<run_id>.jsonl` before atomically writing completed `runs/<run_id>.json`. On exception write `failures/<run_id>.json` with category and stage, then continue to the next point unless model state is unusable.
+Build `run_id` from point-local scientific identity only: normalized model identity, method plus fully resolved config, measurement protocol, sample ID/text hash, prompt length, and source-state identity. Exclude job IDs, selection lists, prompt/output paths, and matrix IDs. Validate the complete run/layer artifacts in memory, write `layers/<run_id>.jsonl`, then atomically write completed `runs/<run_id>.json`. On exception write `failures/<run_id>.json` with category and stage, then continue to the next point unless model state is unusable.
 
 Failure records use `{"schema_version": 1, "run_id": run_id, "status": "failed", "category": category, "stage": stage, "retryable": retryable, "message": str(error)}` and never appear in completed summaries.
 
@@ -674,7 +678,7 @@ for job_index, _ in enumerate(jobs):
 aggregate_completed_runs(output_dir)
 ```
 
-Classify worker exit codes: 0 success, 2 manifest/input error, 3 deterministic CUDA OOM, 4 model-load error, 5 transient process error. Retry only code 5, once.
+Classify worker exit codes: 0 success; 2 deterministic manifest/input/point error; 3 deterministic CUDA OOM; 4 model construction/load error; 5 positively identified transient unusable process/model-state error. Derive failure-record `retryable` from the same classification and retry only code 5, once.
 
 - [ ] **Step 4: Run tests and commit**
 

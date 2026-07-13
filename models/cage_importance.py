@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import torch
 
+from utils.cage_experiment_schema import ExperimentPointError
+
 
 @dataclass(frozen=True)
 class CageBucketAssignment:
@@ -29,6 +31,8 @@ def compute_key_importance(
     """
     _require_4d("query_states", query_states)
     _require_4d("key_states", key_states)
+    _require_finite_tensor("query_states", query_states)
+    _require_finite_tensor("key_states", key_states)
     _require_positive_int("num_key_value_groups", num_key_value_groups)
 
     batch_size, num_query_heads, sequence_length, head_dim = query_states.shape
@@ -46,7 +50,7 @@ def compute_key_importance(
         num_key_value_groups=num_key_value_groups,
     )
 
-    query_energy = torch.nan_to_num(query_states).square().mean(dim=2)
+    query_energy = query_states.square().mean(dim=2)
     if num_key_value_groups > 1:
         query_energy = query_energy.view(
             batch_size,
@@ -55,7 +59,7 @@ def compute_key_importance(
             head_dim,
         ).sum(dim=2)
 
-    key_variance = torch.nan_to_num(key_states).var(dim=2, unbiased=False)
+    key_variance = key_states.var(dim=2, unbiased=False)
     importance = query_energy * key_variance
     return _finalize_importance(importance, reduce_batch=reduce_batch)
 
@@ -74,6 +78,8 @@ def compute_value_importance(
 
     _require_4d("value_states", value_states)
     _require_2d("o_proj_weight", o_proj_weight)
+    _require_finite_tensor("value_states", value_states)
+    _require_finite_tensor("o_proj_weight", o_proj_weight)
     _require_positive_int("num_heads", num_heads)
     _require_positive_int("num_key_value_heads", num_key_value_heads)
     _require_positive_int("head_dim", head_dim)
@@ -100,7 +106,7 @@ def compute_value_importance(
             f"got {o_proj_weight.shape[1]} and expected {expected_o_proj_columns}"
         )
 
-    value_variance = torch.nan_to_num(value_states).var(dim=2, unbiased=False)
+    value_variance = value_states.var(dim=2, unbiased=False)
     output_projection_norm = _group_output_projection_norm(
         o_proj_weight=o_proj_weight,
         num_heads=num_heads,
@@ -173,7 +179,7 @@ def _group_output_projection_norm(
     head_dim: int,
 ) -> torch.Tensor:
     num_key_value_groups = num_heads // num_key_value_heads
-    column_norm = torch.nan_to_num(o_proj_weight).square().sum(dim=0)
+    column_norm = o_proj_weight.square().sum(dim=0)
     column_norm = column_norm.view(num_heads, head_dim)
     if num_key_value_groups == 1:
         return column_norm
@@ -192,7 +198,8 @@ def _prepare_bucket_importance(importance: torch.Tensor) -> torch.Tensor:
 
     if importance.shape[0] <= 0 or importance.shape[1] <= 0:
         raise ValueError(f"importance must have non-empty head and channel dimensions, got {tuple(importance.shape)}")
-    return torch.nan_to_num(importance)
+    _require_finite_tensor("importance", importance)
+    return importance
 
 
 def _bucket_sizes(head_dim: int, num_buckets: int) -> tuple[int, ...]:
@@ -244,10 +251,17 @@ def _resolve_num_key_value_groups(
 
 
 def _finalize_importance(importance: torch.Tensor, reduce_batch: bool) -> torch.Tensor:
-    importance = torch.nan_to_num(importance).clamp_min(0)
+    _require_finite_tensor("importance", importance)
+    importance = importance.clamp_min(0)
     if reduce_batch:
         importance = importance.mean(dim=0)
-    return torch.nan_to_num(importance).clamp_min(0)
+    _require_finite_tensor("importance", importance)
+    return importance.clamp_min(0)
+
+
+def _require_finite_tensor(name: str, tensor: torch.Tensor) -> None:
+    if not bool(torch.isfinite(tensor).all()):
+        raise ExperimentPointError(f"{name} contains non-finite values")
 
 
 def _require_4d(name: str, tensor: torch.Tensor) -> None:

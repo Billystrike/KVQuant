@@ -4,6 +4,8 @@ from collections.abc import Sequence
 
 import torch
 
+from utils.cage_experiment_schema import ExperimentPointError
+
 
 _SCALE_EPS = 1e-8
 
@@ -63,6 +65,7 @@ def _fake_quant_by_channel_buckets(
     quantize_dim: int,
 ) -> torch.Tensor:
     _require_floating_tensor("states", states)
+    _require_finite_tensor("states", states)
     _require_positive_int("bits", bits)
 
     buckets = tuple(bucket_indices)
@@ -96,6 +99,7 @@ def _fake_quant_by_channel_buckets(
         )
         output.scatter_(dim=-1, index=gather_index, src=quantized)
 
+    _require_finite_tensor("fake-quantized states", output)
     return output
 
 
@@ -114,7 +118,7 @@ def _asymmetric_fake_quant_grouped(
         raise ValueError(f"quantize_dim={quantize_dim} is out of range for shape {tuple(tensor.shape)}")
 
     original_dtype = tensor.dtype
-    moved = _sanitize_for_quant(tensor).movedim(quant_dim, -1).contiguous()
+    moved = tensor.float().movedim(quant_dim, -1).contiguous()
     original_shape = moved.shape
     quant_length = original_shape[-1]
     padded = _pad_last_dim_by_repeating_last(moved, group_size)
@@ -150,10 +154,6 @@ def _pad_last_dim_by_repeating_last(tensor: torch.Tensor, group_size: int) -> to
 
     pad_values = tensor[..., -1:].expand(*tensor.shape[:-1], pad_count)
     return torch.cat((tensor, pad_values), dim=-1)
-
-
-def _sanitize_for_quant(tensor: torch.Tensor) -> torch.Tensor:
-    return torch.nan_to_num(tensor.float(), nan=0.0, posinf=0.0, neginf=0.0)
 
 
 def _normalize_bucket_indices(
@@ -219,6 +219,11 @@ def _require_4d(name: str, tensor: torch.Tensor) -> None:
 def _require_floating_tensor(name: str, tensor: torch.Tensor) -> None:
     if not tensor.is_floating_point():
         raise ValueError(f"{name} must be a floating point tensor, got {tensor.dtype}")
+
+
+def _require_finite_tensor(name: str, tensor: torch.Tensor) -> None:
+    if not bool(torch.isfinite(tensor).all()):
+        raise ExperimentPointError(f"{name} contains non-finite values")
 
 
 def _require_positive_int(name: str, value: int) -> None:

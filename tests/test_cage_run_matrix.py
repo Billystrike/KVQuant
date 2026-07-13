@@ -6,6 +6,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from tests.test_cage_experiment_schema import completed_artifacts
+from utils.cage_experiment_io import atomic_write_json, atomic_write_jsonl
+
 
 ROOT = Path(__file__).parents[1]
 SCRIPT = ROOT / "scripts" / "cage_run_matrix.py"
@@ -94,23 +97,9 @@ class CageRunMatrixTest(unittest.TestCase):
             failures = root / "output" / "failures"
             runs.mkdir(parents=True)
             failures.mkdir()
-            (runs / "done.json").write_text(
-                json.dumps({
-                    "schema_version": 1,
-                    "run_id": "done",
-                    "status": "completed",
-                    "model": {},
-                    "method": {},
-                    "input": {},
-                    "quantization": {},
-                    "measurement": {},
-                    "memory": {},
-                    "metrics_aggregate": {"metric": 1},
-                    "runtime_diagnostics": {},
-                    "provenance": {},
-                }),
-                encoding="utf-8",
-            )
+            run_record, layer_records = completed_artifacts("done")
+            atomic_write_json(runs / "done.json", run_record)
+            atomic_write_jsonl(root / "output" / "layers" / "done.jsonl", layer_records)
             (failures / "bad.json").write_text(
                 json.dumps({"run_id": "bad", "status": "failed"}), encoding="utf-8")
             with mock.patch.object(self.matrix.subprocess, "run",

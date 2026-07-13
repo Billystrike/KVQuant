@@ -237,6 +237,78 @@ def summarize_fp16_cache_bytes(past_key_value: tuple[Any, Any]) -> dict[str, int
     )
 
 
+def summarize_cache_structure(
+    method: str,
+    past_key_value: Any,
+    *,
+    prompt_length: int,
+    residual_length: int | None = None,
+) -> dict[str, dict[str, int]]:
+    """Audit Key/Value token partitions for one prefill cache layer."""
+
+    _require_positive("prompt_length", prompt_length)
+    if method == "fp16":
+        if not isinstance(past_key_value, tuple) or len(past_key_value) != 2:
+            raise ValueError("FP16 cache must be a (key, value) tuple")
+        key_total = _sequence_length(past_key_value[0])
+        value_total = _sequence_length(past_key_value[1])
+        if key_total != prompt_length or value_total != prompt_length:
+            raise ValueError("FP16 Key and Value total lengths must equal prompt_length")
+        key_residual = value_residual = prompt_length
+    elif method == "kivi":
+        if not isinstance(past_key_value, tuple) or len(past_key_value) < 9:
+            raise ValueError("KIVI cache must use the original packed tuple")
+        _require_positive("residual_length", residual_length)
+        if past_key_value[8] != prompt_length:
+            raise ValueError("KIVI Key and Value total lengths must equal prompt_length")
+        key_residual = _sequence_length(past_key_value[1])
+        value_residual = _sequence_length(past_key_value[5])
+    elif method == "cage":
+        _require_positive("residual_length", residual_length)
+        unpacked = unpack_cage_past_key_value(past_key_value)
+        if unpacked.kv_seq_len != prompt_length:
+            raise ValueError("CAGE Key and Value total lengths must equal prompt_length")
+        key_residual = _sequence_length(unpacked.key_cache.key_full)
+        value_residual = _sequence_length(unpacked.value_cache.value_full)
+        _require_bucket_sequence_length(
+            "CAGE Key", unpacked.key_cache.key_quant_buckets,
+            prompt_length - key_residual,
+        )
+        _require_bucket_sequence_length(
+            "CAGE Value", unpacked.value_cache.value_quant_buckets,
+            prompt_length - value_residual,
+        )
+    else:
+        raise ValueError(f"unsupported cache method {method!r}")
+
+    if method in {"kivi", "cage"}:
+        expected_key_residual = prompt_length % int(residual_length)
+        expected_value_residual = min(prompt_length, int(residual_length))
+        if key_residual != expected_key_residual:
+            raise ValueError(
+                f"Key residual tokens must equal T % residual_length = "
+                f"{expected_key_residual}, got {key_residual}"
+            )
+        if value_residual != expected_value_residual:
+            raise ValueError(
+                f"Value residual tokens must equal min(T, residual_length) = "
+                f"{expected_value_residual}, got {value_residual}"
+            )
+
+    return {
+        "key": {
+            "total_tokens": prompt_length,
+            "quantized_history_tokens": prompt_length - key_residual,
+            "fp16_residual_tokens": key_residual,
+        },
+        "value": {
+            "total_tokens": prompt_length,
+            "quantized_history_tokens": prompt_length - value_residual,
+            "fp16_residual_tokens": value_residual,
+        },
+    }
+
+
 def sum_cache_summaries(layer_summaries: Sequence[dict[str, int | str]]) -> dict[str, int | str]:
     """Add every numeric byte field present across layer summaries."""
 
@@ -422,6 +494,25 @@ def _tensor_sequence_nbytes(tensors: Sequence[Any] | None) -> int:
     if tensors is None:
         return 0
     return sum(_tensor_nbytes(tensor) for tensor in tensors)
+
+
+def _sequence_length(tensor: Any | None) -> int:
+    if tensor is None:
+        return 0
+    shape = getattr(tensor, "shape", None)
+    if shape is None or len(shape) < 3:
+        raise ValueError("cache tensor must expose a sequence dimension")
+    return int(shape[-2])
+
+
+def _require_bucket_sequence_length(
+    name: str, buckets: Sequence[Any], expected: int,
+) -> None:
+    lengths = {_sequence_length(bucket) for bucket in buckets if bucket is not None}
+    if expected == 0 and not lengths:
+        return
+    if lengths != {expected}:
+        raise ValueError(f"{name} quantized-history lengths must equal {expected}, got {lengths}")
 
 
 def _tensor_nbytes(tensor: Any | None) -> int:

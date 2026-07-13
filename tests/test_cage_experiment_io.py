@@ -8,6 +8,8 @@ from unittest import mock
 
 import torch
 
+from tests.test_cage_experiment_schema import completed_artifacts
+
 from utils.cage_experiment_io import (
     aggregate_completed_runs,
     atomic_write_json,
@@ -30,22 +32,16 @@ class _Tokenizer:
 class CageExperimentIOTests(unittest.TestCase):
     @staticmethod
     def _completed_record(run_id, **updates):
-        record = {
-            "schema_version": 1,
-            "run_id": run_id,
-            "status": "completed",
-            "model": {"name": "m"},
-            "method": {"name": "fp16"},
-            "input": {"prompt_length": 2},
-            "quantization": {"method": "fp16"},
-            "measurement": {"query_count": 1},
-            "memory": {"paper_estimate": {"total_bytes": 1}},
-            "metrics_aggregate": {"joint": {"relative_l2": 0.0}},
-            "runtime_diagnostics": {"load_seconds": 0.1},
-            "provenance": {"source_state": {"commit": "abc"}},
-        }
+        record, _ = completed_artifacts(run_id)
         record.update(updates)
         return record
+
+    @staticmethod
+    def _write_completed(root, run_id, *, runtime_updates=None):
+        record, layers = completed_artifacts(run_id)
+        record["runtime_diagnostics"].update(runtime_updates or {})
+        atomic_write_json(root / "runs" / f"{run_id}.json", record)
+        atomic_write_jsonl(root / "layers" / f"{run_id}.jsonl", layers)
 
     def test_prompt_jsonl_is_strict_and_unique(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -98,7 +94,7 @@ class CageExperimentIOTests(unittest.TestCase):
                          stable_run_id({"a": {"c": 3, "d": 4}, "b": 2}))
 
     def test_provenance_has_cpu_cuda_fields(self):
-        provenance = collect_provenance(Path(__file__).parents[1])
+        provenance = collect_provenance(Path(__file__).parents[1], deterministic_seed=123)
         for key in ("source_state", "dirty", "python", "pytorch", "transformers",
                     "cuda_runtime", "cuda_driver", "gpu_name", "deterministic_seed", "command"):
             self.assertIn(key, provenance)
@@ -106,6 +102,7 @@ class CageExperimentIOTests(unittest.TestCase):
             self.assertIsNone(provenance["cuda_runtime"])
             self.assertIsNone(provenance["cuda_driver"])
             self.assertIsNone(provenance["gpu_name"])
+        self.assertEqual(provenance["deterministic_seed"], 123)
 
     def test_command_path_arguments_are_normalized_relative_to_repo_root(self):
         root = Path(__file__).parents[1].resolve()
@@ -137,10 +134,11 @@ class CageExperimentIOTests(unittest.TestCase):
         root = Path(__file__).parents[1].resolve()
         argv = ["runner.py", "--manifest", ".\\config\\..\\manifest.json", "--job-index=2"]
         with mock.patch("utils.cage_experiment_io.sys.argv", argv):
-            provenance = collect_provenance(root)
+            provenance = collect_provenance(root, deterministic_seed=17)
         self.assertEqual(provenance["command"], [
             "runner.py", "--manifest", (root / "manifest.json").as_posix(), "--job-index=2",
         ])
+        self.assertEqual(provenance["deterministic_seed"], 17)
 
     def test_source_identity_hashes_untracked_code_but_not_output_data(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -177,26 +175,26 @@ class CageExperimentIOTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); (root / "runs").mkdir(); (root / "failures").mkdir()
             atomic_write_json(root / "runs" / "b.json", {"run_id": "b", "status": "failed"})
-            atomic_write_json(root / "runs" / "a.json", self._completed_record("a", score=1))
+            self._write_completed(root, "a", runtime_updates={"score": 1})
             atomic_write_json(root / "failures" / "c.json", {"run_id": "c", "status": "failed"})
             records = aggregate_completed_runs(root)
             self.assertEqual([x["run_id"] for x in records], ["a"])
             with (root / "summary" / "runs.csv").open(encoding="utf-8", newline="") as handle:
                 row = next(csv.DictReader(handle))
-            self.assertEqual(row["model.name"], "m")
-            self.assertEqual(row["score"], "1")
+            self.assertEqual(row["model.reference"], "model")
+            self.assertEqual(row["runtime_diagnostics.score"], "1")
 
     def test_aggregation_csv_uses_union_of_completed_record_columns(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); (root / "runs").mkdir()
-            atomic_write_json(root / "runs" / "a.json", self._completed_record("a", left=1))
-            atomic_write_json(root / "runs" / "b.json", self._completed_record("b", right=2))
+            self._write_completed(root, "a", runtime_updates={"left": 1})
+            self._write_completed(root, "b", runtime_updates={"right": 2})
             aggregate_completed_runs(root)
             with (root / "summary" / "runs.csv").open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
-            self.assertEqual((rows[0]["run_id"], rows[0]["left"], rows[0]["right"]),
+            self.assertEqual((rows[0]["run_id"], rows[0]["runtime_diagnostics.left"], rows[0]["runtime_diagnostics.right"]),
                              ("a", "1", ""))
-            self.assertEqual((rows[1]["run_id"], rows[1]["left"], rows[1]["right"]),
+            self.assertEqual((rows[1]["run_id"], rows[1]["runtime_diagnostics.left"], rows[1]["runtime_diagnostics.right"]),
                              ("b", "", "2"))
 
     def test_aggregation_rejects_incompatible_completed_schema_version(self):
@@ -230,6 +228,25 @@ class CageExperimentIOTests(unittest.TestCase):
                              "existing-jsonl\n")
             self.assertEqual((root / "summary" / "runs.csv").read_text(encoding="utf-8"),
                              "existing-csv\n")
+
+    def test_aggregation_rejects_invalid_layer_artifact_atomically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "summary").mkdir()
+            (root / "summary" / "runs.jsonl").write_text("existing-jsonl\n", encoding="utf-8")
+            (root / "summary" / "runs.csv").write_text("existing-csv\n", encoding="utf-8")
+            self._write_completed(root, "a")
+            (root / "layers" / "a.jsonl").write_text("{bad json}\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "layer.*JSON"):
+                aggregate_completed_runs(root)
+            self.assertEqual(
+                (root / "summary" / "runs.jsonl").read_text(encoding="utf-8"),
+                "existing-jsonl\n",
+            )
+            self.assertEqual(
+                (root / "summary" / "runs.csv").read_text(encoding="utf-8"),
+                "existing-csv\n",
+            )
 
     def test_aggregation_with_no_completed_runs_writes_empty_summaries(self):
         with tempfile.TemporaryDirectory() as directory:

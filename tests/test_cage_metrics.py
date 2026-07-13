@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import torch
 
 from utils.cage_metrics import collect_cage_perturbation_metrics, compute_cage_perturbation_metrics
+from utils.cage_experiment_schema import ExperimentPointError
 
 
 class CageMetricsTest(unittest.TestCase):
@@ -100,6 +101,24 @@ class CageMetricsTest(unittest.TestCase):
         self.assertGreater(metrics["joint_attention_output_mse"], 0.0)
         self.assertGreater(metrics["joint_post_o_proj_mse"], 0.0)
         self.assertGreater(metrics["joint_attention_output_relative_error"], 0.0)
+
+    def test_metrics_reject_non_finite_source_and_reconstruction_tensors(self):
+        for field, value in (
+            ("query_states", float("nan")),
+            ("key_states", float("inf")),
+            ("key_states_hat", float("nan")),
+            ("value_states", float("-inf")),
+            ("value_states_hat", float("inf")),
+            ("o_proj_weight", float("nan")),
+            ("key_importance", float("inf")),
+            ("value_importance", float("nan")),
+        ):
+            with self.subTest(field=field):
+                inputs = self._small_inputs()
+                inputs[field] = inputs[field].clone()
+                inputs[field].view(-1)[0] = value
+                with self.assertRaisesRegex(ExperimentPointError, "non-finite"):
+                    compute_cage_perturbation_metrics(**inputs)
 
     def test_collection_gate_skips_compute_and_dump_when_disabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -8,6 +8,8 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
+from utils.cage_experiment_schema import ExperimentPointError
+
 
 DEFAULT_TOP_K = 10
 DEFAULT_METRICS_FILENAME = "cage_perturbation_metrics.jsonl"
@@ -40,6 +42,17 @@ def compute_cage_perturbation_metrics(
     _require_same_shape("value_states", value_states, "value_states_hat", value_states_hat)
     _require_matching_attention_shapes(query_states, key_states, value_states)
     _require_positive_int("top_k", top_k)
+    for name, tensor in (
+        ("query_states", query_states),
+        ("key_states", key_states),
+        ("key_states_hat", key_states_hat),
+        ("value_states", value_states),
+        ("value_states_hat", value_states_hat),
+        ("o_proj_weight", o_proj_weight),
+        ("key_importance", key_importance),
+        ("value_importance", value_importance),
+    ):
+        _require_finite_tensor(name, tensor)
 
     num_key_value_groups = _resolve_num_key_value_groups(
         num_query_heads=query_states.shape[1],
@@ -55,6 +68,8 @@ def compute_cage_perturbation_metrics(
     perturbed_logits = _attention_logits(query_states, repeated_keys_hat, attention_mask)
     reference_scores = torch.softmax(reference_logits, dim=-1, dtype=torch.float32)
     perturbed_scores = torch.softmax(perturbed_logits, dim=-1, dtype=torch.float32)
+    _require_finite_tensor("reference attention scores", reference_scores)
+    _require_finite_tensor("perturbed attention scores", perturbed_scores)
 
     reference_value_output = torch.matmul(reference_scores.to(repeated_values.dtype), repeated_values)
     perturbed_value_output = torch.matmul(reference_scores.to(repeated_values_hat.dtype), repeated_values_hat)
@@ -64,6 +79,12 @@ def compute_cage_perturbation_metrics(
         repeated_values_hat,
     )
     joint_delta = reference_value_output - joint_output
+    for name, tensor in (
+        ("reference attention output", reference_value_output),
+        ("perturbed value output", perturbed_value_output),
+        ("joint attention output", joint_output),
+    ):
+        _require_finite_tensor(name, tensor)
 
     return {
         "relative_k_reconstruction_error": _as_float(_relative_l2_error(key_states, key_states_hat)),
@@ -148,13 +169,14 @@ def _attention_logits(
     attention_mask: torch.Tensor | None,
 ) -> torch.Tensor:
     logits = torch.matmul(
-        torch.nan_to_num(query_states).float(),
-        torch.nan_to_num(key_states).float().transpose(2, 3),
+        query_states.float(),
+        key_states.float().transpose(2, 3),
     ) / math.sqrt(query_states.shape[-1])
     if attention_mask is not None:
         _require_attention_mask_shape(attention_mask, logits)
         logits = logits + attention_mask.float()
-    return torch.nan_to_num(logits, nan=0.0, posinf=torch.finfo(logits.dtype).max, neginf=torch.finfo(logits.dtype).min)
+    _require_finite_tensor("attention logits", logits)
+    return logits
 
 
 def _attention_score_kl(reference_logits: torch.Tensor, perturbed_logits: torch.Tensor) -> torch.Tensor:
@@ -162,7 +184,8 @@ def _attention_score_kl(reference_logits: torch.Tensor, perturbed_logits: torch.
     perturbed_log_probs = F.log_softmax(perturbed_logits, dim=-1, dtype=torch.float32)
     reference_probs = reference_log_probs.exp()
     kl = (reference_probs * (reference_log_probs - perturbed_log_probs)).sum(dim=-1).mean()
-    return torch.nan_to_num(kl, nan=0.0, posinf=0.0, neginf=0.0)
+    _require_finite_tensor("attention score KL", kl)
+    return kl.clamp_min(0)
 
 
 def _topk_attention_overlap(
@@ -197,13 +220,13 @@ def _weighted_channel_error(
     importance: torch.Tensor,
 ) -> torch.Tensor:
     prepared_importance = _prepare_importance(importance, reference)
-    channel_mse = (torch.nan_to_num(reference).double() - torch.nan_to_num(perturbed).double()).square().mean(dim=(0, 2))
-    return (torch.nan_to_num(prepared_importance).double().clamp_min(0) * channel_mse).sum()
+    channel_mse = (reference.double() - perturbed.double()).square().mean(dim=(0, 2))
+    return (prepared_importance.double().clamp_min(0) * channel_mse).sum()
 
 
 def _relative_l2_error(reference: torch.Tensor, perturbed: torch.Tensor) -> torch.Tensor:
-    diff_norm = (torch.nan_to_num(reference).float() - torch.nan_to_num(perturbed).float()).square().sum().sqrt()
-    reference_norm = torch.nan_to_num(reference).float().square().sum().sqrt().clamp_min(_EPS)
+    diff_norm = (reference.float() - perturbed.float()).square().sum().sqrt()
+    reference_norm = reference.float().square().sum().sqrt().clamp_min(_EPS)
     return diff_norm / reference_norm
 
 
@@ -255,8 +278,17 @@ def _resolve_num_key_value_groups(
 
 
 def _as_float(value: torch.Tensor) -> float:
-    value = torch.nan_to_num(value.detach().double(), nan=0.0, posinf=0.0, neginf=0.0)
-    return float(value.cpu().item())
+    value = value.detach().double()
+    _require_finite_tensor("final metric", value)
+    number = float(value.cpu().item())
+    if not math.isfinite(number):
+        raise ExperimentPointError("final metric contains non-finite values")
+    return number
+
+
+def _require_finite_tensor(name: str, tensor: torch.Tensor) -> None:
+    if not bool(torch.isfinite(tensor).all()):
+        raise ExperimentPointError(f"{name} contains non-finite values")
 
 
 def _require_4d(name: str, tensor: torch.Tensor) -> None:

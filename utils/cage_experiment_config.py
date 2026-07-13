@@ -151,13 +151,20 @@ def _resolve_method(value: Any, index: int) -> dict:
 
 
 def _validate_cage(config: dict) -> None:
-    _bits("k_bits", config["k_bits"]); _bits("v_bits", config["v_bits"])
+    if config["k_bits"] != 2 or isinstance(config["k_bits"], bool):
+        raise ValueError("CAGE k_bits must equal 2 for the scoped core pilot")
+    if config["v_bits"] != 2 or isinstance(config["v_bits"], bool):
+        raise ValueError("CAGE v_bits must equal 2 for the scoped core pilot")
     _positive_int("residual_length", config["residual_length"])
     if config["cage_mode"] != "fake":
         raise ValueError("cage_mode must be 'fake'")
     for name in ("cage_k_enable", "cage_v_enable"):
-        if not isinstance(config[name], bool):
-            raise ValueError(f"{name} must be a boolean")
+        if config[name] is not True:
+            raise ValueError(f"{name} must be true for the scoped core pilot")
+    if config["cage_k_importance"] != "q2_var":
+        raise ValueError("cage_k_importance must equal 'q2_var' for the scoped core pilot")
+    if config["cage_v_importance"] != "wo_var":
+        raise ValueError("cage_v_importance must equal 'wo_var' for the scoped core pilot")
     for prefix in ("cage_k", "cage_v"):
         _nonempty_string(f"{prefix}_importance", config[f"{prefix}_importance"])
         count = config[f"{prefix}_num_buckets"]

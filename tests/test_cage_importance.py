@@ -113,26 +113,22 @@ class CageImportanceTest(unittest.TestCase):
         self.assertTrue(torch.allclose(per_batch, torch.tensor([[[4.0]], [[16.0]]])))
         self.assertTrue(torch.allclose(reduced, per_batch.mean(dim=0)))
 
-    def test_importance_outputs_are_finite_non_negative_and_zero_for_zero_variance(self):
+    def test_importance_rejects_non_finite_source_values(self):
         query_states = torch.tensor([[[[float("nan"), 2.0], [3.0, 4.0]]]])
         key_states = torch.tensor([[[[1.0, 5.0], [1.0, 5.0]]]])
         value_states = torch.tensor([[[[2.0, float("nan")], [2.0, 3.0]]]])
         o_proj_weight = torch.ones(1, 2)
 
-        key_importance = compute_key_importance(query_states, key_states)
-        value_importance = compute_value_importance(
-            value_states,
-            o_proj_weight,
-            num_heads=1,
-            num_key_value_heads=1,
-            head_dim=2,
-        )
-
-        self.assertTrue(torch.isfinite(key_importance).all())
-        self.assertTrue(torch.isfinite(value_importance).all())
-        self.assertTrue((key_importance >= 0).all())
-        self.assertTrue((value_importance >= 0).all())
-        self.assertTrue(torch.equal(key_importance, torch.zeros_like(key_importance)))
+        with self.assertRaisesRegex(ValueError, "non-finite"):
+            compute_key_importance(query_states, key_states)
+        with self.assertRaisesRegex(ValueError, "non-finite"):
+            compute_value_importance(
+                value_states,
+                o_proj_weight,
+                num_heads=1,
+                num_key_value_heads=1,
+                head_dim=2,
+            )
 
     def test_assign_channel_buckets_places_highest_importance_in_first_bucket(self):
         importance = torch.tensor(

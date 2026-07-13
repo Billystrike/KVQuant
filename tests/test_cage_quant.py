@@ -67,17 +67,16 @@ class CageQuantTest(unittest.TestCase):
         self.assertTrue(torch.allclose(quantized[0, 0, :, 0], torch.tensor([0.0, 4.0 / 3.0, 8.0 / 3.0, 4.0])))
         self.assertTrue(torch.allclose(quantized[0, 1, :, 0], torch.tensor([4.0, 8.0 / 3.0, 4.0 / 3.0, 0.0])))
 
-    def test_fake_quant_outputs_are_finite_for_non_finite_selected_values(self):
+    def test_fake_quant_rejects_non_finite_source_values(self):
         key_states = torch.tensor([[[[float("nan"), float("inf")], [float("-inf"), 1.0]]]])
 
-        quantized = fake_quant_k_by_channel_buckets(
-            key_states,
-            bucket_indices=(torch.tensor([[0, 1]]),),
-            group_sizes=(2,),
-            clip_percentiles=(1.0,),
-        )
-
-        self.assertTrue(torch.isfinite(quantized).all())
+        with self.assertRaisesRegex(ValueError, "non-finite"):
+            fake_quant_k_by_channel_buckets(
+                key_states,
+                bucket_indices=(torch.tensor([[0, 1]]),),
+                group_sizes=(2,),
+                clip_percentiles=(1.0,),
+            )
 
 
 if __name__ == "__main__":

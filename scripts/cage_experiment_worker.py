@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import argparse
 import gc
+import hashlib
 import json
+import posixpath
 import statistics
 import sys
 import time
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, NamedTuple, Sequence
 
 import torch
 
@@ -26,35 +28,56 @@ from utils.cage_experiment_io import (
     atomic_write_json, atomic_write_jsonl, collect_provenance,
     load_prompt_records, prepare_prompt, stable_run_id,
 )
+from utils.cage_experiment_schema import (
+    ExperimentPointError,
+    METRIC_NAMES,
+    SCHEMA_VERSION,
+    is_valid_completed_point,
+    validate_completed_artifacts,
+)
 from utils.cage_memory import (
     build_memory_namespace, sum_cache_summaries, summarize_cache_bytes,
-    summarize_fp16_cache_bytes, summarize_runtime_cache_bytes,
+    summarize_cache_structure, summarize_fp16_cache_bytes, summarize_runtime_cache_bytes,
 )
 
-
-METRIC_NAMES = (
-    "relative_k_reconstruction_error", "attention_logit_mse",
-    "attention_score_kl", "topk_attention_overlap", "weighted_key_error",
-    "relative_v_reconstruction_error", "attention_output_mse",
-    "post_o_proj_mse", "weighted_value_error",
-    "joint_attention_output_mse", "joint_post_o_proj_mse",
-    "joint_attention_output_relative_error",
-)
 
 WORKER_EXIT_CODES = {0, 2, 3, 4, 5}
 
 
-def classify_worker_failure(error: BaseException, stage: str, *, unusable: bool = False) -> int:
+class FailureClassification(NamedTuple):
+    category: str
+    stage: str
+    exit_code: int
+    retryable: bool
+
+
+def classify_worker_failure(
+    error: BaseException, stage: str, *, unusable: bool = False,
+) -> FailureClassification:
     """Map worker failures onto the documented orchestration contract."""
-    if stage == "input":
-        return 2
     if isinstance(error, torch.cuda.OutOfMemoryError):
-        return 3
+        return FailureClassification("cuda_out_of_memory", stage, 3, False)
+    if stage == "input":
+        return FailureClassification("input_error", stage, 2, False)
     if stage == "load":
-        return 4
-    if unusable or stage in {"runtime", "capture_reset"}:
-        return 5
-    return 5
+        return FailureClassification("model_load_error", stage, 4, False)
+    if unusable and stage == "capture_reset":
+        return FailureClassification("transient_model_state", stage, 5, True)
+    return FailureClassification("experiment_point_error", stage, 2, False)
+
+
+def failure_record(
+    run_id: str, error: BaseException, classification: FailureClassification,
+) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "run_id": run_id,
+        "status": "failed",
+        "category": classification.category,
+        "stage": classification.stage,
+        "retryable": classification.retryable,
+        "message": str(error),
+    }
 
 
 def _nonnegative(value: str) -> int:
@@ -109,7 +132,7 @@ def attach_layer_context(layer_records: Sequence[dict[str, Any]], layer_memory: 
         raise ValueError(f"layer metric count {len(layer_records)} does not equal "
                          f"layer memory count {len(layer_memory)}")
     for record, memory in zip(layer_records, layer_memory):
-        record.update({"run_id": run_id, "method": method,
+        record.update({"schema_version": SCHEMA_VERSION, "run_id": run_id, "method": method,
                        "prompt_length": prompt_length, "memory": memory})
 
 
@@ -133,11 +156,7 @@ def fp16_zero_layer_records(layer_count: int) -> list[dict[str, Any]]:
 
 
 def completed_run_exists(output_dir: Path, run_id: str) -> bool:
-    path = output_dir / "runs" / f"{run_id}.json"
-    try:
-        return json.loads(path.read_text(encoding="utf-8")).get("status") == "completed"
-    except (OSError, json.JSONDecodeError, AttributeError):
-        return False
+    return is_valid_completed_point(output_dir, run_id)
 
 
 def _load_manifest(path: Path) -> dict[str, Any]:
@@ -156,13 +175,20 @@ def _dtype(name: str) -> torch.dtype:
     return {"float16": torch.float16, "bfloat16": torch.bfloat16}[name]
 
 
-def _load_inputs_and_model(job: dict[str, Any], prompts: dict[str, Any]):
-    from transformers import AutoConfig, AutoTokenizer, LlamaForCausalLM
+def _prepare_inputs(job: dict[str, Any], prompts: dict[str, Any]):
+    from transformers import AutoTokenizer
 
     reference = job["model"]["reference"]
     tokenizer = AutoTokenizer.from_pretrained(reference, use_fast=False)
     prepared = {(sample_id, length): prepare_prompt(tokenizer, prompts[sample_id].text, length)
                 for sample_id in job["sample_ids"] for length in job["prompt_lengths"]}
+    return tokenizer, prepared
+
+
+def _load_model(job: dict[str, Any]):
+    from transformers import AutoConfig, LlamaForCausalLM
+
+    reference = job["model"]["reference"]
     config = AutoConfig.from_pretrained(reference)
     apply_method_config(config, job["method"], job["method_config"])
     if job["method"] == "fp16":
@@ -176,32 +202,95 @@ def _load_inputs_and_model(job: dict[str, Any], prompts: dict[str, Any]):
                                         low_cpu_mem_usage=True)
     model.to(job["model"]["device"])
     model.eval()
-    return tokenizer, prepared, model, time.perf_counter() - started
+    return model, time.perf_counter() - started
 
 
-def _memory(method: str, past_key_values: Any, device: str):
+def _memory(
+    method: str,
+    past_key_values: Any,
+    *,
+    prompt_length: int,
+    residual_length: int | None,
+):
     if method == "fp16":
         paper_layers = [summarize_fp16_cache_bytes(layer) for layer in past_key_values]
         runtime_layers = paper_layers
     else:
         paper_layers = [summarize_cache_bytes(layer) for layer in past_key_values]
         runtime_layers = [summarize_runtime_cache_bytes(layer) for layer in past_key_values]
-    allocated = torch.cuda.max_memory_allocated() if device == "cuda" else 0
-    reserved = torch.cuda.max_memory_reserved() if device == "cuda" else 0
     total = build_memory_namespace(sum_cache_summaries(paper_layers),
                                    sum_cache_summaries(runtime_layers),
-                                   max_allocated_bytes=allocated, max_reserved_bytes=reserved)
+                                   max_allocated_bytes=0, max_reserved_bytes=0)
     layers = [build_memory_namespace(paper, runtime, max_allocated_bytes=0,
                                      max_reserved_bytes=0)
               for paper, runtime in zip(paper_layers, runtime_layers)]
+    for layer, cache in zip(layers, past_key_values):
+        layer["cache_structure"] = summarize_cache_structure(
+            method,
+            cache,
+            prompt_length=prompt_length,
+            residual_length=residual_length,
+        )
     return total, layers
 
 
+def update_point_cuda_diagnostic(memory: dict[str, Any], device: str) -> None:
+    if device == "cuda":
+        allocated = int(torch.cuda.max_memory_allocated())
+        reserved = int(torch.cuda.max_memory_reserved())
+    else:
+        allocated = reserved = 0
+    memory["cuda_peak_diagnostic"] = {
+        "max_allocated_bytes": allocated,
+        "max_reserved_bytes": reserved,
+    }
+
+
+def require_finite_tensor_tree(name: str, value: Any) -> None:
+    if isinstance(value, torch.Tensor):
+        if value.is_floating_point() and not bool(torch.isfinite(value).all()):
+            raise ExperimentPointError(f"{name} contains non-finite values")
+        return
+    if isinstance(value, dict):
+        for key, child in value.items():
+            require_finite_tensor_tree(f"{name}.{key}", child)
+        return
+    if isinstance(value, (list, tuple)):
+        for index, child in enumerate(value):
+            require_finite_tensor_tree(f"{name}[{index}]", child)
+
+
+def _normalized_model_identity(model: dict[str, Any]) -> dict[str, Any]:
+    identity = dict(model)
+    reference = identity.get("reference")
+    if isinstance(reference, str):
+        identity["reference"] = posixpath.normpath(reference.replace("\\", "/"))
+    return identity
+
+
+def point_identity(
+    job: dict[str, Any], sample: Any, prompt_length: int, source: dict[str, Any],
+) -> dict[str, Any]:
+    """Return only the scientific identity local to one experiment point."""
+
+    return {
+        "model": _normalized_model_identity(job["model"]),
+        "method": {
+            "name": job["method"],
+            "resolved_config": job["method_config"],
+        },
+        "measurement": job["measurement"],
+        "input": {
+            "sample_id": sample.sample_id,
+            "text_sha256": hashlib.sha256(sample.text.encode("utf-8")).hexdigest(),
+            "prompt_length": prompt_length,
+        },
+        "source_state": source,
+    }
+
+
 def _point_id(job: dict[str, Any], sample: Any, prompt_length: int, source: dict[str, Any]) -> str:
-    return stable_run_id({"job": job, "sample_id": sample.sample_id,
-                          "text_sha256": __import__("hashlib").sha256(sample.text.encode()).hexdigest(),
-                          "prompt_length": prompt_length, "model": job["model"],
-                          "source_state": source})
+    return stable_run_id(point_identity(job, sample, prompt_length, source))
 
 
 def run_job(manifest_path: str | Path, job_index: int) -> int:
@@ -216,7 +305,9 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
     missing = sorted(set(job["sample_ids"]) - set(prompts))
     if missing:
         raise ValueError(f"selected sample_ids missing from prompts: {missing}")
-    provenance = collect_provenance(ROOT)
+    seed = job["measurement"]["seed"]
+    torch.manual_seed(seed)
+    provenance = collect_provenance(ROOT, deterministic_seed=seed)
     pending = []
     for sample_id in job["sample_ids"]:
         for prompt_length in job["prompt_lengths"]:
@@ -227,21 +318,28 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                 pending.append((sample_id, prompt_length, run_id))
     if not pending:
         return 0
-    torch.manual_seed(job["measurement"]["seed"])
     try:
-        tokenizer, prepared, model, load_duration = _load_inputs_and_model(job, prompts)
+        tokenizer, prepared = _prepare_inputs(job, prompts)
     except Exception as error:
-        exit_code = classify_worker_failure(error, "load")
-        category = "cuda_out_of_memory" if exit_code == 3 else type(error).__name__
+        classification = classify_worker_failure(error, "input")
+        for _, _, run_id in pending:
+            atomic_write_json(
+                output_dir / "failures" / f"{run_id}.json",
+                failure_record(run_id, error, classification),
+            )
+        return classification.exit_code
+    try:
+        model, load_duration = _load_model(job)
+    except Exception as error:
+        classification = classify_worker_failure(error, "load")
         for _, _, run_id in pending:
             atomic_write_json(output_dir / "failures" / f"{run_id}.json",
-                              {"schema_version": 1, "run_id": run_id, "status": "failed",
-                               "category": category, "stage": "load",
-                               "retryable": False, "message": str(error)})
+                              failure_record(run_id, error, classification))
         gc.collect()
         if job["model"]["device"] == "cuda":
             torch.cuda.empty_cache()
-        return exit_code
+        del tokenizer
+        return classification.exit_code
     device = job["model"]["device"]
     model_record = {"reference": job["model"]["reference"], "dtype": job["model"]["dtype"],
                     "device": device, "model_type": getattr(model.config, "model_type", None)}
@@ -263,6 +361,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
             started = time.perf_counter()
             with torch.inference_mode():
                 reference_output = model(input_ids=full_ids, use_cache=False, return_dict=True)
+            require_finite_tensor_tree("reference logits", getattr(reference_output, "logits", None))
             timing["reference_seconds"] = time.perf_counter() - started
             if job["method"] != "fp16":
                 begin_candidate_capture(model)
@@ -273,14 +372,24 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
             started = time.perf_counter()
             with torch.inference_mode():
                 prefill = model(input_ids=prompt_ids, use_cache=True, return_dict=True)
+            require_finite_tensor_tree("prefill cache", prefill.past_key_values)
             timing["prefill_seconds"] = time.perf_counter() - started
-            memory_record, layer_memory = _memory(job["method"], prefill.past_key_values, device)
+            memory_record, layer_memory = _memory(
+                job["method"],
+                prefill.past_key_values,
+                prompt_length=prompt_length,
+                residual_length=job["method_config"].get("residual_length"),
+            )
             stage = "decode"
             started = time.perf_counter()
             with torch.inference_mode():
                 candidate_output = model(input_ids=continuation_ids,
                                          past_key_values=prefill.past_key_values,
                                          use_cache=True, return_dict=True)
+            require_finite_tensor_tree("candidate logits", getattr(candidate_output, "logits", None))
+            require_finite_tensor_tree(
+                "candidate cache", getattr(candidate_output, "past_key_values", None)
+            )
             timing["decode_seconds"] = time.perf_counter() - started
             stage = "metrics"
             started = time.perf_counter()
@@ -290,10 +399,11 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
             attach_layer_context(layer_records, layer_memory, run_id,
                                  job["method"], prompt_length)
             timing["metric_seconds"] = time.perf_counter() - started
+            update_point_cuda_diagnostic(memory_record, device)
             input_record = {"sample_id": sample_id, "text_sha256": point["text_sha256"],
                             "prompt_length": prompt_length, "continuation_tokens": 1}
             quantization_record = {"method": job["method"], **job["method_config"]}
-            run_record = {"schema_version": 1, "run_id": run_id, "status": "completed",
+            run_record = {"schema_version": SCHEMA_VERSION, "run_id": run_id, "status": "completed",
                           "model": model_record,
                           "method": {"name": job["method"], "resolved_config": job["method_config"]},
                           "input": input_record, "quantization": quantization_record,
@@ -303,26 +413,29 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
                           "memory": memory_record,
                           "metrics_aggregate": aggregate_layer_metrics(layer_records),
                           "runtime_diagnostics": timing, "provenance": provenance}
+            validate_completed_artifacts(run_record, layer_records, expected_run_id=run_id)
             atomic_write_jsonl(output_dir / "layers" / f"{run_id}.jsonl", layer_records)
             atomic_write_json(output_dir / "runs" / f"{run_id}.json", run_record)
             remove_stale_failure(output_dir, run_id)
         except Exception as error:
-            category = "cuda_out_of_memory" if isinstance(error, torch.cuda.OutOfMemoryError) else type(error).__name__
-            exit_code = classify_worker_failure(error, stage)
+            classification = classify_worker_failure(error, stage)
             atomic_write_json(output_dir / "failures" / f"{run_id}.json",
-                              {"schema_version": 1, "run_id": run_id, "status": "failed",
-                               "category": category, "stage": stage, "retryable": False,
-                               "message": str(error)})
+                              failure_record(run_id, error, classification))
             if outcome == 0:
-                outcome = exit_code
+                outcome = classification.exit_code
         finally:
             try:
                 reset_experiment_capture(model)
             except Exception as reset_error:
                 if job["method"] != "fp16":
-                    outcome = classify_worker_failure(
+                    classification = classify_worker_failure(
                         reset_error, "capture_reset", unusable=True
                     )
+                    atomic_write_json(
+                        output_dir / "failures" / f"{run_id}.json",
+                        failure_record(run_id, reset_error, classification),
+                    )
+                    outcome = classification.exit_code
                     unusable = True
             del prompt_ids, continuation_ids, full_ids, prefill
             del reference_output, candidate_output, memory_record, layer_memory, layer_records
@@ -344,7 +457,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_job(args.manifest, args.job_index)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
         print(f"manifest/input error: {error}", file=sys.stderr)
-        return classify_worker_failure(error, "input")
+        return classify_worker_failure(error, "input").exit_code
 
 
 if __name__ == "__main__":

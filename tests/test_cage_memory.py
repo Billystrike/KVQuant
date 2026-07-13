@@ -11,6 +11,7 @@ from utils.cage_memory import (
     sum_cache_summaries,
     summarize_cache_bytes,
     summarize_fp16_cache_bytes,
+    summarize_cache_structure,
     summarize_runtime_cache_bytes,
 )
 
@@ -61,6 +62,62 @@ class CageMemoryTest(unittest.TestCase):
         self.assertEqual(summary["payload_only_bytes"], 0)
         self.assertEqual(summary["metadata_bytes"], 0)
         self.assertEqual(summary["cache_type"], "fp16")
+
+    def test_cache_structure_reports_fp16_kivi_and_cage_key_value_tokens(self):
+        fp16 = (
+            torch.zeros(1, 2, 5, 4, dtype=torch.float16),
+            torch.zeros(1, 2, 5, 4, dtype=torch.float16),
+        )
+        self.assertEqual(
+            summarize_cache_structure("fp16", fp16, prompt_length=5),
+            {
+                "key": {"total_tokens": 5, "quantized_history_tokens": 0,
+                        "fp16_residual_tokens": 5},
+                "value": {"total_tokens": 5, "quantized_history_tokens": 0,
+                          "fp16_residual_tokens": 5},
+            },
+        )
+
+        kivi = (
+            torch.zeros(1), torch.zeros(1, 2, 1, 4), torch.zeros(1), torch.zeros(1),
+            torch.zeros(1), torch.zeros(1, 2, 2, 4), torch.zeros(1), torch.zeros(1), 5,
+        )
+        expected_quantized = {
+            "key": {"total_tokens": 5, "quantized_history_tokens": 4,
+                    "fp16_residual_tokens": 1},
+            "value": {"total_tokens": 5, "quantized_history_tokens": 3,
+                      "fp16_residual_tokens": 2},
+        }
+        self.assertEqual(
+            summarize_cache_structure("kivi", kivi, prompt_length=5, residual_length=2),
+            expected_quantized,
+        )
+
+        key_cache = CageKeyCache(
+            key_quant_buckets=(torch.zeros(1, 2, 4, 4),),
+            key_full=torch.zeros(1, 2, 1, 4),
+            key_bucket_indices=(torch.tensor([[0, 1, 2, 3], [0, 1, 2, 3]]),),
+            key_group_sizes=(2,), key_clip_percentiles=(1.0,),
+        )
+        value_cache = CageValueCache(
+            value_quant_buckets=(torch.zeros(1, 2, 3, 4),),
+            value_full=torch.zeros(1, 2, 2, 4),
+            value_bucket_indices=(torch.tensor([[0, 1, 2, 3], [0, 1, 2, 3]]),),
+            value_group_sizes=(2,), value_clip_percentiles=(1.0,),
+        )
+        cage = pack_cage_past_key_value(key_cache, value_cache, kv_seq_len=5)
+        self.assertEqual(
+            summarize_cache_structure("cage", cage, prompt_length=5, residual_length=2),
+            expected_quantized,
+        )
+
+    def test_cache_structure_rejects_semantically_wrong_residuals(self):
+        invalid = (
+            torch.zeros(1), torch.zeros(1, 2, 2, 4), torch.zeros(1), torch.zeros(1),
+            torch.zeros(1), torch.zeros(1, 2, 2, 4), torch.zeros(1), torch.zeros(1), 5,
+        )
+        with self.assertRaisesRegex(ValueError, "Key residual"):
+            summarize_cache_structure("kivi", invalid, prompt_length=5, residual_length=2)
 
     def test_sum_cache_summaries_adds_every_byte_field(self):
         total = sum_cache_summaries([
