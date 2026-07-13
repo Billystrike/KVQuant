@@ -7,7 +7,7 @@
   },
   "prompts_file": "/root/autodl-tmp/cage_pilot_prompts.jsonl",
   "sample_ids": ["doc-001", "doc-002", "doc-003"],
-  "prompt_lengths": [512, 1024, 2048, 4096],
+  "prompt_lengths": [512, 1024, 2048, 4095],
   "methods": [
     {"id": "fp16", "method": "fp16"},
     {"id": "kivi-g32-r32", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 32},

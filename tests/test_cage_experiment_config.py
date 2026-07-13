@@ -17,7 +17,7 @@ class CageExperimentConfigTests(unittest.TestCase):
             },
             "prompts_file": "/data/prompts.jsonl",
             "sample_ids": ["doc-001", "doc-002"],
-            "prompt_lengths": [512, 4096],
+            "prompt_lengths": [512, 4095],
             "methods": [
                 {"id": "fp16", "method": "fp16"},
                 {
@@ -58,10 +58,15 @@ class CageExperimentConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported method"):
             self._load(manifest)
 
-    def test_rejects_prompt_above_context_limit(self):
+    def test_accepts_prompt_plus_query_at_context_limit(self):
         manifest = self._manifest()
-        manifest["prompt_lengths"] = [4097]
-        with self.assertRaisesRegex(ValueError, "max_position_embeddings"):
+        manifest["prompt_lengths"] = [4095]
+        self.assertEqual(self._load(manifest)["prompt_lengths"], [4095])
+
+    def test_rejects_prompt_plus_query_above_context_limit(self):
+        manifest = self._manifest()
+        manifest["prompt_lengths"] = [4096]
+        with self.assertRaisesRegex(ValueError, "context limit.*max_position_embeddings"):
             self._load(manifest)
 
     def test_rejects_invalid_kivi_pair(self):

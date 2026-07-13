@@ -12,7 +12,7 @@ Create `/root/autodl-tmp/cage_pilot_prompts.jsonl` with exactly one JSON object 
 {"sample_id":"doc-003","text":"A third natural long-form text..."}
 ```
 
-Each record must contain exactly `sample_id` and `text`. Both are non-empty strings, sample IDs are unique, and each text must tokenize with the configured Llama-2 tokenizer to at least 4097 tokens (the largest prompt length plus the teacher-forced continuation). The runner adds special tokens, takes the first `T` tokens as the prompt, and token `T+1` as the continuation. It stores the sample ID and text SHA-256, not the raw text. Dataset acquisition is intentionally outside this runner.
+Each record must contain exactly `sample_id` and `text`. Both are non-empty strings, sample IDs are unique, and each text must tokenize with the configured Llama-2 tokenizer to at least 4096 tokens (the largest prompt length plus the teacher-forced continuation). The configured prompt lengths are 512, 1024, 2048, and 4095. The largest point uses 4095 prompt tokens plus one query token within Llama-2's native 4096-position context; no RoPE scaling or context extension is used. The runner adds special tokens, takes the first `T` tokens as the prompt, and token `T+1` as the continuation. It stores the sample ID and text SHA-256, not the raw text. Dataset acquisition is intentionally outside this runner.
 
 ## Run the matrices
 

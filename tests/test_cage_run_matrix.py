@@ -95,7 +95,22 @@ class CageRunMatrixTest(unittest.TestCase):
             runs.mkdir(parents=True)
             failures.mkdir()
             (runs / "done.json").write_text(
-                json.dumps({"run_id": "done", "status": "completed", "metric": 1}), encoding="utf-8")
+                json.dumps({
+                    "schema_version": 1,
+                    "run_id": "done",
+                    "status": "completed",
+                    "model": {},
+                    "method": {},
+                    "input": {},
+                    "quantization": {},
+                    "measurement": {},
+                    "memory": {},
+                    "metrics_aggregate": {"metric": 1},
+                    "runtime_diagnostics": {},
+                    "provenance": {},
+                }),
+                encoding="utf-8",
+            )
             (failures / "bad.json").write_text(
                 json.dumps({"run_id": "bad", "status": "failed"}), encoding="utf-8")
             with mock.patch.object(self.matrix.subprocess, "run",

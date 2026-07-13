@@ -24,7 +24,7 @@ The main functional-error metric is joint post-output-projection error. Key, Val
 - Llama-2-7B only.
 - FP16, original KIVI, and default CAGE-KV.
 - External JSONL natural-text inputs.
-- Prompt lengths of 512, 1024, 2048, and 4096 tokens.
+- Prompt lengths of 512, 1024, 2048, and 4095 tokens.
 - KIVI group-size and residual sweeps.
 - CAGE residual sweep using the default bucket group profile.
 - Paper-facing cache accounting and separate runtime tensor diagnostics.
@@ -139,7 +139,7 @@ The default pilot contains three distinct natural-text samples.
 |---|---|
 | Model | Llama-2-7B |
 | Samples | 3 natural-text documents |
-| Prompt lengths | 512, 1024, 2048, 4096 |
+| Prompt lengths | 512, 1024, 2048, 4095 |
 | FP16 | one configuration |
 | KIVI `(group_size, residual_length)` | `(32,32)`, `(32,64)`, `(32,128)`, `(64,64)`, `(64,128)`, `(128,128)` |
 | CAGE bucket groups | `[32, 64, 128]` |
@@ -167,6 +167,8 @@ This reduced validation is not a separate scientific matrix.
 Metrics are collected for one teacher-forced decode position after a prefill of exactly T tokens. A separate FP16 T+1-token pass supplies a common final-position query for every method. Metric computation therefore avoids constructing a full `T x T` FP32 diagnostic attention matrix while measuring cache error at a decode position.
 
 The natural text must contain at least T+1 tokens. The continuation token is taken from the source text and is not sampled from the model. The output records `query_source=fp16_reference_final_position` so the control variable is explicit.
+
+For Llama-2's native 4096-position context, the largest point is a 4095-token prompt plus one teacher-forced query token. Manifest validation requires `prompt_length + measurement.decode_tokens <= model.max_position_embeddings`; no RoPE scaling or context extension is used.
 
 ### 7.2 Existing explanatory metrics
 
@@ -299,7 +301,7 @@ Before model loading, the runner validates:
 
 - JSONL schema and unique sample identifiers;
 - sufficient token length without silent shortening;
-- model context limit;
+- native model context limit, including the prompt and decode/query token;
 - method name and known manifest fields;
 - bit width, group sizes, residual length, bucket count, and method-specific constraints;
 - completeness of the resolved configuration;

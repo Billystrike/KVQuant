@@ -234,6 +234,31 @@ def _flatten(value: Any, prefix: str = "") -> dict[str, Any]:
     return flattened
 
 
+_COMPLETED_RUN_FIELDS = {
+    "schema_version", "run_id", "status", "model", "method", "input", "quantization",
+    "measurement", "memory", "metrics_aggregate", "runtime_diagnostics", "provenance",
+}
+
+
+def _validate_completed_run(path: Path, record: dict[str, Any]) -> None:
+    missing = sorted(_COMPLETED_RUN_FIELDS - set(record))
+    if missing:
+        raise ValueError(f"invalid completed run record {path}: missing required fields {missing}")
+    schema_version = record["schema_version"]
+    if type(schema_version) is not int or schema_version != 1:
+        raise ValueError(
+            f"invalid completed run record {path}: schema_version must be integer 1"
+        )
+    run_id = record["run_id"]
+    if not isinstance(run_id, str) or not run_id.strip():
+        raise ValueError(f"invalid completed run record {path}: run_id must be a non-empty string")
+    if run_id != path.stem:
+        raise ValueError(
+            f"invalid completed run record {path}: run_id {run_id!r} must match filename stem "
+            f"{path.stem!r}"
+        )
+
+
 def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
     """Rebuild canonical JSONL and flattened CSV summaries from completed runs."""
     root = Path(output_dir)
@@ -245,8 +270,10 @@ def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
                 record = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as error:
                 raise ValueError(f"cannot load run record {path}: {error}") from error
-            if isinstance(record, dict) and record.get("status") == "completed":
-                records.append(record)
+            if not isinstance(record, dict) or record.get("status") != "completed":
+                continue
+            _validate_completed_run(path, record)
+            records.append(record)
     records.sort(key=lambda record: str(record.get("run_id", "")))
     summary = root / "summary"
     atomic_write_jsonl(summary / "runs.jsonl", records)

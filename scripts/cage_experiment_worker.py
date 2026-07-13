@@ -255,80 +255,80 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
         memory_record = layer_memory = layer_records = None
         timing = {"load_seconds": float(load_duration)}
         try:
-                prompt_ids = point["prompt_ids"].to(device)
-                continuation_ids = point["continuation_ids"].to(device)
-                full_ids = torch.cat((prompt_ids, continuation_ids), dim=-1)
-                if job["method"] != "fp16":
-                    begin_reference_capture(model)
-                started = time.perf_counter()
-                with torch.inference_mode():
-                    reference_output = model(input_ids=full_ids, use_cache=False, return_dict=True)
-                timing["reference_seconds"] = time.perf_counter() - started
-                if job["method"] != "fp16":
-                    begin_candidate_capture(model)
-                reference_output = release_reference_output(reference_output)
-                if device == "cuda":
-                    torch.cuda.reset_peak_memory_stats()
-                stage = "prefill"
-                started = time.perf_counter()
-                with torch.inference_mode():
-                    prefill = model(input_ids=prompt_ids, use_cache=True, return_dict=True)
-                timing["prefill_seconds"] = time.perf_counter() - started
-                memory_record, layer_memory = _memory(job["method"], prefill.past_key_values, device)
-                stage = "decode"
-                started = time.perf_counter()
-                with torch.inference_mode():
-                    candidate_output = model(input_ids=continuation_ids,
-                                             past_key_values=prefill.past_key_values,
-                                             use_cache=True, return_dict=True)
-                timing["decode_seconds"] = time.perf_counter() - started
-                stage = "metrics"
-                started = time.perf_counter()
-                layer_count = len(model.model.layers)
-                layer_records = (fp16_zero_layer_records(layer_count) if job["method"] == "fp16"
-                                 else collect_layer_metrics(model))
-                attach_layer_context(layer_records, layer_memory, run_id,
-                                     job["method"], prompt_length)
-                timing["metric_seconds"] = time.perf_counter() - started
-                input_record = {"sample_id": sample_id, "text_sha256": point["text_sha256"],
-                                "prompt_length": prompt_length, "continuation_tokens": 1}
-                quantization_record = {"method": job["method"], **job["method_config"]}
-                run_record = {"schema_version": 1, "run_id": run_id, "status": "completed",
-                              "model": model_record,
-                              "method": {"name": job["method"], "resolved_config": job["method_config"]},
-                              "input": input_record, "quantization": quantization_record,
-                              "measurement": {"phase": "teacher_forced_decode",
-                                              "query_source": "fp16_reference_final_position",
-                                              "query_count": 1, "layer_count": len(layer_records)},
-                              "memory": memory_record,
-                              "metrics_aggregate": aggregate_layer_metrics(layer_records),
-                              "runtime_diagnostics": timing, "provenance": provenance}
-                atomic_write_jsonl(output_dir / "layers" / f"{run_id}.jsonl", layer_records)
-                atomic_write_json(output_dir / "runs" / f"{run_id}.json", run_record)
-                remove_stale_failure(output_dir, run_id)
+            prompt_ids = point["prompt_ids"].to(device)
+            continuation_ids = point["continuation_ids"].to(device)
+            full_ids = torch.cat((prompt_ids, continuation_ids), dim=-1)
+            if job["method"] != "fp16":
+                begin_reference_capture(model)
+            started = time.perf_counter()
+            with torch.inference_mode():
+                reference_output = model(input_ids=full_ids, use_cache=False, return_dict=True)
+            timing["reference_seconds"] = time.perf_counter() - started
+            if job["method"] != "fp16":
+                begin_candidate_capture(model)
+            reference_output = release_reference_output(reference_output)
+            if device == "cuda":
+                torch.cuda.reset_peak_memory_stats()
+            stage = "prefill"
+            started = time.perf_counter()
+            with torch.inference_mode():
+                prefill = model(input_ids=prompt_ids, use_cache=True, return_dict=True)
+            timing["prefill_seconds"] = time.perf_counter() - started
+            memory_record, layer_memory = _memory(job["method"], prefill.past_key_values, device)
+            stage = "decode"
+            started = time.perf_counter()
+            with torch.inference_mode():
+                candidate_output = model(input_ids=continuation_ids,
+                                         past_key_values=prefill.past_key_values,
+                                         use_cache=True, return_dict=True)
+            timing["decode_seconds"] = time.perf_counter() - started
+            stage = "metrics"
+            started = time.perf_counter()
+            layer_count = len(model.model.layers)
+            layer_records = (fp16_zero_layer_records(layer_count) if job["method"] == "fp16"
+                             else collect_layer_metrics(model))
+            attach_layer_context(layer_records, layer_memory, run_id,
+                                 job["method"], prompt_length)
+            timing["metric_seconds"] = time.perf_counter() - started
+            input_record = {"sample_id": sample_id, "text_sha256": point["text_sha256"],
+                            "prompt_length": prompt_length, "continuation_tokens": 1}
+            quantization_record = {"method": job["method"], **job["method_config"]}
+            run_record = {"schema_version": 1, "run_id": run_id, "status": "completed",
+                          "model": model_record,
+                          "method": {"name": job["method"], "resolved_config": job["method_config"]},
+                          "input": input_record, "quantization": quantization_record,
+                          "measurement": {"phase": "teacher_forced_decode",
+                                          "query_source": "fp16_reference_final_position",
+                                          "query_count": 1, "layer_count": len(layer_records)},
+                          "memory": memory_record,
+                          "metrics_aggregate": aggregate_layer_metrics(layer_records),
+                          "runtime_diagnostics": timing, "provenance": provenance}
+            atomic_write_jsonl(output_dir / "layers" / f"{run_id}.jsonl", layer_records)
+            atomic_write_json(output_dir / "runs" / f"{run_id}.json", run_record)
+            remove_stale_failure(output_dir, run_id)
         except Exception as error:
-                category = "cuda_out_of_memory" if isinstance(error, torch.cuda.OutOfMemoryError) else type(error).__name__
-                exit_code = classify_worker_failure(error, stage)
-                atomic_write_json(output_dir / "failures" / f"{run_id}.json",
-                                  {"schema_version": 1, "run_id": run_id, "status": "failed",
-                                   "category": category, "stage": stage, "retryable": False,
-                                   "message": str(error)})
-                if outcome == 0:
-                    outcome = exit_code
+            category = "cuda_out_of_memory" if isinstance(error, torch.cuda.OutOfMemoryError) else type(error).__name__
+            exit_code = classify_worker_failure(error, stage)
+            atomic_write_json(output_dir / "failures" / f"{run_id}.json",
+                              {"schema_version": 1, "run_id": run_id, "status": "failed",
+                               "category": category, "stage": stage, "retryable": False,
+                               "message": str(error)})
+            if outcome == 0:
+                outcome = exit_code
         finally:
-                try:
-                    reset_experiment_capture(model)
-                except Exception as reset_error:
-                    if job["method"] != "fp16":
-                        outcome = classify_worker_failure(
-                            reset_error, "capture_reset", unusable=True
-                        )
-                        unusable = True
-                del prompt_ids, continuation_ids, full_ids, prefill
-                del reference_output, candidate_output, memory_record, layer_memory, layer_records
-                gc.collect()
-                if device == "cuda":
-                    torch.cuda.empty_cache()
+            try:
+                reset_experiment_capture(model)
+            except Exception as reset_error:
+                if job["method"] != "fp16":
+                    outcome = classify_worker_failure(
+                        reset_error, "capture_reset", unusable=True
+                    )
+                    unusable = True
+            del prompt_ids, continuation_ids, full_ids, prefill
+            del reference_output, candidate_output, memory_record, layer_memory, layer_records
+            gc.collect()
+            if device == "cuda":
+                torch.cuda.empty_cache()
         if unusable:
             break
     del tokenizer, model

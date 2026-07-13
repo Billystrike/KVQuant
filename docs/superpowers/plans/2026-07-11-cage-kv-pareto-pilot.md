@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Experiment model: `/root/autodl-tmp/models/Llama-2-7b-hf`; TinyLlama is optional debug-only and never paper-facing.
-- Prompt lengths: 512, 1024, 2048, 4096; each natural-text record must contain at least T+1 tokens.
+- Prompt lengths: 512, 1024, 2048, 4095; each natural-text record must contain at least T+1 tokens. The largest point is 4095 prompt tokens plus one query token within Llama-2's native 4096-position context; do not use RoPE scaling or context extension.
 - Methods: FP16; six valid KIVI `(group_size, residual_length)` pairs; CAGE default bucket groups `[32,64,128]` with residual lengths 32, 64, 128.
 - CAGE prefill attention must use FP16 K/V; only stored history is fake-quantized.
 - CAGE Key buffer length is `T % R`; Value buffer length is `min(T, R)`.
@@ -441,7 +441,7 @@ git commit -m "feat: separate paper and runtime cache memory"
 
 - [ ] **Step 1: Write failing validation and expansion tests**
 
-Use a temporary manifest with FP16, one valid KIVI pair, and one CAGE config. Assert three jobs. Add failures for unknown method, prompt length above `max_position_embeddings`, and KIVI `residual_length % group_size != 0`.
+Use a temporary manifest with FP16, one valid KIVI pair, and one CAGE config. Assert three jobs. Add failures for unknown method, `prompt_length + measurement.decode_tokens` above `max_position_embeddings`, and KIVI `residual_length % group_size != 0`.
 
 - [ ] **Step 2: Run and verify module absence**
 
@@ -460,7 +460,7 @@ Use this resolved job shape:
     "model": {"reference": "/root/autodl-tmp/models/Llama-2-7b-hf", "dtype": "float16", "device": "cuda", "max_position_embeddings": 4096},
     "method_config": {"k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 32},
     "sample_ids": ["doc-001", "doc-002", "doc-003"],
-    "prompt_lengths": [512, 1024, 2048, 4096],
+    "prompt_lengths": [512, 1024, 2048, 4095],
     "measurement": {"decode_tokens": 1, "seed": 0},
     "prompts_file": "/root/autodl-tmp/cage_pilot_prompts.jsonl",
     "output_dir": "/root/autodl-tmp/cage_pareto_pilot",

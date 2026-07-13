@@ -70,8 +70,6 @@ def load_and_resolve_manifest(path: str | Path) -> dict:
 
     sample_ids = _unique_nonempty_strings("sample_ids", raw["sample_ids"])
     prompt_lengths = _positive_int_list("prompt_lengths", raw["prompt_lengths"])
-    if max(prompt_lengths) > model["max_position_embeddings"]:
-        raise ValueError("prompt_lengths must not exceed model.max_position_embeddings")
     _nonempty_string("prompts_file", raw["prompts_file"])
     _nonempty_string("output_dir", raw["output_dir"])
 
@@ -81,6 +79,11 @@ def load_and_resolve_manifest(path: str | Path) -> dict:
         raise ValueError("measurement.decode_tokens must equal 1")
     if not isinstance(measurement["seed"], int) or isinstance(measurement["seed"], bool):
         raise ValueError("measurement.seed must be an integer")
+    if max(prompt_lengths) + measurement["decode_tokens"] > model["max_position_embeddings"]:
+        raise ValueError(
+            "context limit exceeded: prompt_length + measurement.decode_tokens must not exceed "
+            "model.max_position_embeddings"
+        )
 
     methods = raw["methods"]
     if not isinstance(methods, list) or not methods:

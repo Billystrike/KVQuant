@@ -28,6 +28,25 @@ class _Tokenizer:
 
 
 class CageExperimentIOTests(unittest.TestCase):
+    @staticmethod
+    def _completed_record(run_id, **updates):
+        record = {
+            "schema_version": 1,
+            "run_id": run_id,
+            "status": "completed",
+            "model": {"name": "m"},
+            "method": {"name": "fp16"},
+            "input": {"prompt_length": 2},
+            "quantization": {"method": "fp16"},
+            "measurement": {"query_count": 1},
+            "memory": {"paper_estimate": {"total_bytes": 1}},
+            "metrics_aggregate": {"joint": {"relative_l2": 0.0}},
+            "runtime_diagnostics": {"load_seconds": 0.1},
+            "provenance": {"source_state": {"commit": "abc"}},
+        }
+        record.update(updates)
+        return record
+
     def test_prompt_jsonl_is_strict_and_unique(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "prompts.jsonl"
@@ -158,7 +177,7 @@ class CageExperimentIOTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); (root / "runs").mkdir(); (root / "failures").mkdir()
             atomic_write_json(root / "runs" / "b.json", {"run_id": "b", "status": "failed"})
-            atomic_write_json(root / "runs" / "a.json", {"run_id": "a", "status": "completed", "model": {"name": "m"}, "score": 1})
+            atomic_write_json(root / "runs" / "a.json", self._completed_record("a", score=1))
             atomic_write_json(root / "failures" / "c.json", {"run_id": "c", "status": "failed"})
             records = aggregate_completed_runs(root)
             self.assertEqual([x["run_id"] for x in records], ["a"])
@@ -170,13 +189,47 @@ class CageExperimentIOTests(unittest.TestCase):
     def test_aggregation_csv_uses_union_of_completed_record_columns(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); (root / "runs").mkdir()
-            atomic_write_json(root / "runs" / "a.json", {"run_id": "a", "status": "completed", "left": 1})
-            atomic_write_json(root / "runs" / "b.json", {"run_id": "b", "status": "completed", "right": 2})
+            atomic_write_json(root / "runs" / "a.json", self._completed_record("a", left=1))
+            atomic_write_json(root / "runs" / "b.json", self._completed_record("b", right=2))
             aggregate_completed_runs(root)
             with (root / "summary" / "runs.csv").open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
-            self.assertEqual(rows[0], {"run_id": "a", "left": "1", "right": "", "status": "completed"})
-            self.assertEqual(rows[1], {"run_id": "b", "left": "", "right": "2", "status": "completed"})
+            self.assertEqual((rows[0]["run_id"], rows[0]["left"], rows[0]["right"]),
+                             ("a", "1", ""))
+            self.assertEqual((rows[1]["run_id"], rows[1]["left"], rows[1]["right"]),
+                             ("b", "", "2"))
+
+    def test_aggregation_rejects_incompatible_completed_schema_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "runs").mkdir()
+            for version in (2, True):
+                with self.subTest(schema_version=version):
+                    atomic_write_json(root / "runs" / "a.json",
+                                      self._completed_record("a", schema_version=version))
+                    with self.assertRaisesRegex(ValueError, r"a\.json.*schema_version.*1"):
+                        aggregate_completed_runs(root)
+
+    def test_aggregation_rejects_completed_filename_run_id_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "runs").mkdir()
+            atomic_write_json(root / "runs" / "a.json", self._completed_record("b"))
+            with self.assertRaisesRegex(ValueError, r"a\.json.*run_id.*filename"):
+                aggregate_completed_runs(root)
+
+    def test_aggregation_rejects_completed_record_missing_required_field_atomically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "runs").mkdir(); (root / "summary").mkdir()
+            (root / "summary" / "runs.jsonl").write_text("existing-jsonl\n", encoding="utf-8")
+            (root / "summary" / "runs.csv").write_text("existing-csv\n", encoding="utf-8")
+            record = self._completed_record("a")
+            del record["provenance"]
+            atomic_write_json(root / "runs" / "a.json", record)
+            with self.assertRaisesRegex(ValueError, r"a\.json.*missing required.*provenance"):
+                aggregate_completed_runs(root)
+            self.assertEqual((root / "summary" / "runs.jsonl").read_text(encoding="utf-8"),
+                             "existing-jsonl\n")
+            self.assertEqual((root / "summary" / "runs.csv").read_text(encoding="utf-8"),
+                             "existing-csv\n")
 
     def test_aggregation_with_no_completed_runs_writes_empty_summaries(self):
         with tempfile.TemporaryDirectory() as directory:
