@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import platform
+import posixpath
 import subprocess
 import sys
 import tempfile
@@ -82,6 +83,41 @@ def prepare_prompt(tokenizer: Any, text: str, prompt_length: int) -> dict[str, A
 def stable_run_id(payload: dict) -> str:
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:20]
+
+
+def point_identity(
+    job: dict[str, Any], sample: PromptRecord, prompt_length: int,
+    source: dict[str, Any],
+) -> dict[str, Any]:
+    """Return only the scientific identity local to one experiment point."""
+
+    model = dict(job["model"])
+    reference = model.get("reference")
+    if isinstance(reference, str):
+        model["reference"] = posixpath.normpath(reference.replace("\\", "/"))
+    return {
+        "model": model,
+        "method": {
+            "name": job["method"],
+            "resolved_config": job["method_config"],
+        },
+        "measurement": job["measurement"],
+        "input": {
+            "sample_id": sample.sample_id,
+            "text_sha256": hashlib.sha256(sample.text.encode("utf-8")).hexdigest(),
+            "prompt_length": prompt_length,
+        },
+        "source_state": source,
+    }
+
+
+def point_id(
+    job: dict[str, Any], sample: PromptRecord, prompt_length: int,
+    source: dict[str, Any],
+) -> str:
+    """Return the stable identifier for one scientific experiment point."""
+
+    return stable_run_id(point_identity(job, sample, prompt_length, source))
 
 
 def _git(repo_root: Path, *arguments: str) -> bytes:
@@ -256,13 +292,23 @@ def _flatten(value: Any, prefix: str = "") -> dict[str, Any]:
     return flattened
 
 
-def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
+def aggregate_completed_runs(
+    output_dir: str | Path, *, expected_run_ids: Iterable[str] | None = None,
+) -> list[dict[str, Any]]:
     """Rebuild canonical JSONL and flattened CSV summaries from completed runs."""
     root = Path(output_dir)
     records: list[dict[str, Any]] = []
     runs_dir = root / "runs"
     if runs_dir.exists():
-        for path in sorted(runs_dir.glob("*.json"), key=lambda item: item.name):
+        if expected_run_ids is None:
+            paths = sorted(runs_dir.glob("*.json"), key=lambda item: item.name)
+        else:
+            paths = [
+                runs_dir / f"{run_id}.json"
+                for run_id in sorted(set(expected_run_ids))
+                if (runs_dir / f"{run_id}.json").exists()
+            ]
+        for path in paths:
             try:
                 record = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as error:
@@ -292,6 +338,6 @@ def aggregate_completed_runs(output_dir: str | Path) -> list[dict[str, Any]]:
 
 __all__ = [
     "PromptRecord", "aggregate_completed_runs", "atomic_write_json", "atomic_write_jsonl",
-    "collect_provenance", "load_prompt_records", "normalize_command_arguments", "prepare_prompt",
-    "source_state_identity", "stable_run_id",
+    "collect_provenance", "load_prompt_records", "normalize_command_arguments", "point_id",
+    "point_identity", "prepare_prompt", "source_state_identity", "stable_run_id",
 ]

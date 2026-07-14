@@ -14,7 +14,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from utils.cage_experiment_config import expand_jobs, load_and_resolve_manifest
-from utils.cage_experiment_io import aggregate_completed_runs, atomic_write_json
+from utils.cage_experiment_io import (
+    aggregate_completed_runs, atomic_write_json, load_prompt_records, point_id,
+    source_state_identity,
+)
 
 
 WORKER_EXIT_CODES = {0, 2, 3, 4, 5, 6}
@@ -49,6 +52,17 @@ def run_matrix(manifest_path: str | Path, retry_transient_once: bool = False) ->
             manifest[field] = str((manifest_dir / path).resolve())
     jobs = expand_jobs(manifest)
     output_dir = Path(manifest["output_dir"])
+    prompts = load_prompt_records(manifest["prompts_file"])
+    missing = sorted(set(manifest["sample_ids"]) - set(prompts))
+    if missing:
+        raise ValueError(f"selected sample_ids missing from prompts: {missing}")
+    source = source_state_identity(REPO_ROOT)
+    expected_run_ids = {
+        point_id(job, prompts[sample_id], prompt_length, source)
+        for job in jobs
+        for sample_id in job["sample_ids"]
+        for prompt_length in job["prompt_lengths"]
+    }
     resolved_path = output_dir / "manifest.resolved.json"
     atomic_write_json(resolved_path, {**manifest, "jobs": jobs})
 
@@ -66,7 +80,7 @@ def run_matrix(manifest_path: str | Path, retry_transient_once: bool = False) ->
         if returncode == 2:
             break
 
-    aggregate_completed_runs(output_dir)
+    aggregate_completed_runs(output_dir, expected_run_ids=expected_run_ids)
     return result
 
 

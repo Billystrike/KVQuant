@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from tests.test_cage_experiment_schema import completed_artifacts
+import utils.cage_experiment_io as cage_io
 from utils.cage_experiment_io import atomic_write_json, atomic_write_jsonl
 
 
@@ -44,9 +45,21 @@ def _manifest(output_dir: Path, method_count: int = 2) -> dict:
 class CageRunMatrixTest(unittest.TestCase):
     def setUp(self):
         self.matrix = _load()
+        self.source = {
+            "git_commit": "abc", "dirty": False, "dirty_sha256": None,
+        }
+        source_patch = mock.patch.object(
+            self.matrix, "source_state_identity", return_value=self.source
+        )
+        source_patch.start()
+        self.addCleanup(source_patch.stop)
 
     def _write_manifest(self, root: Path, method_count: int = 2) -> Path:
         path = root / "manifest.json"
+        (root / "prompts.jsonl").write_text(
+            json.dumps({"sample_id": "sample", "text": "selected prompt"}) + "\n",
+            encoding="utf-8",
+        )
         path.write_text(json.dumps(_manifest(root / "output", method_count)), encoding="utf-8")
         return path
 
@@ -76,6 +89,30 @@ class CageRunMatrixTest(unittest.TestCase):
                 self.assertEqual(command[-4:], ["--manifest", str(resolved_path),
                                                 "--job-index", str(index)])
                 self.assertEqual(call.kwargs, {"cwd": self.matrix.REPO_ROOT, "check": False})
+
+    def test_current_manifest_expected_ids_scope_aggregation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = self._write_manifest(root)
+            manifest = self.matrix.load_and_resolve_manifest(manifest_path)
+            jobs = self.matrix.expand_jobs(manifest)
+            sample = cage_io.PromptRecord("sample", "selected prompt")
+            expected_ids = {
+                cage_io.point_id(job, sample, prompt_length, self.source)
+                for job in jobs
+                for prompt_length in job["prompt_lengths"]
+            }
+            with mock.patch.object(
+                self.matrix.subprocess, "run",
+                return_value=subprocess.CompletedProcess([], 0),
+            ), mock.patch.object(
+                self.matrix, "aggregate_completed_runs"
+            ) as aggregate:
+                self.assertEqual(self.matrix.run_matrix(manifest_path), 0)
+
+        aggregate.assert_called_once_with(
+            root / "output", expected_run_ids=expected_ids
+        )
 
     def test_deterministic_failure_is_not_retried_and_other_jobs_continue(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -116,18 +153,27 @@ class CageRunMatrixTest(unittest.TestCase):
             failures = root / "output" / "failures"
             runs.mkdir(parents=True)
             failures.mkdir()
-            run_record, layer_records = completed_artifacts("done")
-            atomic_write_json(runs / "done.json", run_record)
-            atomic_write_jsonl(root / "output" / "layers" / "done.jsonl", layer_records)
+            manifest = self.matrix.load_and_resolve_manifest(manifest_path)
+            run_id = cage_io.point_id(
+                self.matrix.expand_jobs(manifest)[0],
+                cage_io.PromptRecord("sample", "selected prompt"),
+                2,
+                self.source,
+            )
+            run_record, layer_records = completed_artifacts(run_id, prompt_length=2)
+            atomic_write_json(runs / f"{run_id}.json", run_record)
+            atomic_write_jsonl(
+                root / "output" / "layers" / f"{run_id}.jsonl", layer_records
+            )
             (failures / "bad.json").write_text(
                 json.dumps({"run_id": "bad", "status": "failed"}), encoding="utf-8")
             with mock.patch.object(self.matrix.subprocess, "run",
                                    return_value=subprocess.CompletedProcess([], 4)):
                 self.assertEqual(self.matrix.run_matrix(manifest_path), 4)
             lines = (root / "output" / "summary" / "runs.jsonl").read_text(encoding="utf-8").splitlines()
-            self.assertEqual([json.loads(line)["run_id"] for line in lines], ["done"])
+            self.assertEqual([json.loads(line)["run_id"] for line in lines], [run_id])
             csv_text = (root / "output" / "summary" / "runs.csv").read_text(encoding="utf-8")
-            self.assertIn("done", csv_text)
+            self.assertIn(run_id, csv_text)
             self.assertNotIn("bad", csv_text)
 
     def test_rejects_unknown_worker_exit_code(self):
@@ -145,6 +191,11 @@ class CageRunMatrixTest(unittest.TestCase):
             manifest["prompts_file"] = "inputs/prompts.jsonl"
             manifest["output_dir"] = "results"
             manifest_path = root / "manifest.json"
+            (root / "inputs").mkdir()
+            (root / "inputs" / "prompts.jsonl").write_text(
+                json.dumps({"sample_id": "sample", "text": "selected prompt"}) + "\n",
+                encoding="utf-8",
+            )
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             with mock.patch.object(self.matrix.subprocess, "run",
                                    return_value=subprocess.CompletedProcess([], 0)):
@@ -166,7 +217,9 @@ class CageRunMatrixTest(unittest.TestCase):
                 result = self.matrix.run_matrix(manifest_path)
             self.assertEqual(result, 2)
             self.assertEqual(run.call_count, 1)
-            aggregate.assert_called_once_with(root / "output")
+            aggregate.assert_called_once()
+            self.assertEqual(aggregate.call_args.args, (root / "output",))
+            self.assertEqual(len(aggregate.call_args.kwargs["expected_run_ids"]), 3)
 
     def test_transient_failure_twice_attempts_exactly_twice_then_continues(self):
         with tempfile.TemporaryDirectory() as directory:

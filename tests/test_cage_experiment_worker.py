@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 from tests.test_cage_experiment_schema import completed_artifacts
+import utils.cage_experiment_io as cage_io
 from utils.cage_experiment_io import atomic_write_json, atomic_write_jsonl
 from utils.cage_experiment_schema import ExperimentPointError, validate_completed_point
 
@@ -134,8 +135,8 @@ class CageExperimentWorkerTest(unittest.TestCase):
             "output_dir": r"D:\elsewhere",
         })
 
-        acceptance_id = self.worker._point_id(base, sample, 512, source)
-        full_id = self.worker._point_id(full, sample, 512, source)
+        acceptance_id = cage_io.point_id(base, sample, 512, source)
+        full_id = cage_io.point_id(full, sample, 512, source)
         self.assertEqual(acceptance_id, full_id)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -161,9 +162,9 @@ class CageExperimentWorkerTest(unittest.TestCase):
                 mutate(job, point, state)
                 self.assertNotEqual(
                     acceptance_id,
-                    self.worker._point_id(job, point, 512, state),
+                    cage_io.point_id(job, point, 512, state),
                 )
-        self.assertNotEqual(acceptance_id, self.worker._point_id(base, sample, 1024, source))
+        self.assertNotEqual(acceptance_id, cage_io.point_id(base, sample, 1024, source))
 
     def test_apply_method_config_sets_all_values_before_loading(self):
         config = types.SimpleNamespace(model_type="llama")
@@ -315,7 +316,7 @@ class CageExperimentWorkerTest(unittest.TestCase):
             failure = root / "out" / "failures" / "completed.json"
             failure.parent.mkdir(parents=True)
             failure.write_text("{}", encoding="utf-8")
-            with mock.patch.object(self.worker, "_point_id", return_value="completed"), \
+            with mock.patch.object(self.worker, "point_id", return_value="completed"), \
                  mock.patch.object(self.worker, "_load_model",
                                    side_effect=AssertionError("weights must not load")):
                 self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 0)
@@ -357,7 +358,7 @@ class CageExperimentWorkerTest(unittest.TestCase):
             sample = types.SimpleNamespace(sample_id="s", text=text)
             job = manifest.copy()
             job = self.worker.expand_jobs(manifest)[0]
-            run_id = self.worker._point_id(job, sample, 2, source)
+            run_id = cage_io.point_id(job, sample, 2, source)
             stale_run, stale_layers = completed_artifacts(
                 run_id, layer_count=1, prompt_length=2
             )
@@ -402,14 +403,81 @@ class CageExperimentWorkerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "layer metric count 1.*layer memory count 2"):
             self.worker.attach_layer_context([{"layer_index": 0}], [{}, {}], "run", "cage", 8)
 
-    def test_release_reference_output_precedes_peak_reset_and_prefill(self):
+    def test_cuda_peak_reset_precedes_reference_pass(self):
         events = []
-        reference = object()
-        released = self.worker.release_reference_output(reference, lambda: events.append("release"))
-        self.assertIsNone(released)
-        events.append("reset_peak")
-        events.append("prefill")
-        self.assertEqual(events, ["release", "reset_peak", "prefill"])
+        manifest = {
+            "model": {"reference": "model", "dtype": "float16", "device": "cuda",
+                      "max_position_embeddings": 16},
+            "prompts_file": "prompts.jsonl", "sample_ids": ["s"],
+            "prompt_lengths": [2],
+            "methods": [{"id": "fp", "method": "fp16", "method_config": {}}],
+            "measurement": {"decode_tokens": 1, "seed": 7}, "output_dir": "out",
+        }
+
+        class FakeModel:
+            def __init__(self):
+                self.config = types.SimpleNamespace(model_type="llama")
+                self.model = types.SimpleNamespace(layers=[object()])
+
+            def __call__(self, *, input_ids, use_cache, return_dict, past_key_values=None):
+                del return_dict
+                if not use_cache:
+                    events.append("reference")
+                elif past_key_values is None:
+                    events.append("prefill")
+                else:
+                    events.append("decode")
+                output = types.SimpleNamespace(logits=self_tensor.zeros(1, 1, 2))
+                if use_cache:
+                    if past_key_values is None:
+                        key = self_tensor.zeros(1, 1, input_ids.shape[-1], 2)
+                        value = self_tensor.zeros(1, 1, input_ids.shape[-1], 2)
+                        output.past_key_values = ((key, value),)
+                    else:
+                        output.past_key_values = past_key_values
+                return output
+
+        self_tensor = self.worker.torch
+        source = {"git_commit": "abc", "dirty": False, "dirty_sha256": None}
+        provenance = {"source_state": source, "deterministic_seed": 7}
+        prepared = {
+            ("s", 2): {
+                "prompt_ids": self_tensor.tensor([[1, 2]]),
+                "continuation_ids": self_tensor.tensor([[3]]),
+                "text_sha256": "0" * 64,
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (root / "prompts.jsonl").write_text(
+                json.dumps({"sample_id": "s", "text": "hello"}) + "\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(
+                self.worker, "collect_provenance", return_value=provenance
+            ), mock.patch.object(
+                self.worker, "_load_native_config",
+                return_value=types.SimpleNamespace(
+                    model_type="llama", max_position_embeddings=16, rope_scaling=None,
+                ),
+            ), mock.patch.object(
+                self.worker, "_prepare_inputs", return_value=(object(), prepared)
+            ), mock.patch.object(
+                self.worker, "_load_model", return_value=(FakeModel(), 0.1)
+            ), mock.patch.object(
+                self.worker.torch.Tensor, "to", lambda tensor, *args, **kwargs: tensor
+            ), mock.patch.object(
+                self.worker.torch.cuda, "reset_peak_memory_stats",
+                side_effect=lambda: events.append("reset_peak"),
+            ), mock.patch.object(
+                self.worker.torch.cuda, "max_memory_allocated", return_value=0
+            ), mock.patch.object(
+                self.worker.torch.cuda, "max_memory_reserved", return_value=0
+            ), mock.patch.object(self.worker.torch.cuda, "empty_cache"):
+                self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 0)
+
+        self.assertEqual(events[:2], ["reset_peak", "reference"])
 
     def test_worker_rejects_non_finite_model_output_and_cache_tensors(self):
         for value in (float("nan"), float("inf"), float("-inf")):

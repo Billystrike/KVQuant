@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import argparse
 import gc
-import hashlib
 import json
-import posixpath
 import sys
 import time
 from pathlib import Path
@@ -27,7 +25,7 @@ from utils.cage_experiment_hooks import (
 )
 from utils.cage_experiment_io import (
     atomic_write_json, atomic_write_jsonl, collect_provenance,
-    load_prompt_records, prepare_prompt, stable_run_id,
+    load_prompt_records, point_id, prepare_prompt,
 )
 from utils.cage_experiment_schema import (
     ExperimentPointError,
@@ -279,39 +277,6 @@ def require_finite_tensor_tree(name: str, value: Any) -> None:
             require_finite_tensor_tree(f"{name}[{index}]", child)
 
 
-def _normalized_model_identity(model: dict[str, Any]) -> dict[str, Any]:
-    identity = dict(model)
-    reference = identity.get("reference")
-    if isinstance(reference, str):
-        identity["reference"] = posixpath.normpath(reference.replace("\\", "/"))
-    return identity
-
-
-def point_identity(
-    job: dict[str, Any], sample: Any, prompt_length: int, source: dict[str, Any],
-) -> dict[str, Any]:
-    """Return only the scientific identity local to one experiment point."""
-
-    return {
-        "model": _normalized_model_identity(job["model"]),
-        "method": {
-            "name": job["method"],
-            "resolved_config": job["method_config"],
-        },
-        "measurement": job["measurement"],
-        "input": {
-            "sample_id": sample.sample_id,
-            "text_sha256": hashlib.sha256(sample.text.encode("utf-8")).hexdigest(),
-            "prompt_length": prompt_length,
-        },
-        "source_state": source,
-    }
-
-
-def _point_id(job: dict[str, Any], sample: Any, prompt_length: int, source: dict[str, Any]) -> str:
-    return stable_run_id(point_identity(job, sample, prompt_length, source))
-
-
 def run_job(manifest_path: str | Path, job_index: int) -> int:
     manifest_path = Path(manifest_path).resolve()
     manifest = _load_manifest(manifest_path)
@@ -330,7 +295,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
     pending = []
     for sample_id in job["sample_ids"]:
         for prompt_length in job["prompt_lengths"]:
-            run_id = _point_id(job, prompts[sample_id], prompt_length, provenance["source_state"])
+            run_id = point_id(job, prompts[sample_id], prompt_length, provenance["source_state"])
             if completed_run_exists(output_dir, run_id):
                 remove_stale_failure(output_dir, run_id)
             else:
@@ -393,6 +358,8 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
         memory_record = layer_memory = layer_records = None
         timing = {"load_seconds": float(load_duration)}
         try:
+            if device == "cuda":
+                torch.cuda.reset_peak_memory_stats()
             prompt_ids = point["prompt_ids"].to(device)
             continuation_ids = point["continuation_ids"].to(device)
             full_ids = torch.cat((prompt_ids, continuation_ids), dim=-1)
@@ -406,8 +373,6 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
             if job["method"] != "fp16":
                 begin_candidate_capture(model)
             reference_output = release_reference_output(reference_output)
-            if device == "cuda":
-                torch.cuda.reset_peak_memory_stats()
             stage = "prefill"
             started = time.perf_counter()
             with torch.inference_mode():

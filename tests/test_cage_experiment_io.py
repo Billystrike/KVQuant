@@ -10,6 +10,7 @@ from unittest import mock
 import torch
 
 from tests.test_cage_experiment_schema import completed_artifacts
+import utils.cage_experiment_io as cage_io
 
 from utils.cage_experiment_io import (
     aggregate_completed_runs,
@@ -93,6 +94,35 @@ class CageExperimentIOTests(unittest.TestCase):
     def test_run_id_is_canonical(self):
         self.assertEqual(stable_run_id({"b": 2, "a": {"d": 4, "c": 3}}),
                          stable_run_id({"a": {"c": 3, "d": 4}, "b": 2}))
+
+    def test_point_id_is_stable_across_acceptance_and_full_matrix_scope(self):
+        sample = cage_io.PromptRecord("sample", "same scientific input")
+        source = {"git_commit": "abc", "dirty": False, "dirty_sha256": None}
+        acceptance = {
+            "job_id": "acceptance",
+            "model": {"reference": r"C:\models\llama", "dtype": "float16",
+                      "device": "cuda", "max_position_embeddings": 4096},
+            "method": "cage",
+            "method_config": {"k_bits": 2, "v_bits": 2, "residual_length": 32},
+            "measurement": {"decode_tokens": 1, "seed": 7},
+            "sample_ids": ["sample"],
+            "prompt_lengths": [512],
+            "prompts_file": r"C:\acceptance\prompts.jsonl",
+            "output_dir": r"C:\results",
+        }
+        full = json.loads(json.dumps(acceptance))
+        full.update({
+            "job_id": "full",
+            "sample_ids": ["sample", "other"],
+            "prompt_lengths": [512, 1024],
+            "prompts_file": r"D:\full\prompts.jsonl",
+            "output_dir": r"D:\elsewhere",
+        })
+
+        self.assertEqual(
+            cage_io.point_id(acceptance, sample, 512, source),
+            cage_io.point_id(full, sample, 512, source),
+        )
 
     def test_provenance_has_cpu_cuda_fields(self):
         provenance = collect_provenance(Path(__file__).parents[1], deterministic_seed=123)
@@ -218,6 +248,73 @@ class CageExperimentIOTests(unittest.TestCase):
                 row = next(csv.DictReader(handle))
             self.assertEqual(row["model.reference"], "model")
             self.assertEqual(row["runtime_diagnostics.score"], "1")
+
+    def test_aggregation_excludes_valid_old_source_and_removed_config_points(self):
+        sample = cage_io.PromptRecord("sample", "selected prompt")
+        source = {"git_commit": "current", "dirty": False, "dirty_sha256": None}
+        job = {
+            "model": {"reference": "model", "dtype": "float16", "device": "cpu",
+                      "max_position_embeddings": 16},
+            "method": "fp16",
+            "method_config": {},
+            "measurement": {"decode_tokens": 1, "seed": 7},
+        }
+        current_id = cage_io.point_id(job, sample, 2, source)
+        old_source_id = cage_io.point_id(
+            job, sample, 2,
+            {"git_commit": "old", "dirty": False, "dirty_sha256": None},
+        )
+        removed_job = json.loads(json.dumps(job))
+        removed_job.update({
+            "method": "kivi",
+            "method_config": {
+                "k_bits": 2, "v_bits": 2, "group_size": 2, "residual_length": 2,
+            },
+        })
+        removed_config_id = cage_io.point_id(removed_job, sample, 2, source)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifacts = (
+                (current_id, job, source),
+                (
+                    old_source_id,
+                    job,
+                    {"git_commit": "old", "dirty": False, "dirty_sha256": None},
+                ),
+                (removed_config_id, removed_job, source),
+            )
+            for run_id, artifact_job, artifact_source in artifacts:
+                record, layers = completed_artifacts(run_id, prompt_length=2)
+                record["method"] = {
+                    "name": artifact_job["method"],
+                    "resolved_config": artifact_job["method_config"],
+                }
+                record["quantization"] = {
+                    "method": artifact_job["method"], **artifact_job["method_config"],
+                }
+                record["provenance"]["source_state"] = artifact_source
+                for layer in layers:
+                    layer["method"] = artifact_job["method"]
+                atomic_write_json(root / "runs" / f"{run_id}.json", record)
+                atomic_write_jsonl(root / "layers" / f"{run_id}.jsonl", layers)
+            records = aggregate_completed_runs(root, expected_run_ids={current_id})
+
+        self.assertEqual([record["run_id"] for record in records], [current_id])
+
+    def test_aggregation_rejects_invalid_expected_point_but_ignores_unrelated_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_completed(root, "expected")
+            self._write_completed(root, "historical")
+            (root / "layers" / "expected.jsonl").write_text(
+                "{bad json}\n", encoding="utf-8"
+            )
+            (root / "runs" / "historical.json").write_text(
+                "{bad json}\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "layer.*JSON"):
+                aggregate_completed_runs(root, expected_run_ids={"expected"})
 
     def test_aggregation_csv_uses_union_of_completed_record_columns(self):
         with tempfile.TemporaryDirectory() as directory:
