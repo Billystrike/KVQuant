@@ -196,7 +196,7 @@ The pilot adds metrics that apply the perturbed attention scores to the reconstr
 
 ### 7.4 Aggregation
 
-Every layer produces an individual record. Run-level records contain, for each metric, at least the mean, median, and maximum across layers. Aggregation is deterministic and defined in the resolved manifest.
+Every layer produces an individual record. Run-level records contain exactly the schema-1 metric names and, for each metric, exactly the mean, median, and maximum across layers. Completed-point validation recomputes these values with the worker's canonical definitions and compares them using `rel_tol=1e-12` and `abs_tol=1e-12`.
 
 ## 8. Memory protocol
 
@@ -273,7 +273,7 @@ Each authoritative run record contains:
 - `runtime_diagnostics`;
 - `provenance`.
 
-The resolved method configuration records all effective values, including defaults. Provenance includes the Git commit, dirty-worktree flag, Python, PyTorch, Transformers, CUDA, driver and GPU versions, deterministic seed, and a normalized command summary.
+The resolved method configuration records all effective values, including defaults. Provenance includes the Git commit, dirty-worktree flag, Python, PyTorch, Transformers, CUDA, driver and GPU versions, resolved deterministic seed, deterministic-algorithm and warn-only state, cuDNN deterministic and benchmark flags, `CUBLAS_WORKSPACE_CONFIG`, and a normalized command summary. These values are recorded; strict deterministic algorithms are not enabled by production code and bitwise GPU determinism is not claimed.
 
 ### 10.2 Layer record
 
@@ -292,7 +292,7 @@ Version 1 uses exact run top-level and layer-row field sets; unknown fields are 
 
 ### 10.3 Stable identifiers and derived summaries
 
-The stable run identifier is derived only from point-local scientific identity: normalized model identity, method name and fully resolved method configuration, measurement protocol including seed, sample identifier and text hash, prompt length, and source-state identity. Matrix/storage fields (`job_id`, sample/length selection lists, prompt-file path, output directory, and matrix IDs) are excluded. Therefore overlapping acceptance/full points share identifiers and acceptance output is reused in the common output directory. Source-state identity contains the Git commit and, when the worktree is dirty, a deterministic hash of the tracked and untracked experiment-code changes. Completed run records are written atomically.
+The stable run identifier is derived only from point-local scientific identity: normalized model identity, method name and fully resolved method configuration, measurement protocol including seed, sample identifier and text hash, prompt length, and source-state identity. Matrix/storage fields (`job_id`, sample/length selection lists, prompt-file path, output directory, and matrix IDs) are excluded. Therefore overlapping acceptance/full points share identifiers and acceptance output is reused in the common output directory. Source-state identity contains the Git commit and, when the worktree is dirty, a deterministic hash of all tracked dirty state plus included untracked experiment-code changes. This deliberately invalidates reuse after any tracked repository change; no experiment-path allowlist is used. Completed run records are written atomically.
 
 `summary/runs.jsonl` is the canonical combined summary. CSV is a flattened plotting convenience and is not the authoritative source for nested experiment data.
 
@@ -303,8 +303,9 @@ The stable run identifier is derived only from point-local scientific identity: 
 Before model loading, the runner validates:
 
 - JSONL schema and unique sample identifiers;
+- unique prompt lengths and unique fully resolved scientific method configurations;
 - sufficient token length without silent shortening;
-- native model context limit, including the prompt and decode/query token;
+- actual native model context equal to the resolved manifest limit, including the prompt and decode/query token, with non-null RoPE scaling rejected before tokenizer and weight loading;
 - method name and known manifest fields;
 - bit width, group sizes, residual length, bucket count, and method-specific constraints; scoped CAGE requires 2-bit Key and Value, both sides enabled, `q2_var` Key importance, and `wo_var` Value importance;
 - completeness of the resolved configuration;
@@ -316,8 +317,8 @@ Unknown fields and invalid configurations fail explicitly.
 
 - A model/method/config job runs in its own process.
 - Completed experiment points survive a later failure in the same job.
-- Resume skips only a version-1 run JSON whose matching non-empty layer JSONL passes the complete row-count, index, context, metric, cache-structure, and recursive memory-sum validator. Invalid artifacts are rerun and atomically overwritten. Aggregation uses the same validator and validates all completed points before replacing either summary.
-- Exit 2 is a deterministic manifest/input/point error, 3 is CUDA OOM, 4 is model construction/load failure, and 5 is a positively identified transient unusable process/model state. Failure-record `retryable` is true exactly for code 5.
+- Resume skips only a version-1 run JSON whose matching non-empty layer JSONL passes the complete row-count, index, context, metric, canonical aggregate, cache-structure, internal cache-byte arithmetic, and recursive memory-sum validator. Payload-only, metadata, bucket-index, residual-FP16, and total byte relationships are checked for layer and model `paper_estimate` and `runtime_tensors`; CUDA peaks are not cache bytes. Invalid artifacts are rerun and atomically overwritten. Aggregation uses the same validator and validates all completed points before replacing either summary.
+- Exit 2 is a shared deterministic manifest/input/preflight error, 3 is CUDA OOM, 4 is model construction/load failure, 5 is a positively identified transient unusable process/model state, and 6 is an isolated deterministic point/job failure after shared preflight/model load. Failure-record `retryable` is true exactly for code 5. A usable worker and the matrix continue after code 6; code 2 stops later matrix jobs.
 - Only code 5 is retried automatically, at most once.
 - A deterministic OOM for an unchanged configuration is not retried in a loop.
 - Non-completed run records are ignored by aggregation; invalid completed records are rejected.
@@ -365,6 +366,7 @@ Acceptance criteria:
 - paper-facing and runtime fake memory remain separate;
 - model-wide memory equals the sum of layer records;
 - rerunning the same resolved manifest skips completed points.
+- repeating the six points from a source-identical checkout into a separate output directory preserves structural/memory values exactly and satisfies `abs(repeat - reference) <= 1e-7 + 1e-5 * abs(reference)` for every run/layer metric; this is a server acceptance step, not a bitwise-determinism claim.
 
 ## 13. Interpretation boundaries
 

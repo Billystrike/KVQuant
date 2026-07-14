@@ -529,7 +529,7 @@ def stable_run_id(payload: dict) -> str:
 
 `source_state_identity` records `git rev-parse HEAD`; when dirty, hash `git diff --binary HEAD` plus sorted untracked experiment-code paths and contents. Atomic writers create a temporary file in the destination directory, flush and `os.fsync`, then call `os.replace`.
 
-`collect_provenance` records source identity, dirty flag, Python, PyTorch, Transformers, CUDA runtime, CUDA driver, GPU name, the explicitly supplied resolved manifest seed, and normalized command arguments. CUDA-only values are `None` on CPU tests rather than omitted.
+`collect_provenance` records source identity, dirty flag, Python, PyTorch, Transformers, CUDA runtime, CUDA driver, GPU name, the explicitly supplied resolved manifest seed, deterministic-algorithm and warn-only state, cuDNN deterministic and benchmark flags, `CUBLAS_WORKSPACE_CONFIG`, and normalized command arguments. CUDA-only values are `None` on CPU tests rather than omitted. Production code records but does not enable strict deterministic algorithms.
 
 - [ ] **Step 4: Run and commit**
 
@@ -678,7 +678,7 @@ for job_index, _ in enumerate(jobs):
 aggregate_completed_runs(output_dir)
 ```
 
-Classify worker exit codes: 0 success; 2 deterministic manifest/input/point error; 3 deterministic CUDA OOM; 4 model construction/load error; 5 positively identified transient unusable process/model-state error. Derive failure-record `retryable` from the same classification and retry only code 5, once.
+Classify worker exit codes: 0 success; 2 shared deterministic manifest/input/preflight error; 3 deterministic CUDA OOM; 4 model construction/load error; 5 positively identified transient unusable process/model-state error; 6 isolated deterministic point/job error. Derive failure-record `retryable` from the same classification and retry only code 5, once. Continue usable workers and later matrix jobs after code 6; stop later jobs after code 2.
 
 - [ ] **Step 4: Run tests and commit**
 

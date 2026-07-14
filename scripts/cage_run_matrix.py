@@ -17,7 +17,7 @@ from utils.cage_experiment_config import expand_jobs, load_and_resolve_manifest
 from utils.cage_experiment_io import aggregate_completed_runs, atomic_write_json
 
 
-WORKER_EXIT_CODES = {0, 2, 3, 4, 5}
+WORKER_EXIT_CODES = {0, 2, 3, 4, 5, 6}
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:

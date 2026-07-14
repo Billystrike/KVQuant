@@ -176,6 +176,13 @@ def collect_provenance(
 ) -> dict[str, Any]:
     source = source_state_identity(repo_root)
     has_cuda = torch.cuda.is_available()
+    deterministic_getter = getattr(
+        torch, "are_deterministic_algorithms_enabled", None
+    )
+    warn_only_getter = getattr(
+        torch, "is_deterministic_algorithms_warn_only_enabled", None
+    )
+    cudnn = getattr(getattr(torch, "backends", None), "cudnn", None)
     return {
         "source_state": source,
         "dirty": source["dirty"],
@@ -186,6 +193,19 @@ def collect_provenance(
         "cuda_driver": _cuda_driver_version() if has_cuda else None,
         "gpu_name": torch.cuda.get_device_name(0) if has_cuda else None,
         "deterministic_seed": int(deterministic_seed),
+        "deterministic_algorithms_enabled": (
+            bool(deterministic_getter()) if callable(deterministic_getter) else None
+        ),
+        "deterministic_algorithms_warn_only": (
+            bool(warn_only_getter()) if callable(warn_only_getter) else None
+        ),
+        "cudnn_deterministic": (
+            bool(getattr(cudnn, "deterministic")) if cudnn is not None else None
+        ),
+        "cudnn_benchmark": (
+            bool(getattr(cudnn, "benchmark")) if cudnn is not None else None
+        ),
+        "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
         "command": normalize_command_arguments(sys.argv, repo_root),
     }
 

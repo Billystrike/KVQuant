@@ -69,6 +69,50 @@ class CageExperimentConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "context limit.*max_position_embeddings"):
             self._load(manifest)
 
+    def test_rejects_duplicate_prompt_lengths(self):
+        manifest = self._manifest()
+        manifest["prompt_lengths"] = [512, 512]
+        with self.assertRaisesRegex(ValueError, "prompt_lengths.*unique"):
+            self._load(manifest)
+
+    def test_rejects_duplicate_resolved_scientific_method_configurations(self):
+        manifest = self._manifest()
+        duplicate = json.loads(json.dumps(manifest["methods"][2]))
+        duplicate["id"] = "same-cage-different-id"
+        manifest["methods"].append(duplicate)
+        with self.assertRaisesRegex(ValueError, "scientifically duplicate"):
+            self._load(manifest)
+
+    def test_checked_manifests_have_frozen_job_point_and_overlap_counts(self):
+        root = Path(__file__).parents[1]
+        full = load_and_resolve_manifest(root / "configs" / "cage_pilot_llama2_7b.json")
+        acceptance = load_and_resolve_manifest(
+            root / "configs" / "cage_pilot_llama2_7b_acceptance.json"
+        )
+
+        def points(manifest):
+            return {
+                (
+                    method["method"],
+                    json.dumps(method["method_config"], sort_keys=True, separators=(",", ":")),
+                    sample_id,
+                    prompt_length,
+                )
+                for method in manifest["methods"]
+                for sample_id in manifest["sample_ids"]
+                for prompt_length in manifest["prompt_lengths"]
+            }
+
+        full_points = points(full)
+        acceptance_points = points(acceptance)
+        self.assertEqual(len(expand_jobs(full)), 10)
+        self.assertEqual(len(full_points), 120)
+        self.assertEqual(len(expand_jobs(acceptance)), 3)
+        self.assertEqual(len(acceptance_points), 6)
+        self.assertEqual(len(full_points & acceptance_points), 6)
+        self.assertEqual(len(full_points | acceptance_points), 120)
+        self.assertEqual(full["prompt_lengths"], [512, 1024, 2048, 4095])
+
     def test_rejects_invalid_kivi_pair(self):
         manifest = self._manifest()
         manifest["methods"] = [{

@@ -7,7 +7,6 @@ import gc
 import hashlib
 import json
 import posixpath
-import statistics
 import sys
 import time
 from pathlib import Path
@@ -34,6 +33,7 @@ from utils.cage_experiment_schema import (
     ExperimentPointError,
     METRIC_NAMES,
     SCHEMA_VERSION,
+    aggregate_layer_metrics,
     is_valid_completed_point,
     validate_completed_artifacts,
 )
@@ -43,7 +43,7 @@ from utils.cage_memory import (
 )
 
 
-WORKER_EXIT_CODES = {0, 2, 3, 4, 5}
+WORKER_EXIT_CODES = {0, 2, 3, 4, 5, 6}
 
 
 class FailureClassification(NamedTuple):
@@ -65,7 +65,7 @@ def classify_worker_failure(
         return FailureClassification("model_load_error", stage, 4, False)
     if unusable and stage == "capture_reset":
         return FailureClassification("transient_model_state", stage, 5, True)
-    return FailureClassification("experiment_point_error", stage, 2, False)
+    return FailureClassification("experiment_point_error", stage, 6, False)
 
 
 def failure_record(
@@ -116,18 +116,6 @@ def apply_method_config(config: Any, method: str, values: dict[str, Any]) -> Any
     return config
 
 
-def aggregate_layer_metrics(layer_records: Sequence[dict[str, Any]]) -> dict[str, dict[str, float]]:
-    result = {}
-    for name in METRIC_NAMES:
-        values = [float(record[name]) for record in layer_records
-                  if isinstance(record.get(name), (int, float)) and not isinstance(record.get(name), bool)]
-        if not values:
-            continue
-        result[name] = {"mean": float(statistics.fmean(values)),
-                        "median": float(statistics.median(values)), "max": float(max(values))}
-    return result
-
-
 def attach_layer_context(layer_records: Sequence[dict[str, Any]], layer_memory: Sequence[dict[str, Any]],
                          run_id: str, method: str, prompt_length: int) -> None:
     if len(layer_records) != len(layer_memory):
@@ -154,7 +142,10 @@ def remove_stale_failure(output_dir: Path, run_id: str) -> None:
 def fp16_zero_layer_records(layer_count: int) -> list[dict[str, Any]]:
     return [{"layer_index": index, "phase": "teacher_forced_decode",
              "query_source": "fp16_reference_final_position",
-             **{name: 0.0 for name in METRIC_NAMES}} for index in range(layer_count)]
+             **{
+                 name: (1.0 if name == "topk_attention_overlap" else 0.0)
+                 for name in METRIC_NAMES
+             }} for index in range(layer_count)]
 
 
 def completed_run_exists(output_dir: Path, run_id: str) -> bool:
@@ -191,12 +182,34 @@ def _prepare_inputs(job: dict[str, Any], prompts: dict[str, Any]):
     return tokenizer, prepared
 
 
-def _load_model(job: dict[str, Any]):
-    from transformers import AutoConfig, LlamaForCausalLM
+def validate_native_model_context(config: Any, model: dict[str, Any]) -> None:
+    """Reject resolved/native context drift and explicit RoPE extension."""
+
+    actual = getattr(config, "max_position_embeddings", None)
+    expected = model["max_position_embeddings"]
+    if type(actual) is not int or actual != expected:
+        raise ValueError(
+            f"actual config.max_position_embeddings {actual!r} does not equal resolved "
+            f"manifest model.max_position_embeddings {expected}"
+        )
+    rope_scaling = getattr(config, "rope_scaling", None)
+    if rope_scaling is not None:
+        raise ValueError(
+            f"native-context pilot requires config.rope_scaling to be null, got "
+            f"{rope_scaling!r}"
+        )
+
+
+def _load_native_config(job: dict[str, Any]) -> Any:
+    from transformers import AutoConfig
+
+    return AutoConfig.from_pretrained(job["model"]["reference"])
+
+
+def _load_model(job: dict[str, Any], config: Any):
+    from transformers import LlamaForCausalLM
 
     reference = job["model"]["reference"]
-    config = AutoConfig.from_pretrained(reference)
-    apply_method_config(config, job["method"], job["method_config"])
     if job["method"] == "fp16":
         model_class = LlamaForCausalLM
     else:
@@ -325,6 +338,27 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
     if not pending:
         return 0
     try:
+        config = _load_native_config(job)
+    except Exception as error:
+        classification = classify_worker_failure(error, "load")
+        for _, _, run_id in pending:
+            atomic_write_json(
+                output_dir / "failures" / f"{run_id}.json",
+                failure_record(run_id, error, classification),
+            )
+        return classification.exit_code
+    try:
+        validate_native_model_context(config, job["model"])
+        apply_method_config(config, job["method"], job["method_config"])
+    except Exception as error:
+        classification = classify_worker_failure(error, "input")
+        for _, _, run_id in pending:
+            atomic_write_json(
+                output_dir / "failures" / f"{run_id}.json",
+                failure_record(run_id, error, classification),
+            )
+        return classification.exit_code
+    try:
         tokenizer, prepared = _prepare_inputs(job, prompts)
     except Exception as error:
         classification = classify_worker_failure(error, "input")
@@ -335,7 +369,7 @@ def run_job(manifest_path: str | Path, job_index: int) -> int:
             )
         return classification.exit_code
     try:
-        model, load_duration = _load_model(job)
+        model, load_duration = _load_model(job, config)
     except Exception as error:
         classification = classify_worker_failure(error, "load")
         for _, _, run_id in pending:

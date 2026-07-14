@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 import math
+import statistics
 from pathlib import Path
 from typing import Any
 
 
 SCHEMA_VERSION = 1
+METRIC_AGGREGATE_REL_TOL = 1e-12
+METRIC_AGGREGATE_ABS_TOL = 1e-12
 
 METRIC_NAMES = (
     "relative_k_reconstruction_error",
@@ -107,11 +110,53 @@ def _require_finite_real(name: str, value: Any, *, nonnegative: bool = False) ->
 
 def _validate_byte_summary(name: str, summary: Any) -> dict[str, Any]:
     value = _require_object(name, summary)
+    _require_exact_fields(name, value, {"cache_type", *BYTE_FIELDS})
     for field in BYTE_FIELDS:
         _require_int(f"{name}.{field}", value.get(field))
     if not isinstance(value.get("cache_type"), str) or not value["cache_type"]:
         raise ValueError(f"{name}.cache_type must be a non-empty string")
+    expected_payload = value["key_payload_bytes"] + value["value_payload_bytes"]
+    if value["payload_only_bytes"] != expected_payload:
+        raise ValueError(
+            f"invalid byte arithmetic for {name}.payload_only_bytes: "
+            f"expected {expected_payload}"
+        )
+    expected_metadata = sum(value[field] for field in (
+        "key_scale_bytes", "value_scale_bytes",
+        "key_min_or_zp_bytes", "value_min_or_zp_bytes",
+    ))
+    if value["metadata_bytes"] != expected_metadata:
+        raise ValueError(
+            f"invalid byte arithmetic for {name}.metadata_bytes: expected {expected_metadata}"
+        )
+    expected_total = sum(value[field] for field in BYTE_FIELDS[:8])
+    if value["total_bytes"] != expected_total:
+        raise ValueError(
+            f"invalid byte arithmetic for {name}.total_bytes: expected {expected_total}"
+        )
     return value
+
+
+def aggregate_layer_metrics(
+    layer_records: list[dict[str, Any]] | tuple[dict[str, Any], ...],
+) -> dict[str, dict[str, float]]:
+    """Return the schema-1 canonical mean/median/max layer aggregates."""
+
+    result = {}
+    for name in METRIC_NAMES:
+        values = [
+            float(record[name])
+            for record in layer_records
+            if isinstance(record.get(name), (int, float))
+            and not isinstance(record.get(name), bool)
+        ]
+        if values:
+            result[name] = {
+                "mean": float(statistics.fmean(values)),
+                "median": float(statistics.median(values)),
+                "max": float(max(values)),
+            }
+    return result
 
 
 def _validate_cuda_diagnostic(name: str, value: Any) -> None:
@@ -222,9 +267,15 @@ def _validate_run(path: Path, run_id: str, record: Any) -> dict[str, Any]:
             f"run.metrics_aggregate.{metric}", statistics, {"mean", "median", "max"}
         )
         for statistic, value in statistics.items():
-            _require_finite_real(
-                f"run metric {metric}.{statistic}", value, nonnegative=True
+            number = _require_finite_real(
+                f"run metric {metric}.{statistic}",
+                value,
+                nonnegative=metric != "topk_attention_overlap",
             )
+            if metric == "topk_attention_overlap" and not 0 <= number <= 1:
+                raise ValueError(
+                    f"run metric topk_attention_overlap.{statistic} must be in [0, 1]"
+                )
     return run
 
 
@@ -277,11 +328,16 @@ def _validate_layers(run: dict[str, Any], rows: list[dict[str, Any]]) -> None:
         )
         _validate_cache_structure(memory, run, row_number)
         for metric in METRIC_NAMES:
-            _require_finite_real(
+            number = _require_finite_real(
                 f"layer metric {metric} at row {row_number}",
                 row[metric],
-                nonnegative=True,
+                nonnegative=metric != "topk_attention_overlap",
             )
+            if metric == "topk_attention_overlap" and not 0 <= number <= 1:
+                raise ValueError(
+                    f"layer metric topk_attention_overlap at row {row_number} "
+                    "must be in [0, 1]"
+                )
     if sorted(indices) != list(range(layer_count)) or len(set(indices)) != layer_count:
         raise ValueError(f"layer indices must be unique and exactly contiguous 0..{layer_count - 1}")
 
@@ -295,6 +351,25 @@ def _validate_memory_sums(run: dict[str, Any], rows: list[dict[str, Any]]) -> No
                 raise ValueError(
                     f"run memory {namespace}.{field} does not equal recursive layer sum "
                     f"{expected}"
+                )
+
+
+def _validate_metric_aggregates(run: dict[str, Any], rows: list[dict[str, Any]]) -> None:
+    expected = aggregate_layer_metrics(rows)
+    for metric in METRIC_NAMES:
+        for statistic in ("mean", "median", "max"):
+            actual_value = float(run["metrics_aggregate"][metric][statistic])
+            expected_value = expected[metric][statistic]
+            if not math.isclose(
+                actual_value,
+                expected_value,
+                rel_tol=METRIC_AGGREGATE_REL_TOL,
+                abs_tol=METRIC_AGGREGATE_ABS_TOL,
+            ):
+                raise ValueError(
+                    f"run metric {metric}.{statistic} does not match layer aggregate "
+                    f"{expected_value} within rel_tol={METRIC_AGGREGATE_REL_TOL} and "
+                    f"abs_tol={METRIC_AGGREGATE_ABS_TOL}"
                 )
 
 
@@ -312,6 +387,7 @@ def validate_completed_point(output_dir: str | Path, run_id: str) -> dict[str, A
     run = _validate_run(run_path, run_id, record)
     rows = _load_layer_rows(root / "layers" / f"{run_id}.jsonl")
     _validate_layers(run, rows)
+    _validate_metric_aggregates(run, rows)
     _validate_memory_sums(run, rows)
     return run
 
@@ -329,6 +405,7 @@ def validate_completed_artifacts(
     run = _validate_run(path, expected_run_id, run_record)
     rows = layer_rows
     _validate_layers(run, rows)
+    _validate_metric_aggregates(run, rows)
     _validate_memory_sums(run, rows)
     return run
 
@@ -348,6 +425,7 @@ __all__ = [
     "METRIC_NAMES",
     "RUN_FIELDS",
     "SCHEMA_VERSION",
+    "aggregate_layer_metrics",
     "is_valid_completed_point",
     "validate_completed_artifacts",
     "validate_completed_point",

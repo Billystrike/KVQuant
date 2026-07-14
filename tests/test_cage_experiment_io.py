@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -103,6 +104,40 @@ class CageExperimentIOTests(unittest.TestCase):
             self.assertIsNone(provenance["cuda_driver"])
             self.assertIsNone(provenance["gpu_name"])
         self.assertEqual(provenance["deterministic_seed"], 123)
+
+    def test_provenance_captures_determinism_settings_without_toggling_them(self):
+        with mock.patch.object(
+            torch, "are_deterministic_algorithms_enabled", return_value=True
+        ), mock.patch.object(
+            torch, "is_deterministic_algorithms_warn_only_enabled",
+            create=True, return_value=True,
+        ), mock.patch.object(
+            torch, "use_deterministic_algorithms"
+        ) as toggle, mock.patch.dict(
+            os.environ, {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"}
+        ):
+            provenance = collect_provenance(
+                Path(__file__).parents[1], deterministic_seed=321
+            )
+        self.assertEqual(provenance["deterministic_seed"], 321)
+        self.assertEqual({
+            "deterministic_algorithms_enabled": provenance.get(
+                "deterministic_algorithms_enabled"
+            ),
+            "deterministic_algorithms_warn_only": provenance.get(
+                "deterministic_algorithms_warn_only"
+            ),
+            "cudnn_deterministic": provenance.get("cudnn_deterministic"),
+            "cudnn_benchmark": provenance.get("cudnn_benchmark"),
+            "cublas_workspace_config": provenance.get("cublas_workspace_config"),
+        }, {
+            "deterministic_algorithms_enabled": True,
+            "deterministic_algorithms_warn_only": True,
+            "cudnn_deterministic": bool(torch.backends.cudnn.deterministic),
+            "cudnn_benchmark": bool(torch.backends.cudnn.benchmark),
+            "cublas_workspace_config": ":4096:8",
+        })
+        toggle.assert_not_called()
 
     def test_command_path_arguments_are_normalized_relative_to_repo_root(self):
         root = Path(__file__).parents[1].resolve()
@@ -238,6 +273,33 @@ class CageExperimentIOTests(unittest.TestCase):
             self._write_completed(root, "a")
             (root / "layers" / "a.jsonl").write_text("{bad json}\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "layer.*JSON"):
+                aggregate_completed_runs(root)
+            self.assertEqual(
+                (root / "summary" / "runs.jsonl").read_text(encoding="utf-8"),
+                "existing-jsonl\n",
+            )
+            self.assertEqual(
+                (root / "summary" / "runs.csv").read_text(encoding="utf-8"),
+                "existing-csv\n",
+            )
+
+    def test_aggregation_rejects_corrupt_derived_aggregate_atomically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "summary").mkdir()
+            (root / "summary" / "runs.jsonl").write_text(
+                "existing-jsonl\n", encoding="utf-8"
+            )
+            (root / "summary" / "runs.csv").write_text(
+                "existing-csv\n", encoding="utf-8"
+            )
+            record, layers = completed_artifacts("a")
+            record["metrics_aggregate"][
+                "relative_k_reconstruction_error"
+            ]["max"] = 1.0
+            atomic_write_json(root / "runs" / "a.json", record)
+            atomic_write_jsonl(root / "layers" / "a.jsonl", layers)
+            with self.assertRaisesRegex(ValueError, "relative_k_reconstruction_error.max"):
                 aggregate_completed_runs(root)
             self.assertEqual(
                 (root / "summary" / "runs.jsonl").read_text(encoding="utf-8"),

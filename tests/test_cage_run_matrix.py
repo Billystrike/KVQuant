@@ -22,13 +22,20 @@ def _load():
 
 
 def _manifest(output_dir: Path, method_count: int = 2) -> dict:
+    methods = [
+        {"id": "fp16", "method": "fp16"},
+        {
+            "id": "kivi-g2-r2", "method": "kivi", "k_bits": 2, "v_bits": 2,
+            "group_size": 2, "residual_length": 2,
+        },
+        {"id": "cage-r2", "method": "cage", "residual_length": 2},
+    ]
     return {
         "model": {"reference": "model", "dtype": "float16", "device": "cpu",
                   "max_position_embeddings": 16},
         "prompts_file": str(output_dir.parent / "prompts.jsonl"),
         "sample_ids": ["sample"], "prompt_lengths": [2],
-        "methods": [{"id": f"fp{index}", "method": "fp16"}
-                    for index in range(method_count)],
+        "methods": methods[:method_count],
         "measurement": {"decode_tokens": 1, "seed": 7},
         "output_dir": str(output_dir),
     }
@@ -60,7 +67,10 @@ class CageRunMatrixTest(unittest.TestCase):
             self.assertEqual(run.call_count, 2)
             resolved_path = root / "output" / "manifest.resolved.json"
             resolved = json.loads(resolved_path.read_text(encoding="utf-8"))
-            self.assertEqual([job["job_id"] for job in resolved["jobs"]], ["fp0", "fp1"])
+            self.assertEqual(
+                [job["job_id"] for job in resolved["jobs"]],
+                ["fp16", "kivi-g2-r2"],
+            )
             for index, call in enumerate(run.call_args_list):
                 command = call.args[0]
                 self.assertEqual(command[-4:], ["--manifest", str(resolved_path),
@@ -74,6 +84,15 @@ class CageRunMatrixTest(unittest.TestCase):
             with mock.patch.object(self.matrix.subprocess, "run", side_effect=results) as run:
                 result = self.matrix.run_matrix(manifest_path, retry_transient_once=True)
             self.assertEqual(result, 3)
+            self.assertEqual(run.call_count, 2)
+
+    def test_isolated_deterministic_exit_six_is_not_retried_and_later_jobs_continue(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest_path = self._write_manifest(Path(directory))
+            results = [subprocess.CompletedProcess([], 6), subprocess.CompletedProcess([], 0)]
+            with mock.patch.object(self.matrix.subprocess, "run", side_effect=results) as run:
+                result = self.matrix.run_matrix(manifest_path, retry_transient_once=True)
+            self.assertEqual(result, 6)
             self.assertEqual(run.call_count, 2)
 
     def test_transient_failure_is_retried_once_only_when_enabled(self):

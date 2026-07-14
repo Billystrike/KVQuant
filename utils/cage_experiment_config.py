@@ -77,6 +77,8 @@ def _resolve_manifest_object(raw: dict[str, Any]) -> dict:
 
     sample_ids = _unique_nonempty_strings("sample_ids", raw["sample_ids"])
     prompt_lengths = _positive_int_list("prompt_lengths", raw["prompt_lengths"])
+    if len(prompt_lengths) != len(set(prompt_lengths)):
+        raise ValueError("prompt_lengths entries must be unique")
     _nonempty_string("prompts_file", raw["prompts_file"])
     _nonempty_string("output_dir", raw["output_dir"])
 
@@ -99,6 +101,21 @@ def _resolve_manifest_object(raw: dict[str, Any]) -> dict:
     ids = [method["id"] for method in resolved_methods]
     if len(ids) != len(set(ids)):
         raise ValueError("method ids must be unique")
+    scientific_configs = [
+        (
+            method["method"],
+            json.dumps(
+                method["method_config"],
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        )
+        for method in resolved_methods
+    ]
+    if len(scientific_configs) != len(set(scientific_configs)):
+        raise ValueError(
+            "methods contain scientifically duplicate resolved configurations"
+        )
 
     return {
         "model": copy.deepcopy(model),

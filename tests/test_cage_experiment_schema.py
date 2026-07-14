@@ -1,6 +1,7 @@
 import copy
 import json
 import math
+import statistics
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,12 +15,38 @@ from utils.cage_experiment_schema import (
 )
 
 
-def _byte_summary(total):
+def _byte_summary(seed):
     summary = {name: 0 for name in BYTE_FIELDS}
-    summary["residual_full_precision_bytes"] = total
-    summary["total_bytes"] = total
+    base_fields = BYTE_FIELDS[:8]
+    for offset, name in enumerate(base_fields):
+        summary[name] = seed + offset
+    summary["payload_only_bytes"] = (
+        summary["key_payload_bytes"] + summary["value_payload_bytes"]
+    )
+    summary["metadata_bytes"] = sum(summary[name] for name in (
+        "key_scale_bytes", "value_scale_bytes",
+        "key_min_or_zp_bytes", "value_min_or_zp_bytes",
+    ))
+    summary["total_bytes"] = sum(summary[name] for name in base_fields)
     summary["cache_type"] = "fp16"
     return summary
+
+
+def _sum_byte_summaries(summaries):
+    result = {name: sum(summary[name] for summary in summaries) for name in BYTE_FIELDS}
+    result["cache_type"] = "model_total"
+    return result
+
+
+def _metric_aggregates(layers):
+    return {
+        name: {
+            "mean": float(statistics.fmean(row[name] for row in layers)),
+            "median": float(statistics.median(row[name] for row in layers)),
+            "max": float(max(row[name] for row in layers)),
+        }
+        for name in METRIC_NAMES
+    }
 
 
 def completed_artifacts(run_id="run", layer_count=2, prompt_length=5):
@@ -53,10 +80,17 @@ def completed_artifacts(run_id="run", layer_count=2, prompt_length=5):
                     },
                 },
             },
-            **{name: 0.0 for name in METRIC_NAMES},
+            **{
+                name: (1.0 if name == "topk_attention_overlap" else 0.0)
+                for name in METRIC_NAMES
+            },
         })
-    paper_total = sum(row["memory"]["paper_estimate"]["total_bytes"] for row in layers)
-    runtime_total = sum(row["memory"]["runtime_tensors"]["total_bytes"] for row in layers)
+    paper_total = _sum_byte_summaries([
+        row["memory"]["paper_estimate"] for row in layers
+    ])
+    runtime_total = _sum_byte_summaries([
+        row["memory"]["runtime_tensors"] for row in layers
+    ])
     run = {
         "schema_version": 1,
         "run_id": run_id,
@@ -77,17 +111,14 @@ def completed_artifacts(run_id="run", layer_count=2, prompt_length=5):
             "layer_count": layer_count,
         },
         "memory": {
-            "paper_estimate": _byte_summary(paper_total),
-            "runtime_tensors": _byte_summary(runtime_total),
+            "paper_estimate": paper_total,
+            "runtime_tensors": runtime_total,
             "cuda_peak_diagnostic": {
                 "max_allocated_bytes": 10,
                 "max_reserved_bytes": 20,
             },
         },
-        "metrics_aggregate": {
-            name: {"mean": 0.0, "median": 0.0, "max": 0.0}
-            for name in METRIC_NAMES
-        },
+        "metrics_aggregate": _metric_aggregates(layers),
         "runtime_diagnostics": {"load_seconds": 0.1},
         "provenance": {"source_state": {"git_commit": "abc"}, "deterministic_seed": 7},
     }
@@ -174,11 +205,96 @@ class CageExperimentSchemaTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "metric"):
                     validate_completed_point(root, "run")
 
+    def test_topk_attention_overlap_must_be_in_closed_unit_interval(self):
+        for value in (-0.01, 1.01):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                run, layers = completed_artifacts()
+                layers[0]["topk_attention_overlap"] = value
+                self._write(root, run, layers)
+                with self.assertRaisesRegex(ValueError, "topk_attention_overlap.*\[0, 1\]"):
+                    validate_completed_point(root, "run")
+
+    def test_run_topk_aggregate_statistics_must_be_in_closed_unit_interval(self):
+        for value in (-0.01, 1.01):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                run, layers = completed_artifacts()
+                run["metrics_aggregate"]["topk_attention_overlap"]["mean"] = value
+                self._write(root, run, layers)
+                with self.assertRaisesRegex(ValueError, "topk_attention_overlap.mean.*\[0, 1\]"):
+                    validate_completed_point(root, "run")
+
+    def test_run_metric_mean_median_and_max_must_match_layer_rows(self):
+        metric = "relative_k_reconstruction_error"
+        for statistic_name in ("mean", "median", "max"):
+            with self.subTest(statistic=statistic_name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                run, layers = completed_artifacts()
+                layers[0][metric] = 1.0
+                layers[1][metric] = 3.0
+                run["metrics_aggregate"] = _metric_aggregates(layers)
+                run["metrics_aggregate"][metric][statistic_name] += 0.01
+                self._write(root, run, layers)
+                with self.assertRaisesRegex(ValueError, f"{metric}.{statistic_name}.*layer"):
+                    validate_completed_point(root, "run")
+
+    def test_run_metric_aggregate_names_and_statistics_are_exact(self):
+        mutations = [
+            lambda aggregate: aggregate.pop(METRIC_NAMES[0]),
+            lambda aggregate: aggregate.update(extra_metric={
+                "mean": 0.0, "median": 0.0, "max": 0.0,
+            }),
+            lambda aggregate: aggregate[METRIC_NAMES[0]].pop("median"),
+            lambda aggregate: aggregate[METRIC_NAMES[0]].update(extra=0.0),
+        ]
+        for mutate in mutations:
+            with self.subTest(mutation=mutate), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                run, layers = completed_artifacts()
+                mutate(run["metrics_aggregate"])
+                self._write(root, run, layers)
+                with self.assertRaisesRegex(ValueError, "metrics_aggregate"):
+                    validate_completed_point(root, "run")
+
+    def test_layer_and_model_cache_summary_derived_byte_arithmetic_is_exact(self):
+        mutations = [
+            lambda run, layers: layers[0]["memory"]["paper_estimate"].update(
+                payload_only_bytes=999
+            ),
+            lambda run, layers: layers[0]["memory"]["runtime_tensors"].update(
+                metadata_bytes=999
+            ),
+            lambda run, layers: layers[0]["memory"]["paper_estimate"].update(
+                total_bytes=999
+            ),
+            lambda run, layers: run["memory"]["paper_estimate"].update(
+                payload_only_bytes=999
+            ),
+            lambda run, layers: run["memory"]["runtime_tensors"].update(
+                metadata_bytes=999
+            ),
+            lambda run, layers: run["memory"]["runtime_tensors"].update(
+                total_bytes=999
+            ),
+        ]
+        for mutate in mutations:
+            with self.subTest(mutation=mutate), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                run, layers = completed_artifacts()
+                mutate(run, layers)
+                self._write(root, run, layers)
+                with self.assertRaisesRegex(ValueError, "byte arithmetic"):
+                    validate_completed_point(root, "run")
+
     def test_model_memory_must_equal_recursive_layer_sums(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             run, layers = completed_artifacts()
-            run["memory"]["paper_estimate"]["total_bytes"] += 1
+            summary = run["memory"]["paper_estimate"]
+            summary["key_payload_bytes"] += 1
+            summary["payload_only_bytes"] += 1
+            summary["total_bytes"] += 1
             self._write(root, run, layers)
             with self.assertRaisesRegex(ValueError, "memory.*sum"):
                 validate_completed_point(root, "run")

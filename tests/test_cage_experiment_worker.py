@@ -181,6 +181,67 @@ class CageExperimentWorkerTest(unittest.TestCase):
         self.assertTrue(cage.use_flash)
         self.assertEqual(cage.group_size, 32)
 
+    def test_native_model_context_accepts_exact_unscaled_config(self):
+        self.assertTrue(hasattr(self.worker, "validate_native_model_context"))
+        config = types.SimpleNamespace(
+            max_position_embeddings=4096,
+            rope_scaling=None,
+        )
+        self.worker.validate_native_model_context(
+            config, {"max_position_embeddings": 4096}
+        )
+
+    def test_native_model_context_rejects_mismatch_and_rope_scaling(self):
+        self.assertTrue(hasattr(self.worker, "validate_native_model_context"))
+        cases = [
+            (
+                types.SimpleNamespace(max_position_embeddings=8192, rope_scaling=None),
+                "max_position_embeddings.*8192.*4096",
+            ),
+            (
+                types.SimpleNamespace(
+                    max_position_embeddings=4096,
+                    rope_scaling={"rope_type": "linear", "factor": 2.0},
+                ),
+                "rope_scaling",
+            ),
+        ]
+        for config, message in cases:
+            with self.subTest(config=config), self.assertRaisesRegex(ValueError, message):
+                self.worker.validate_native_model_context(
+                    config, {"max_position_embeddings": 4096}
+                )
+
+    def test_native_context_preflight_exits_two_before_tokenizer_or_weights(self):
+        manifest = {
+            "model": {"reference": "model", "dtype": "float16", "device": "cpu",
+                      "max_position_embeddings": 16},
+            "prompts_file": "prompts.jsonl", "sample_ids": ["s"], "prompt_lengths": [2],
+            "methods": [{"id": "fp", "method": "fp16", "method_config": {}}],
+            "measurement": {"decode_tokens": 1, "seed": 1}, "output_dir": "out",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (root / "prompts.jsonl").write_text(
+                json.dumps({"sample_id": "s", "text": "hello"}) + "\n", encoding="utf-8"
+            )
+            with mock.patch.object(
+                self.worker, "_load_native_config", create=True,
+                return_value=types.SimpleNamespace(
+                    max_position_embeddings=32, rope_scaling=None
+                ),
+            ) as preflight, mock.patch.object(self.worker, "_prepare_inputs") as prepare, \
+                 mock.patch.object(self.worker, "_load_model") as load:
+                self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 2)
+            preflight.assert_called_once()
+            prepare.assert_not_called()
+            load.assert_not_called()
+            failures = list((root / "out" / "failures").glob("*.json"))
+            self.assertEqual(len(failures), 1)
+            failure = json.loads(failures[0].read_text(encoding="utf-8"))
+            self.assertEqual((failure["retryable"], failure["stage"]), (False, "input"))
+
     def test_aggregate_layer_metrics_ignores_layer_index(self):
         result = self.worker.aggregate_layer_metrics([
             {"layer_index": 0, "prompt_length": 8, "method": "cage",
@@ -196,7 +257,13 @@ class CageExperimentWorkerTest(unittest.TestCase):
         records = self.worker.fp16_zero_layer_records(2)
         self.assertEqual([record["layer_index"] for record in records], [0, 1])
         self.assertEqual(tuple(records[0].keys())[3:], schema)
-        self.assertTrue(all(value == 0.0 for record in records for value in list(record.values())[3:]))
+        for record in records:
+            self.assertEqual(record["topk_attention_overlap"], 1.0)
+            self.assertTrue(all(
+                record[name] == 0.0
+                for name in schema
+                if name != "topk_attention_overlap"
+            ))
 
     def test_completed_run_is_skipped(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -291,12 +358,16 @@ class CageExperimentWorkerTest(unittest.TestCase):
             job = manifest.copy()
             job = self.worker.expand_jobs(manifest)[0]
             run_id = self.worker._point_id(job, sample, 2, source)
-            atomic_write_json(root / "out" / "runs" / f"{run_id}.json", {
-                "run_id": run_id, "status": "completed"
-            })
-            corrupt_layer = root / "out" / "layers" / f"{run_id}.jsonl"
-            corrupt_layer.parent.mkdir(parents=True)
-            corrupt_layer.write_text("corrupt\n", encoding="utf-8")
+            stale_run, stale_layers = completed_artifacts(
+                run_id, layer_count=1, prompt_length=2
+            )
+            stale_run["metrics_aggregate"][
+                "relative_k_reconstruction_error"
+            ]["mean"] = 1.0
+            atomic_write_json(root / "out" / "runs" / f"{run_id}.json", stale_run)
+            atomic_write_jsonl(
+                root / "out" / "layers" / f"{run_id}.jsonl", stale_layers
+            )
             prepared = {
                 ("s", 2): {
                     "prompt_ids": self_tensor.tensor([[1, 2]]),
@@ -305,6 +376,14 @@ class CageExperimentWorkerTest(unittest.TestCase):
                 }
             }
             with mock.patch.object(self.worker, "collect_provenance", return_value=provenance), \
+                 mock.patch.object(
+                     self.worker, "_load_native_config",
+                     return_value=types.SimpleNamespace(
+                         model_type="llama",
+                         max_position_embeddings=16,
+                         rope_scaling=None,
+                     ),
+                 ), \
                  mock.patch.object(self.worker, "_prepare_inputs", return_value=(object(), prepared)), \
                  mock.patch.object(self.worker, "_load_model", return_value=(FakeModel(), 0.1)):
                 self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 0)
@@ -369,9 +448,9 @@ class CageExperimentWorkerTest(unittest.TestCase):
             (RuntimeError("checkpoint is corrupt"), "load", False,
              ("model_load_error", 4, False)),
             (RuntimeError("reference failed"), "reference", False,
-             ("experiment_point_error", 2, False)),
+             ("experiment_point_error", 6, False)),
             (RuntimeError("decode failed"), "decode", False,
-             ("experiment_point_error", 2, False)),
+             ("experiment_point_error", 6, False)),
             (RuntimeError("capture reset failed"), "capture_reset", True,
              ("transient_model_state", 5, True)),
         ]
@@ -386,6 +465,71 @@ class CageExperimentWorkerTest(unittest.TestCase):
                     expected,
                 )
                 self.assertEqual(classification.stage, stage)
+
+    def test_isolated_point_failure_returns_six_and_continues_later_points(self):
+        manifest = {
+            "model": {"reference": "model", "dtype": "float16", "device": "cpu",
+                      "max_position_embeddings": 16},
+            "prompts_file": "prompts.jsonl", "sample_ids": ["s"],
+            "prompt_lengths": [2, 3],
+            "methods": [{"id": "fp", "method": "fp16", "method_config": {}}],
+            "measurement": {"decode_tokens": 1, "seed": 7}, "output_dir": "out",
+        }
+
+        class FakeModel:
+            def __init__(self):
+                self.config = types.SimpleNamespace(model_type="llama")
+                self.model = types.SimpleNamespace(layers=[object()])
+                self.failed_once = False
+
+            def __call__(self, *, input_ids, use_cache, return_dict, past_key_values=None):
+                del return_dict
+                if not use_cache and input_ids.shape[-1] == 3 and not self.failed_once:
+                    self.failed_once = True
+                    raise RuntimeError("isolated deterministic point failure")
+                output = types.SimpleNamespace(logits=self_tensor.zeros(1, 1, 2))
+                if use_cache and past_key_values is None:
+                    key = self_tensor.zeros(1, 1, input_ids.shape[-1], 2)
+                    value = self_tensor.zeros(1, 1, input_ids.shape[-1], 2)
+                    output.past_key_values = ((key, value),)
+                return output
+
+        self_tensor = self.worker.torch
+        source = {"git_commit": "abc", "dirty": False, "dirty_sha256": None}
+        provenance = {"source_state": source, "deterministic_seed": 7}
+        prepared = {
+            ("s", length): {
+                "prompt_ids": self_tensor.arange(length).unsqueeze(0),
+                "continuation_ids": self_tensor.tensor([[9]]),
+                "text_sha256": "0" * 64,
+            }
+            for length in (2, 3)
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (root / "prompts.jsonl").write_text(
+                json.dumps({"sample_id": "s", "text": "hello"}) + "\n", encoding="utf-8"
+            )
+            with mock.patch.object(self.worker, "collect_provenance", return_value=provenance), \
+                 mock.patch.object(self.worker, "_load_native_config", create=True,
+                                   return_value=types.SimpleNamespace(
+                                       model_type="llama",
+                                       max_position_embeddings=16,
+                                       rope_scaling=None,
+                                   )), \
+                 mock.patch.object(self.worker, "_prepare_inputs",
+                                   return_value=(object(), prepared)), \
+                 mock.patch.object(self.worker, "_load_model", return_value=(FakeModel(), 0.1)):
+                self.assertEqual(self.worker.run_job(root / "manifest.json", 0), 6)
+            failures = list((root / "out" / "failures").glob("*.json"))
+            runs = list((root / "out" / "runs").glob("*.json"))
+            self.assertEqual((len(failures), len(runs)), (1, 1))
+            failure = json.loads(failures[0].read_text(encoding="utf-8"))
+            self.assertEqual(
+                (failure["category"], failure["retryable"]),
+                ("experiment_point_error", False),
+            )
 
 
 if __name__ == "__main__":
