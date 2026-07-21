@@ -185,7 +185,10 @@ def normalize_command_arguments(
     arguments = [str(argument) for argument in command_args]
 
     def normalize_path(value: str) -> str:
-        path = Path(value)
+        # Manifest paths are serialized as portable command provenance. Treat
+        # both separators as path syntax even on POSIX so a command assembled
+        # on Windows normalizes to the same identity when inspected on Linux.
+        path = Path(value.replace("\\", "/"))
         if not path.is_absolute():
             path = root / path
         return path.resolve().as_posix()
