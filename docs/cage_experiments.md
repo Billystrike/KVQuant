@@ -56,6 +56,52 @@ Worker exit codes are 0 success, 2 shared deterministic manifest/input/preflight
 
 Run IDs include resolved configuration, model, source sample/hash, prompt length, and Git source state. The conservative source identity includes all tracked dirty state; any tracked repository change intentionally invalidates reuse. There is no experiment-path allowlist. Completed run files are atomic and are skipped on an identical rerun; completed points survive later failures. Only transient process failures are retried once with the flag above. OOM, input/configuration, model-load, and isolated deterministic failures are not silently treated as completed results. Changing code, input text, model, or configuration changes identity rather than reusing an incompatible result.
 
+## Analyze a frozen full matrix
+
+Run analysis only after the full matrix has been validated and copied to a
+frozen backup. Adding or changing analysis code changes the repository source
+identity, so do not invoke `cage_run_matrix.py` against old results after
+updating the checkout. The analysis reader intentionally validates the run IDs
+listed in the frozen summary and does not recompute them from the current Git
+state.
+
+```bash
+env -u OMP_NUM_THREADS python scripts/cage_analyze_pareto.py \
+  --results-dir /root/autodl-tmp/cage_pareto_backup_20260721_11aff03c/results/full \
+  --analysis-dir /root/autodl-tmp/cage_pareto_analysis_20260721_11aff03c
+```
+
+The analysis requires a complete 120-run, 3840-layer Llama-2-7B matrix with no
+failure artifacts, one common clean source state, and exact coverage of the
+resolved method/sample/prompt combinations. It aggregates the three samples
+into 40 method-configuration/prompt points. The primary error coordinate is the
+arithmetic mean across samples of each run's 32-layer mean
+`joint_post_o_proj_mse`; population standard deviation, minimum, maximum, and
+the explanatory metrics remain in the aggregate table. Paper and runtime cache
+memory must be exactly sample-invariant within a point.
+
+Pareto optimality is computed separately for each prompt length by minimizing
+`memory.paper_estimate.total_bytes` and the primary error. FP16 remains the
+zero-error endpoint. A point dominates another only when both objectives are no
+worse and at least one is strictly better; no unstated epsilon is used.
+Cross-length files report trends only and do not form a cross-length Pareto
+front.
+
+The analysis directory contains:
+
+```text
+aggregate_points.{jsonl,csv}      # all 40 aggregated points
+pareto_points.{jsonl,csv}         # prompt-local global Pareto points
+trends.{jsonl,csv}                # per-configuration length trends
+analysis_protocol.json            # declared axes, aggregation, and provenance
+pareto_summary.md                 # compact paper-facing tables
+memory_perturbation_pareto.{png,pdf}
+```
+
+Only `paper_estimate` is used for the memory axis. Runtime tensors and CUDA
+peaks are retained under explicitly diagnostic column names and must not be
+interpreted as packed-kernel memory or performance.
+
 ## Interpretation boundaries
 
 Paper-facing memory is only `memory.paper_estimate`, derived from the prefill-T packed payload and metadata accounting. `memory.runtime_tensors` is also a prefill-T cache snapshot. `memory.cuda_peak_diagnostic` is a separate whole-point diagnostic updated after decode and metric reconstruction; it does not summarize the T+1 cache. CAGE currently uses fake quantization and may retain FP16 runtime tensors, so its runtime allocation, CUDA peak, and timing must never be presented as compressed-kernel memory or latency results.
