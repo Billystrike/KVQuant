@@ -123,3 +123,77 @@ The scoped pilot accepts only CAGE `k_bits == v_bits == 2`, both Key and Value e
 Provenance captures the resolved seed, whether deterministic algorithms are enabled, deterministic warn-only state when supported, cuDNN deterministic and benchmark flags, and `CUBLAS_WORKSPACE_CONFIG`. Production code records these settings but does not call `torch.use_deterministic_algorithms(True)`.
 
 This pilot measures local cache reconstruction and a memory-functional-error plane. It does not establish maintained language-model quality, retrieval accuracy, end-task quality, latency improvement, throughput improvement, or realized runtime compression. Those claims require separate downstream evaluation and a real compressed kernel.
+
+## Passkey Stage A: FP16 task calibration
+
+Do not use `long_context_example.py` as the formal CAGE passkey evaluation. It
+is an upstream demonstration with a different hard-coded model, overlength
+inputs for native Llama-2 context, no FP16/CAGE matrix, and no resumable result
+schema. Stage A instead calibrates the task itself on the same native-context
+Llama-2-7B FP16 baseline used by the Pareto pilot.
+
+The checked-in smoke and calibration manifests are:
+
+```text
+configs/cage_passkey_llama2_7b_fp16_smoke.json        # 12 cases
+configs/cage_passkey_llama2_7b_fp16_calibration.json  # 60 cases
+```
+
+Both use exact input lengths 512, 1024, 2048, and 4032; passkey statement
+positions 10%, 50%, and 90%; deterministic five-digit keys; greedy generation;
+and at most eight generated tokens. The 4032-token prompt plus eight generated
+tokens remains below Llama-2's native 4096 context. No RoPE scaling or context
+extension is allowed. Inputs are assembled as token IDs to achieve the exact
+declared length. Results store the input-ID SHA-256 and statement token bounds,
+not the full repeated prompt.
+
+Run only from a clean committed checkout:
+
+```bash
+env -u OMP_NUM_THREADS PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+  python scripts/cage_run_passkey.py \
+  --manifest configs/cage_passkey_llama2_7b_fp16_smoke.json
+```
+
+The primary metric extracts the first standalone five-digit number from the
+generated continuation and requires it to equal the target. Target containment
+is secondary. Early EOS is a quality outcome rather than a process failure.
+Elapsed time and CUDA peaks are diagnostic only and are not latency, throughput,
+or compressed-kernel claims.
+
+The smoke and calibration manifests intentionally share
+`/root/autodl-tmp/cage_passkey_fp16`. Case identity excludes matrix-wide key
+count, so the first 12 completed smoke cases are reused when the 60-case
+calibration manifest is run. Current-manifest expected IDs alone are included
+in summaries. A valid repeat rebuilds summaries without loading model weights.
+
+The output layout is:
+
+```text
+/root/autodl-tmp/cage_passkey_fp16/
+  manifest.resolved.json
+  cases/<case_id>.json
+  failures/<case_id>.json
+  summary/cases.jsonl
+  summary/cases.csv
+  summary/quality.json
+```
+
+Stage A gates are declared before observing quantized results:
+
+- smoke: 12/12 completed, no current failure records, and 12/12 exact matches;
+- calibration: 60/60 completed, no current failure records, at least 54/60
+  exact matches overall, and at least 4/5 exact matches in every
+  prompt-length/position cell.
+
+If the FP16 smoke gate fails, inspect the generated continuations and task
+construction before running calibration. Do not tune a prompt using quantized
+method outcomes. Only after the FP16 calibration gate passes may a separate
+Stage-B manifest add KIVI and CAGE configurations.
+
+Passkey runner exit codes are 0 for successful execution, 2 for manifest,
+clean-source, tokenizer, or native-context preflight errors, 3 for CUDA OOM, 4
+for model construction/load errors, and 6 when one or more individual cases
+fail while later cases continue. Accuracy below a scientific gate does not
+masquerade as a process error; it is reported in the completed summary and must
+be evaluated separately.
