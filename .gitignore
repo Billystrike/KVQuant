@@ -14,8 +14,11 @@ dataset
 output_samples
 *.pdf
 *.json
+!configs/cage_passkey_llama2_7b_fp16_smoke.json
+!configs/cage_passkey_llama2_7b_fp16_calibration.json
 *.jsonl
 third_party
 speed_logs
 pred
 pred_e
+.worktrees/
