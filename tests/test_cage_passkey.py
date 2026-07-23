@@ -2,6 +2,7 @@ import json
 import re
 import tempfile
 import unittest
+from collections import UserDict
 from pathlib import Path
 from unittest import mock
 
@@ -42,6 +43,13 @@ class FakeTokenizer:
                 self._vocabulary[piece] = len(self._vocabulary) + 10
             ids.append(self._vocabulary[piece])
         return {"input_ids": ids}
+
+
+class BatchEncodingLikeTokenizer(FakeTokenizer):
+    """Exercise the mapping interface used by Transformers BatchEncoding."""
+
+    def __call__(self, text, *, add_special_tokens):
+        return UserDict(super().__call__(text, add_special_tokens=add_special_tokens))
 
 
 def source_state():
@@ -127,6 +135,15 @@ class PasskeyInputTests(unittest.TestCase):
             self.assertLess(
                 prepared["statement_token_start"], prepared["statement_token_end"]
             )
+
+    def test_accepts_batch_encoding_like_mapping(self):
+        prepared = build_passkey_prompt(
+            BatchEncodingLikeTokenizer(),
+            target="12345",
+            prompt_length=512,
+            position_percent=50,
+        )
+        self.assertEqual(len(prepared["input_ids"]), 512)
 
     def test_rejects_prompt_shorter_than_fixed_template(self):
         with self.assertRaisesRegex(PasskeyError, "shorter than fixed template"):

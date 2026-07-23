@@ -8,6 +8,7 @@ import json
 import math
 import posixpath
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -268,7 +269,7 @@ def generate_passkeys(seed: int, count: int) -> list[str]:
 
 def _token_ids(tokenizer: Any, text: str, *, add_special_tokens: bool) -> list[int]:
     encoded = tokenizer(text, add_special_tokens=add_special_tokens)
-    if not isinstance(encoded, dict) or "input_ids" not in encoded:
+    if not isinstance(encoded, Mapping) or "input_ids" not in encoded:
         raise PasskeyError("tokenizer output must contain input_ids")
     ids = encoded["input_ids"]
     if hasattr(ids, "tolist"):
