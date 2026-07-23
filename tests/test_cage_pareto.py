@@ -9,6 +9,7 @@ from utils.cage_experiment_schema import BYTE_FIELDS, METRIC_NAMES
 from utils.cage_pareto import (
     ParetoAnalysisError,
     aggregate_points,
+    build_sample_points,
     build_trends,
     load_completed_matrix,
     write_analysis_outputs,
@@ -115,7 +116,13 @@ class ParetoAggregationTests(unittest.TestCase):
         self.assertEqual(kivi["compression_ratio_vs_fp16"], 2.0)
         self.assertEqual(kivi["memory_fraction_of_fp16"], 0.5)
         self.assertTrue(kivi["is_pareto_global"])
+        self.assertEqual(kivi["pareto_sample_count"], 2)
+        self.assertTrue(kivi["is_pareto_all_samples"])
         self.assertTrue(next(point for point in points if point["method"] == "fp16")["is_pareto_global"])
+
+        sample_points = build_sample_points(points)
+        self.assertEqual(len(sample_points), 4)
+        self.assertTrue(all(point["is_pareto_global"] for point in sample_points))
 
     def test_rejects_sample_dependent_cache_memory(self):
         manifest = _manifest([self.fp16, self.kivi])
@@ -154,6 +161,34 @@ class ParetoAggregationTests(unittest.TestCase):
         self.assertFalse(cage_point["is_pareto_global"])
         self.assertEqual(cage_point["dominated_by_count_global"], 1)
         self.assertTrue(cage_point["is_pareto_within_method"])
+
+    def test_reports_when_mean_dominance_is_not_stable_for_every_sample(self):
+        cage_config = {"residual_length": 32}
+        cage = {"id": "cage-r32", "method": "cage", "method_config": cage_config}
+        manifest = _manifest([self.fp16, self.kivi, cage])
+        runs = [
+            _run("f-a", "fp16", {}, "doc-a", 512, 100, 0),
+            _run("f-b", "fp16", {}, "doc-b", 512, 100, 0),
+            _run("k-a", "kivi", self.kivi_config, "doc-a", 512, 50, 1),
+            _run("k-b", "kivi", self.kivi_config, "doc-b", 512, 50, 4),
+            _run("c-a", "cage", cage_config, "doc-a", 512, 60, 2),
+            _run("c-b", "cage", cage_config, "doc-b", 512, 60, 3),
+        ]
+
+        points = aggregate_points(runs, manifest)
+        cage_point = next(point for point in points if point["method"] == "cage")
+        self.assertFalse(cage_point["is_pareto_global"])
+        self.assertEqual(cage_point["pareto_sample_count"], 1)
+        self.assertEqual(json.loads(cage_point["pareto_sample_ids_json"]), ["doc-b"])
+
+        sample_points = build_sample_points(points)
+        cage_by_sample = {
+            point["sample_id"]: point
+            for point in sample_points
+            if point["method"] == "cage"
+        }
+        self.assertFalse(cage_by_sample["doc-a"]["is_pareto_global"])
+        self.assertTrue(cage_by_sample["doc-b"]["is_pareto_global"])
 
     def test_builds_length_trends_without_cross_length_pareto(self):
         manifest = _manifest([self.fp16, self.kivi], lengths=(512, 1024))
@@ -200,11 +235,13 @@ class ParetoAggregationTests(unittest.TestCase):
                 run_count=4,
                 make_plots=False,
             )
-            self.assertEqual(len(paths), 8)
+            self.assertEqual(len(paths), 10)
             self.assertTrue((output / "aggregate_points.csv").is_file())
             self.assertTrue((output / "pareto_points.jsonl").is_file())
+            self.assertTrue((output / "sample_points.csv").is_file())
             protocol = json.loads((output / "analysis_protocol.json").read_text())
             self.assertEqual(protocol["primary_error_metric"], "joint_post_o_proj_mse")
+            self.assertEqual(protocol["sample_point_count"], 4)
             self.assertIn("Prompt length 512", (output / "pareto_summary.md").read_text())
 
 

@@ -84,6 +84,11 @@ Pareto optimality is computed separately for each prompt length by minimizing
 `memory.paper_estimate.total_bytes` and the primary error. FP16 remains the
 zero-error endpoint. A point dominates another only when both objectives are no
 worse and at least one is strictly better; no unstated epsilon is used.
+The same dominance rule is also applied separately to every sample/prompt
+slice. The aggregate table reports how many of the three sample-specific
+fronts contain each configuration, and `sample_points` preserves the 120
+auditable sample/configuration/prompt decisions. The sample count is a
+stability diagnostic; the mean front remains the declared primary analysis.
 Cross-length files report trends only and do not form a cross-length Pareto
 front.
 
@@ -92,11 +97,18 @@ The analysis directory contains:
 ```text
 aggregate_points.{jsonl,csv}      # all 40 aggregated points
 pareto_points.{jsonl,csv}         # prompt-local global Pareto points
+sample_points.{jsonl,csv}         # all 120 sample-local Pareto decisions
 trends.{jsonl,csv}                # per-configuration length trends
 analysis_protocol.json            # declared axes, aggregation, and provenance
 pareto_summary.md                 # compact paper-facing tables
 memory_perturbation_pareto.{png,pdf}
 ```
+
+The figure focuses on the quantized operating region, uses population-standard-
+deviation error bars across the three samples, outlines mean-Pareto points, and
+prints the corresponding FP16 memory/zero-error reference in each panel. The
+full mean Pareto membership, including FP16, remains authoritative in the
+tables.
 
 Only `paper_estimate` is used for the memory axis. Runtime tensors and CUDA
 peaks are retained under explicitly diagnostic column names and must not be

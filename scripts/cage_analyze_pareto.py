@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 from utils.cage_pareto import (
     ParetoAnalysisError,
     aggregate_points,
+    build_sample_points,
     build_trends,
     load_completed_matrix,
     write_analysis_outputs,
@@ -49,6 +50,7 @@ def run_analysis(
 ) -> dict[str, int]:
     resolved, runs = load_completed_matrix(results_dir)
     points = aggregate_points(runs, resolved)
+    sample_points = build_sample_points(points)
     trends = build_trends(points)
     outputs = write_analysis_outputs(
         analysis_dir,
@@ -62,6 +64,7 @@ def run_analysis(
     return {
         "validated_runs": len(runs),
         "aggregate_points": len(points),
+        "sample_points": len(sample_points),
         "trend_rows": len(trends),
         "pareto_points": pareto_count,
         "output_files": len(outputs),

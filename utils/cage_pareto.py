@@ -154,6 +154,7 @@ def aggregate_points(
 
     _attach_fp16_normalization(points)
     _attach_pareto_flags(points)
+    _attach_sample_pareto_stability(points)
     return sorted(points, key=lambda row: (row["prompt_length"], row["config_order"]))
 
 
@@ -203,6 +204,45 @@ def build_trends(points: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     return trends
 
 
+def build_sample_points(points: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Expand aggregate points into auditable per-sample Pareto rows."""
+
+    rows = []
+    for point in points:
+        errors = json.loads(point["primary_error_by_sample_json"])
+        for sample_order, sample_id in enumerate(json.loads(point["sample_ids_json"])):
+            rows.append({
+                "config_id": point["config_id"],
+                "config_order": point["config_order"],
+                "method": point["method"],
+                "prompt_length": point["prompt_length"],
+                "sample_id": sample_id,
+                "sample_order": sample_order,
+                "paper_total_bytes": point["paper_total_bytes"],
+                "paper_total_mib": point["paper_total_mib"],
+                "primary_error": errors[sample_id],
+            })
+
+    by_sample_length: dict[tuple[str, int], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        by_sample_length[(row["sample_id"], row["prompt_length"])].append(row)
+    for group in by_sample_length.values():
+        for row in group:
+            row["dominated_by_count_global"] = sum(
+                _dominates(other, row) for other in group if other is not row
+            )
+            row["is_pareto_global"] = row["dominated_by_count_global"] == 0
+
+    return sorted(
+        rows,
+        key=lambda row: (
+            row["prompt_length"],
+            row["sample_order"],
+            row["config_order"],
+        ),
+    )
+
+
 def write_analysis_outputs(
     analysis_dir: str | Path,
     points: Sequence[dict[str, Any]],
@@ -221,11 +261,14 @@ def write_analysis_outputs(
 
     ordered_points = list(points)
     pareto_points = [point for point in ordered_points if point["is_pareto_global"]]
+    sample_points = build_sample_points(ordered_points)
     output_paths = [
         _write_jsonl(destination / "aggregate_points.jsonl", ordered_points),
         _write_csv(destination / "aggregate_points.csv", ordered_points),
         _write_jsonl(destination / "pareto_points.jsonl", pareto_points),
         _write_csv(destination / "pareto_points.csv", pareto_points),
+        _write_jsonl(destination / "sample_points.jsonl", sample_points),
+        _write_csv(destination / "sample_points.csv", sample_points),
         _write_jsonl(destination / "trends.jsonl", trends),
         _write_csv(destination / "trends.csv", trends),
     ]
@@ -237,12 +280,14 @@ def write_analysis_outputs(
         }
     )
     protocol = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_count": run_count,
         "aggregate_point_count": len(ordered_points),
         "pareto_point_count": len(pareto_points),
+        "sample_point_count": len(sample_points),
         "sample_aggregation": "arithmetic mean over run-level layer means",
         "sample_dispersion": "population standard deviation",
+        "sample_pareto": "computed separately within each sample and prompt length",
         "primary_error_metric": PRIMARY_METRIC,
         "primary_error_field": "metrics_aggregate.joint_post_o_proj_mse.mean",
         "memory_axis": "memory.paper_estimate.total_bytes",
@@ -327,6 +372,10 @@ def _aggregate_group(
     row["primary_error_sample_pstdev"] = row[f"{primary_prefix}.sample_pstdev"]
     row["primary_error_sample_min"] = row[f"{primary_prefix}.sample_min"]
     row["primary_error_sample_max"] = row[f"{primary_prefix}.sample_max"]
+    row["primary_error_by_sample_json"] = _canonical_json({
+        run["input"]["sample_id"]: run["metrics_aggregate"][PRIMARY_METRIC]["mean"]
+        for run in ordered
+    })
     return row
 
 
@@ -368,6 +417,46 @@ def _attach_pareto_flags(points: Sequence[dict[str, Any]]) -> None:
             point["dominated_by_count_within_method"] = len(method_dominators)
             point["is_pareto_global"] = not global_dominators
             point["is_pareto_within_method"] = not method_dominators
+
+
+def _attach_sample_pareto_stability(points: Sequence[dict[str, Any]]) -> None:
+    by_length: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for point in points:
+        by_length[point["prompt_length"]].append(point)
+
+    for rows in by_length.values():
+        sample_ids = json.loads(rows[0]["sample_ids_json"])
+        for point in rows[1:]:
+            if json.loads(point["sample_ids_json"]) != sample_ids:
+                raise ParetoAnalysisError(
+                    f"prompt {point['prompt_length']} has inconsistent ordered sample IDs"
+                )
+
+        pareto_samples_by_config: dict[str, list[str]] = defaultdict(list)
+        for sample_id in sample_ids:
+            sample_rows = []
+            for point in rows:
+                errors = json.loads(point["primary_error_by_sample_json"])
+                sample_rows.append({
+                    "config_id": point["config_id"],
+                    "paper_total_bytes": point["paper_total_bytes"],
+                    "primary_error": errors[sample_id],
+                })
+            for sample_point in sample_rows:
+                if not any(
+                    _dominates(other, sample_point)
+                    for other in sample_rows
+                    if other is not sample_point
+                ):
+                    pareto_samples_by_config[sample_point["config_id"]].append(sample_id)
+
+        for point in rows:
+            pareto_samples = pareto_samples_by_config[point["config_id"]]
+            point["pareto_sample_count"] = len(pareto_samples)
+            point["pareto_sample_fraction"] = len(pareto_samples) / len(sample_ids)
+            point["pareto_sample_ids_json"] = _canonical_json(pareto_samples)
+            point["is_pareto_all_samples"] = len(pareto_samples) == len(sample_ids)
+            point["is_pareto_any_sample"] = bool(pareto_samples)
 
 
 def _dominates(left: dict[str, Any], right: dict[str, Any]) -> bool:
@@ -448,8 +537,8 @@ def _render_markdown(points: Sequence[dict[str, Any]]) -> str:
         lines.extend([
             f"## Prompt length {prompt_length}",
             "",
-            "| Configuration | Method | Paper MiB | Compression vs FP16 | Primary error | Sample σ | Pareto |",
-            "|---|---:|---:|---:|---:|---:|:---:|",
+            "| Configuration | Method | Paper MiB | Compression vs FP16 | Primary error | Sample σ | Mean Pareto | Sample Pareto |",
+            "|---|---:|---:|---:|---:|---:|:---:|:---:|",
         ])
         rows = [point for point in points if point["prompt_length"] == prompt_length]
         for point in sorted(rows, key=lambda row: row["config_order"]):
@@ -457,7 +546,8 @@ def _render_markdown(points: Sequence[dict[str, Any]]) -> str:
                 f"| {point['config_id']} | {point['method']} | {point['paper_total_mib']:.3f} | "
                 f"{point['compression_ratio_vs_fp16']:.3f}× | {point['primary_error']:.6e} | "
                 f"{point['primary_error_sample_pstdev']:.3e} | "
-                f"{'yes' if point['is_pareto_global'] else 'no'} |"
+                f"{'yes' if point['is_pareto_global'] else 'no'} | "
+                f"{point['pareto_sample_count']}/{point['sample_count']} |"
             )
         lines.append("")
     return "\n".join(lines) + "\n"
@@ -480,38 +570,53 @@ def _plot_pareto(destination: Path, points: Sequence[dict[str, Any]]) -> list[Pa
     figure, axes = plt.subplots(
         rows_count,
         columns,
-        figsize=(13, 5.2 * rows_count),
-        constrained_layout=True,
+        figsize=(13.5, 5.6 * rows_count),
         squeeze=False,
     )
-    colors = {"fp16": "#4c78a8", "kivi": "#f58518", "cage": "#54a24b"}
-    markers = {"fp16": "s", "kivi": "o", "cage": "^"}
+    config_colors = {
+        "kivi-g32-r32": "#f28e2b",
+        "kivi-g32-r64": "#ff9d4d",
+        "kivi-g32-r128": "#ffbe7d",
+        "kivi-g64-r64": "#d55e00",
+        "kivi-g64-r128": "#a05a2c",
+        "kivi-g128-r128": "#7f3c0a",
+        "cage-r32": "#8cd17d",
+        "cage-r64": "#59a14f",
+        "cage-r128": "#176b3a",
+    }
+    markers = {"kivi": "o", "cage": "^"}
 
     for axis, prompt_length in zip(axes.flat, lengths):
         rows = [point for point in points if point["prompt_length"] == prompt_length]
-        positive_errors = [point["primary_error"] for point in rows if point["primary_error"] > 0]
-        linthresh = min(positive_errors) / 10 if positive_errors else 1e-12
-        for method in ("fp16", "kivi", "cage"):
-            method_rows = [point for point in rows if point["method"] == method]
+        fp16 = next(point for point in rows if point["method"] == "fp16")
+        quantized = [point for point in rows if point["method"] != "fp16"]
+        for point in sorted(quantized, key=lambda row: row["config_order"]):
+            color = config_colors[point["config_id"]]
+            alpha = 1.0 if point["is_pareto_global"] else 0.35
+            axis.errorbar(
+                point["paper_total_mib"],
+                point["primary_error"],
+                yerr=point["primary_error_sample_pstdev"],
+                color=color,
+                alpha=alpha,
+                linewidth=0.8,
+                capsize=2,
+                fmt="none",
+                zorder=2,
+            )
             axis.scatter(
-                [point["paper_total_mib"] for point in method_rows],
-                [point["primary_error"] for point in method_rows],
-                label=method.upper(),
-                color=colors[method],
-                marker=markers[method],
-                s=55,
+                point["paper_total_mib"],
+                point["primary_error"],
+                color=color,
+                marker=markers[point["method"]],
+                s=62,
+                alpha=alpha,
+                edgecolor="#222222" if point["is_pareto_global"] else "none",
+                linewidth=0.9,
                 zorder=3,
             )
-            for point in method_rows:
-                axis.annotate(
-                    point["config_id"],
-                    (point["paper_total_mib"], point["primary_error"]),
-                    xytext=(4, 4),
-                    textcoords="offset points",
-                    fontsize=7,
-                )
         frontier = sorted(
-            (point for point in rows if point["is_pareto_global"]),
+            (point for point in quantized if point["is_pareto_global"]),
             key=lambda point: point["paper_total_mib"],
         )
         axis.plot(
@@ -520,19 +625,74 @@ def _plot_pareto(destination: Path, points: Sequence[dict[str, Any]]) -> list[Pa
             color="#333333",
             linewidth=1.2,
             linestyle="--",
-            label="Pareto front",
             zorder=2,
         )
-        axis.set_yscale("symlog", linthresh=linthresh)
+        x_values = [point["paper_total_mib"] for point in quantized]
+        x_padding = max(x_values) - min(x_values)
+        x_padding = max(x_padding * 0.08, max(x_values) * 0.01)
+        axis.set_xlim(min(x_values) - x_padding, max(x_values) + x_padding)
+        axis.set_yscale("log")
         axis.set_title(f"Prompt length {prompt_length}")
         axis.set_xlabel("Paper-facing packed KV cache (MiB)")
         axis.set_ylabel("Joint post-$W_O$ MSE (sample mean of layer means)")
         axis.grid(True, which="both", alpha=0.25)
+        axis.text(
+            0.98,
+            0.04,
+            f"FP16 reference: {fp16['paper_total_mib']:.1f} MiB, MSE = 0",
+            transform=axis.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=7.5,
+            color="#4c78a8",
+            bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "alpha": 0.85,
+                  "edgecolor": "#4c78a8", "linewidth": 0.6},
+        )
 
     for axis in axes.flat[len(lengths):]:
         axis.set_visible(False)
-    axes.flat[0].legend(fontsize=8)
-    figure.suptitle("CAGE-KV local memory–perturbation Pareto pilot", fontsize=14)
+    from matplotlib.lines import Line2D
+
+    first_length_rows = [
+        point
+        for point in points
+        if point["prompt_length"] == lengths[0] and point["method"] != "fp16"
+    ]
+    legend_handles = [
+        Line2D(
+            [0],
+            [0],
+            color="none",
+            marker=markers[point["method"]],
+            markerfacecolor=config_colors[point["config_id"]],
+            markeredgecolor="#222222",
+            markeredgewidth=0.7,
+            markersize=7,
+        )
+        for point in sorted(first_length_rows, key=lambda row: row["config_order"])
+    ]
+    legend_labels = [
+        point["config_id"]
+        for point in sorted(first_length_rows, key=lambda row: row["config_order"])
+    ]
+    legend_handles.append(Line2D([0], [0], color="#333333", linestyle="--", linewidth=1.2))
+    legend_labels.append("Quantized Pareto front")
+    figure.legend(
+        legend_handles,
+        legend_labels,
+        loc="lower center",
+        ncol=5,
+        fontsize=8,
+        frameon=True,
+        bbox_to_anchor=(0.5, 0.012),
+    )
+    figure.suptitle(
+        "CAGE-KV local memory–perturbation Pareto pilot\n"
+        "Quantized operating region; error bars are ±1 sample population σ",
+        fontsize=14,
+        y=0.985,
+    )
+    figure.tight_layout(rect=(0, 0.095, 1, 0.94))
 
     png_path = destination / "memory_perturbation_pareto.png"
     pdf_path = destination / "memory_perturbation_pareto.pdf"
