@@ -236,6 +236,24 @@ metadata and rebuilds summaries without loading model weights. Stage-B CAGE is
 still the fake-quant prototype; elapsed time and CUDA peaks remain diagnostics
 and must not be presented as compressed-kernel performance.
 
+After the 300-case output is frozen, generate the read-only descriptive
+analysis in a new or empty directory:
+
+```bash
+python scripts/cage_analyze_passkey.py \
+  --results-dir /root/autodl-tmp/cage_passkey_stage_b \
+  --analysis-dir /root/autodl-tmp/cage_passkey_stage_b_analysis
+```
+
+The analyzer revalidates all 300 expected case IDs, case artifacts, JSONL/CSV
+summaries, source state, five-method pairing, and quality summary before writing
+method, prompt-length, position, cell, paired-comparison, and exact-miss tables.
+It also writes `passkey_summary.md`, `analysis_protocol.json`, and PNG/PDF
+figures. Accuracy intervals are two-sided descriptive 95% Wilson intervals.
+Because the grid contains five deterministic keys rather than a random sample,
+the intervals and paired differences do not establish statistical significance
+or population-level generalization.
+
 Passkey runner exit codes are 0 for successful execution, 2 for manifest,
 clean-source, tokenizer, or native-context preflight errors, 3 for CUDA OOM, 4
 for model construction/load errors, and 6 when one or more individual cases
