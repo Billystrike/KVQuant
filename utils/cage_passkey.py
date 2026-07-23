@@ -17,17 +17,43 @@ from utils.cage_experiment_io import (
     atomic_write_jsonl,
     stable_run_id,
 )
+from utils.cage_experiment_config import resolve_method
 
 
-PASSKEY_SCHEMA_VERSION = 1
+PASSKEY_SCHEMA_VERSION = 2
 PROMPT_TEMPLATE_ID = "passkey-v1"
 FILLER_ID = "neutral-facts-v1"
-STAGE_A_PROMPT_LENGTHS = (512, 1024, 2048, 4032)
-STAGE_A_POSITIONS_PERCENT = (10, 50, 90)
-STAGE_A_KEY_SEED = 20260723
-STAGE_A_MAX_NEW_TOKENS = 8
-STAGE_A_GENERATION_SEED = 0
+PASSKEY_PROMPT_LENGTHS = (512, 1024, 2048, 4032)
+PASSKEY_POSITIONS_PERCENT = (10, 50, 90)
+PASSKEY_KEY_SEED = 20260723
+PASSKEY_MAX_NEW_TOKENS = 8
+PASSKEY_GENERATION_SEED = 0
 FIRST_FIVE_DIGIT_RE = re.compile(r"(?<!\d)(\d{5})(?!\d)")
+
+STAGE_A_RAW_METHODS = (
+    {"id": "fp16", "method": "fp16"},
+)
+STAGE_B_RAW_METHODS = (
+    {"id": "fp16", "method": "fp16"},
+    {
+        "id": "kivi-g32-r32",
+        "method": "kivi",
+        "k_bits": 2,
+        "v_bits": 2,
+        "group_size": 32,
+        "residual_length": 32,
+    },
+    {
+        "id": "kivi-g64-r64",
+        "method": "kivi",
+        "k_bits": 2,
+        "v_bits": 2,
+        "group_size": 64,
+        "residual_length": 64,
+    },
+    {"id": "cage-r32", "method": "cage", "residual_length": 32},
+    {"id": "cage-r64", "method": "cage", "residual_length": 64},
+)
 
 PROMPT_PREFIX = (
     "There is a five-digit pass key hidden in the text below. Remember it and "
@@ -109,6 +135,48 @@ class PasskeyError(ValueError):
     """Raised for deterministic passkey manifest, input, or artifact failures."""
 
 
+def _canonical_methods(raw_methods: Any) -> tuple[str, list[dict[str, Any]]]:
+    if not isinstance(raw_methods, list) or not raw_methods:
+        raise PasskeyError("methods must be a non-empty list")
+    try:
+        resolved = [
+            resolve_method(value, index)
+            for index, value in enumerate(raw_methods)
+        ]
+        stage_a = [
+            resolve_method(value, index)
+            for index, value in enumerate(STAGE_A_RAW_METHODS)
+        ]
+        stage_b = [
+            resolve_method(value, index)
+            for index, value in enumerate(STAGE_B_RAW_METHODS)
+        ]
+    except ValueError as error:
+        raise PasskeyError(f"invalid passkey method configuration: {error}") from error
+    if resolved == stage_a:
+        return "stage_a", resolved
+    if resolved == stage_b:
+        return "stage_b", resolved
+    raise PasskeyError(
+        "passkey methods must equal the declared Stage-A FP16 method or the "
+        "declared Stage-B FP16/KIVI/CAGE matrix"
+    )
+
+
+def _case_method(method: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": method["id"],
+        "name": method["method"],
+        "resolved_config": json.loads(json.dumps(method["method_config"])),
+    }
+
+
+def _allowed_case_methods() -> tuple[dict[str, Any], ...]:
+    return tuple(
+        _case_method(resolve_method(value, index))
+        for index, value in enumerate(STAGE_B_RAW_METHODS)
+    )
+
 def _require_exact_fields(name: str, value: dict[str, Any], expected: frozenset[str]) -> None:
     missing = sorted(expected - set(value))
     unknown = sorted(set(value) - expected)
@@ -152,7 +220,7 @@ def _require_finite_real(name: str, value: Any, *, minimum: float | None = None)
 
 
 def load_passkey_manifest(path: str | Path) -> dict[str, Any]:
-    """Load and strictly validate a Stage-A FP16 passkey manifest."""
+    """Load and strictly validate a declared Stage-A or Stage-B manifest."""
 
     source = Path(path)
     try:
@@ -166,20 +234,16 @@ def load_passkey_manifest(path: str | Path) -> dict[str, Any]:
     _require_exact_fields("model", model, MODEL_FIELDS)
     _require_nonempty_string("model.reference", model["reference"])
     if model["dtype"] != "float16":
-        raise PasskeyError("Stage-A passkey model.dtype must equal 'float16'")
+        raise PasskeyError("passkey model.dtype must equal 'float16'")
     if model["device"] != "cuda":
-        raise PasskeyError("Stage-A passkey model.device must equal 'cuda'")
+        raise PasskeyError("passkey model.device must equal 'cuda'")
     max_positions = _require_int(
         "model.max_position_embeddings", model["max_position_embeddings"], minimum=1
     )
     if max_positions != 4096:
-        raise PasskeyError("Stage-A model.max_position_embeddings must equal 4096")
+        raise PasskeyError("passkey model.max_position_embeddings must equal 4096")
 
-    methods = manifest["methods"]
-    if methods != [{"id": "fp16", "method": "fp16"}]:
-        raise PasskeyError(
-            "Stage-A passkey methods must equal [{'id': 'fp16', 'method': 'fp16'}]"
-        )
+    protocol_stage, methods = _canonical_methods(manifest["methods"])
     if manifest["prompt_template_id"] != PROMPT_TEMPLATE_ID:
         raise PasskeyError(f"prompt_template_id must equal {PROMPT_TEMPLATE_ID!r}")
     if manifest["filler_id"] != FILLER_ID:
@@ -192,9 +256,9 @@ def load_passkey_manifest(path: str | Path) -> dict[str, Any]:
         _require_int(f"prompt_lengths[{index}]", length, minimum=1)
     if len(lengths) != len(set(lengths)):
         raise PasskeyError("prompt_lengths must be unique")
-    if tuple(lengths) != STAGE_A_PROMPT_LENGTHS:
+    if tuple(lengths) != PASSKEY_PROMPT_LENGTHS:
         raise PasskeyError(
-            f"Stage-A prompt_lengths must equal {list(STAGE_A_PROMPT_LENGTHS)}"
+            f"passkey prompt_lengths must equal {list(PASSKEY_PROMPT_LENGTHS)}"
         )
 
     positions = manifest["passkey_positions_percent"]
@@ -206,45 +270,50 @@ def load_passkey_manifest(path: str | Path) -> dict[str, Any]:
             raise PasskeyError("passkey positions must be integers from 1 through 99")
     if len(positions) != len(set(positions)):
         raise PasskeyError("passkey_positions_percent must be unique")
-    if tuple(positions) != STAGE_A_POSITIONS_PERCENT:
+    if tuple(positions) != PASSKEY_POSITIONS_PERCENT:
         raise PasskeyError(
-            "Stage-A passkey_positions_percent must equal "
-            f"{list(STAGE_A_POSITIONS_PERCENT)}"
+            "passkey_positions_percent must equal "
+            f"{list(PASSKEY_POSITIONS_PERCENT)}"
         )
 
     key_generation = _require_object("key_generation", manifest["key_generation"])
     _require_exact_fields("key_generation", key_generation, KEY_GENERATION_FIELDS)
     key_seed = _require_int("key_generation.seed", key_generation["seed"])
-    if key_seed != STAGE_A_KEY_SEED:
-        raise PasskeyError(f"Stage-A key_generation.seed must equal {STAGE_A_KEY_SEED}")
+    if key_seed != PASSKEY_KEY_SEED:
+        raise PasskeyError(f"passkey key_generation.seed must equal {PASSKEY_KEY_SEED}")
     key_count = _require_int("key_generation.count", key_generation["count"], minimum=1)
     if key_count not in {1, 5}:
-        raise PasskeyError("Stage-A key_generation.count must equal 1 (smoke) or 5 (calibration)")
+        raise PasskeyError(
+            "passkey key_generation.count must equal 1 (smoke) or 5 (full)"
+        )
 
     generation = _require_object("generation", manifest["generation"])
     _require_exact_fields("generation", generation, GENERATION_CONFIG_FIELDS)
     max_new_tokens = _require_int(
         "generation.max_new_tokens", generation["max_new_tokens"], minimum=1
     )
-    if max_new_tokens != STAGE_A_MAX_NEW_TOKENS:
+    if max_new_tokens != PASSKEY_MAX_NEW_TOKENS:
         raise PasskeyError(
-            f"Stage-A generation.max_new_tokens must equal {STAGE_A_MAX_NEW_TOKENS}"
+            f"passkey generation.max_new_tokens must equal {PASSKEY_MAX_NEW_TOKENS}"
         )
     if _require_bool("generation.do_sample", generation["do_sample"]):
-        raise PasskeyError("Stage-A passkey generation.do_sample must be false")
+        raise PasskeyError("passkey generation.do_sample must be false")
     if _require_int("generation.num_beams", generation["num_beams"], minimum=1) != 1:
-        raise PasskeyError("Stage-A passkey generation.num_beams must equal 1")
+        raise PasskeyError("passkey generation.num_beams must equal 1")
     generation_seed = _require_int("generation.seed", generation["seed"])
-    if generation_seed != STAGE_A_GENERATION_SEED:
+    if generation_seed != PASSKEY_GENERATION_SEED:
         raise PasskeyError(
-            f"Stage-A generation.seed must equal {STAGE_A_GENERATION_SEED}"
+            f"passkey generation.seed must equal {PASSKEY_GENERATION_SEED}"
         )
     if max(lengths) + max_new_tokens > max_positions:
         raise PasskeyError(
             "largest prompt plus max_new_tokens exceeds model.max_position_embeddings"
         )
     _require_nonempty_string("output_dir", manifest["output_dir"])
-    return json.loads(json.dumps(manifest))
+    resolved = json.loads(json.dumps(manifest))
+    resolved["protocol_stage"] = protocol_stage
+    resolved["methods"] = methods
+    return resolved
 
 
 def generate_passkeys(seed: int, count: int) -> list[str]:
@@ -414,48 +483,58 @@ def expand_passkey_cases(
         manifest["key_generation"]["seed"], manifest["key_generation"]["count"]
     )
     model = manifest["model"]
-    method = {"id": "fp16", "name": "fp16", "resolved_config": {}}
-    cases = []
-    seen_ids: set[str] = set()
+    prepared_inputs: dict[tuple[int, int, int], dict[str, Any]] = {}
     for prompt_length in manifest["prompt_lengths"]:
         for position_percent in manifest["passkey_positions_percent"]:
             for key_index, target in enumerate(keys):
-                prepared = build_passkey_prompt(
-                    tokenizer,
-                    target=target,
-                    prompt_length=prompt_length,
-                    position_percent=position_percent,
+                prepared_inputs[(prompt_length, position_percent, key_index)] = (
+                    build_passkey_prompt(
+                        tokenizer,
+                        target=target,
+                        prompt_length=prompt_length,
+                        position_percent=position_percent,
+                    )
                 )
-                input_record = {
-                    "prompt_template_id": manifest["prompt_template_id"],
-                    "filler_id": manifest["filler_id"],
-                    "prompt_length": prompt_length,
-                    "position_percent": position_percent,
-                    "actual_statement_position_fraction": prepared[
-                        "actual_statement_position_fraction"
-                    ],
-                    "key_index": key_index,
-                    "target": target,
-                    "statement_token_start": prepared["statement_token_start"],
-                    "statement_token_end": prepared["statement_token_end"],
-                    "prompt_ids_sha256": prepared["prompt_ids_sha256"],
-                }
-                case_id = passkey_case_id(
-                    model=model,
-                    method=method,
-                    input_record=input_record,
-                    generation=manifest["generation"],
-                    source_state=source_state,
-                )
-                if case_id in seen_ids:
-                    raise PasskeyError(f"duplicate expanded case ID {case_id}")
-                seen_ids.add(case_id)
-                cases.append({
-                    "case_id": case_id,
-                    "method": method,
-                    "input": input_record,
-                    "input_ids": prepared["input_ids"],
-                })
+    cases = []
+    seen_ids: set[str] = set()
+    for resolved_method in manifest["methods"]:
+        method = _case_method(resolved_method)
+        for prompt_length in manifest["prompt_lengths"]:
+            for position_percent in manifest["passkey_positions_percent"]:
+                for key_index, target in enumerate(keys):
+                    prepared = prepared_inputs[
+                        (prompt_length, position_percent, key_index)
+                    ]
+                    input_record = {
+                        "prompt_template_id": manifest["prompt_template_id"],
+                        "filler_id": manifest["filler_id"],
+                        "prompt_length": prompt_length,
+                        "position_percent": position_percent,
+                        "actual_statement_position_fraction": prepared[
+                            "actual_statement_position_fraction"
+                        ],
+                        "key_index": key_index,
+                        "target": target,
+                        "statement_token_start": prepared["statement_token_start"],
+                        "statement_token_end": prepared["statement_token_end"],
+                        "prompt_ids_sha256": prepared["prompt_ids_sha256"],
+                    }
+                    case_id = passkey_case_id(
+                        model=model,
+                        method=method,
+                        input_record=input_record,
+                        generation=manifest["generation"],
+                        source_state=source_state,
+                    )
+                    if case_id in seen_ids:
+                        raise PasskeyError(f"duplicate expanded case ID {case_id}")
+                    seen_ids.add(case_id)
+                    cases.append({
+                        "case_id": case_id,
+                        "method": method,
+                        "input": input_record,
+                        "input_ids": prepared["input_ids"],
+                    })
     return keys, cases
 
 
@@ -504,17 +583,17 @@ def validate_completed_passkey_case(
     for name in ("reference", "dtype", "device", "model_type"):
         _require_nonempty_string(f"case.model.{name}", model[name])
     if model["dtype"] != "float16" or model["device"] != "cuda" or model["model_type"] != "llama":
-        raise PasskeyError("Stage-A completed case model must be float16 CUDA Llama")
+        raise PasskeyError("completed passkey case model must be float16 CUDA Llama")
     max_positions = _require_int(
         "case.model.max_position_embeddings", model["max_position_embeddings"], minimum=1
     )
     if max_positions != 4096:
-        raise PasskeyError("Stage-A completed case max_position_embeddings must equal 4096")
+        raise PasskeyError("completed passkey case max_position_embeddings must equal 4096")
 
     method = _require_object("case.method", case["method"])
     _require_exact_fields("case.method", method, CASE_METHOD_FIELDS)
-    if method != {"id": "fp16", "name": "fp16", "resolved_config": {}}:
-        raise PasskeyError("Stage-A completed case method must be the resolved FP16 method")
+    if method not in _allowed_case_methods():
+        raise PasskeyError("completed passkey case method is outside the declared protocols")
 
     input_record = _require_object("case.input", case["input"])
     _require_exact_fields("case.input", input_record, CASE_INPUT_FIELDS)
@@ -523,11 +602,11 @@ def validate_completed_passkey_case(
     if input_record["filler_id"] != FILLER_ID:
         raise PasskeyError("case.input.filler_id is invalid")
     prompt_length = _require_int("case.input.prompt_length", input_record["prompt_length"], minimum=1)
-    if prompt_length not in STAGE_A_PROMPT_LENGTHS:
-        raise PasskeyError("case.input.prompt_length is outside the declared Stage-A lengths")
+    if prompt_length not in PASSKEY_PROMPT_LENGTHS:
+        raise PasskeyError("case.input.prompt_length is outside the declared passkey lengths")
     position = _require_int("case.input.position_percent", input_record["position_percent"], minimum=1)
-    if position not in STAGE_A_POSITIONS_PERCENT:
-        raise PasskeyError("case.input.position_percent is outside the declared Stage-A positions")
+    if position not in PASSKEY_POSITIONS_PERCENT:
+        raise PasskeyError("case.input.position_percent is outside the declared passkey positions")
     actual_fraction = _require_finite_real(
         "case.input.actual_statement_position_fraction",
         input_record["actual_statement_position_fraction"],
@@ -564,15 +643,15 @@ def validate_completed_passkey_case(
     max_new_tokens = _require_int(
         "case.generation.max_new_tokens", generation["max_new_tokens"], minimum=1
     )
-    if max_new_tokens != STAGE_A_MAX_NEW_TOKENS:
-        raise PasskeyError("case.generation.max_new_tokens is outside the Stage-A protocol")
+    if max_new_tokens != PASSKEY_MAX_NEW_TOKENS:
+        raise PasskeyError("case.generation.max_new_tokens is outside the passkey protocol")
     _require_bool("case.generation.do_sample", generation["do_sample"])
     if generation["do_sample"]:
         raise PasskeyError("case.generation.do_sample must be false")
     if _require_int("case.generation.num_beams", generation["num_beams"], minimum=1) != 1:
         raise PasskeyError("case.generation.num_beams must equal 1")
-    if _require_int("case.generation.seed", generation["seed"]) != STAGE_A_GENERATION_SEED:
-        raise PasskeyError("case.generation.seed is outside the Stage-A protocol")
+    if _require_int("case.generation.seed", generation["seed"]) != PASSKEY_GENERATION_SEED:
+        raise PasskeyError("case.generation.seed is outside the passkey protocol")
     if prompt_length + max_new_tokens > max_positions:
         raise PasskeyError("completed case prompt plus generation exceeds native context")
     generated_count = _require_int(

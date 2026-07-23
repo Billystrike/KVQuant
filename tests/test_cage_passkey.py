@@ -61,7 +61,7 @@ def source_state():
     }
 
 
-def completed_record(case, *, response_text=None):
+def completed_record(case, *, response_text=None, model_reference="/model"):
     target = case["input"]["target"]
     response = response_text if response_text is not None else f" {target}"
     parsed = first_five_digit(response)
@@ -78,13 +78,13 @@ def completed_record(case, *, response_text=None):
         "stopped_early": True,
     }
     model = {
-        "reference": "/model",
+        "reference": model_reference,
         "dtype": "float16",
         "device": "cuda",
         "max_position_embeddings": 4096,
         "model_type": "llama",
     }
-    method = {"id": "fp16", "name": "fp16", "resolved_config": {}}
+    method = case["method"]
     case_id = passkey_case_id(
         model=model,
         method=method,
@@ -177,6 +177,34 @@ class PasskeyManifestTests(unittest.TestCase):
         )
         self.assertEqual(smoke["output_dir"], calibration["output_dir"])
 
+    def test_stage_b_smoke_and_full_expand_declared_matrix_and_reuse(self):
+        smoke = load_passkey_manifest(
+            ROOT / "configs" / "cage_passkey_llama2_7b_stage_b_smoke.json"
+        )
+        full = load_passkey_manifest(
+            ROOT / "configs" / "cage_passkey_llama2_7b_stage_b.json"
+        )
+        _, smoke_cases = expand_passkey_cases(smoke, FakeTokenizer(), source_state())
+        _, full_cases = expand_passkey_cases(full, FakeTokenizer(), source_state())
+        self.assertEqual(smoke["protocol_stage"], "stage_b")
+        self.assertEqual(full["protocol_stage"], "stage_b")
+        self.assertEqual(len(smoke_cases), 60)
+        self.assertEqual(len(full_cases), 300)
+        self.assertTrue(
+            {case["case_id"] for case in smoke_cases}.issubset(
+                {case["case_id"] for case in full_cases}
+            )
+        )
+        self.assertEqual(
+            [method["id"] for method in smoke["methods"]],
+            ["fp16", "kivi-g32-r32", "kivi-g64-r64", "cage-r32", "cage-r64"],
+        )
+        self.assertEqual(
+            {case["method"]["id"] for case in smoke_cases},
+            {"fp16", "kivi-g32-r32", "kivi-g64-r64", "cage-r32", "cage-r64"},
+        )
+        self.assertEqual(smoke["output_dir"], full["output_dir"])
+
     def test_rejects_prompt_length_protocol_drift(self):
         valid = json.loads(
             (ROOT / "configs" / "cage_passkey_llama2_7b_fp16_smoke.json").read_text()
@@ -196,7 +224,18 @@ class PasskeyManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "manifest.json"
             path.write_text(json.dumps(valid), encoding="utf-8")
-            with self.assertRaisesRegex(PasskeyError, "Stage-A passkey methods"):
+            with self.assertRaisesRegex(PasskeyError, "passkey methods"):
+                load_passkey_manifest(path)
+
+    def test_rejects_stage_b_method_drift(self):
+        valid = json.loads(
+            (ROOT / "configs" / "cage_passkey_llama2_7b_stage_b_smoke.json").read_text()
+        )
+        valid["methods"][1]["residual_length"] = 64
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.json"
+            path.write_text(json.dumps(valid), encoding="utf-8")
+            with self.assertRaisesRegex(PasskeyError, "declared Stage-B"):
                 load_passkey_manifest(path)
 
     def test_rejects_undeclared_stage_a_key_count(self):
@@ -259,6 +298,23 @@ class PasskeyArtifactTests(unittest.TestCase):
             self.assertTrue((root / "summary" / "cases.jsonl").is_file())
             self.assertTrue((root / "summary" / "cases.csv").is_file())
 
+    def test_validates_declared_quantized_method_case(self):
+        manifest = load_passkey_manifest(
+            ROOT / "configs" / "cage_passkey_llama2_7b_stage_b_smoke.json"
+        )
+        _, cases = expand_passkey_cases(manifest, FakeTokenizer(), source_state())
+        case = next(
+            case for case in cases if case["method"]["id"] == "cage-r32"
+        )
+        record = completed_record(case)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "cases" / f"{record['case_id']}.json"
+            path.parent.mkdir()
+            path.write_text(json.dumps(record), encoding="utf-8")
+            validated = validate_completed_passkey_case(root, record["case_id"])
+            self.assertEqual(validated["method"]["id"], "cage-r32")
+
 
 class PasskeyRunnerTests(unittest.TestCase):
     def test_smoke_quality_gate_requires_every_cell_to_match(self):
@@ -267,6 +323,7 @@ class PasskeyRunnerTests(unittest.TestCase):
         )
         records = [
             {
+                "method": {"id": "fp16"},
                 "input": {"prompt_length": length, "position_percent": position},
                 "generation": {"exact_match": True, "contains_target": True},
             }
@@ -275,13 +332,13 @@ class PasskeyRunnerTests(unittest.TestCase):
         ]
         result = {"failure_records": 0}
         passkey_runner._attach_quality_counts(result, records)
-        passkey_runner._attach_quality_gate(result, manifest, records)
+        passkey_runner._attach_quality_summary(result, manifest, records)
         self.assertEqual(result["quality_gate"], "PASS")
 
         records[-1]["generation"]["exact_match"] = False
         result = {"failure_records": 0}
         passkey_runner._attach_quality_counts(result, records)
-        passkey_runner._attach_quality_gate(result, manifest, records)
+        passkey_runner._attach_quality_summary(result, manifest, records)
         self.assertEqual(result["quality_gate"], "FAIL")
 
     def test_calibration_quality_gate_requires_overall_and_per_cell_thresholds(self):
@@ -297,6 +354,7 @@ class PasskeyRunnerTests(unittest.TestCase):
             matches = 5 if cell_index < 6 else 4
             records.extend(
                 {
+                    "method": {"id": "fp16"},
                     "input": {"prompt_length": length, "position_percent": position},
                     "generation": {
                         "exact_match": key_index < matches,
@@ -307,15 +365,49 @@ class PasskeyRunnerTests(unittest.TestCase):
             )
         result = {"failure_records": 0}
         passkey_runner._attach_quality_counts(result, records)
-        passkey_runner._attach_quality_gate(result, manifest, records)
+        passkey_runner._attach_quality_summary(result, manifest, records)
         self.assertEqual(result["exact_matches"], 54)
         self.assertEqual(result["quality_gate"], "PASS")
 
         records[-2]["generation"]["exact_match"] = False
         result = {"failure_records": 0}
         passkey_runner._attach_quality_counts(result, records)
-        passkey_runner._attach_quality_gate(result, manifest, records)
+        passkey_runner._attach_quality_summary(result, manifest, records)
         self.assertEqual(result["quality_gate"], "FAIL")
+
+    def test_stage_b_uses_completion_gate_without_accuracy_threshold(self):
+        manifest = load_passkey_manifest(
+            ROOT / "configs" / "cage_passkey_llama2_7b_stage_b_smoke.json"
+        )
+        records = []
+        for method in manifest["methods"]:
+            for length in manifest["prompt_lengths"]:
+                for position in manifest["passkey_positions_percent"]:
+                    exact = method["id"] == "fp16"
+                    records.append({
+                        "method": {"id": method["id"]},
+                        "input": {
+                            "prompt_length": length,
+                            "position_percent": position,
+                        },
+                        "generation": {
+                            "exact_match": exact,
+                            "contains_target": exact,
+                        },
+                    })
+        result = {"failure_records": 0}
+        passkey_runner._attach_quality_counts(result, records)
+        passkey_runner._attach_quality_summary(result, manifest, records)
+        self.assertEqual(result["completion_gate"], "PASS")
+        self.assertEqual(result["quality_gate"], "NOT_APPLICABLE")
+        by_method = {
+            method["method_id"]: method for method in result["method_quality"]
+        }
+        self.assertEqual(by_method["fp16"]["exact_matches"], 12)
+        self.assertEqual(by_method["cage-r32"]["exact_matches"], 0)
+        self.assertEqual(len(by_method["cage-r32"]["lengths"]), 4)
+        self.assertEqual(len(by_method["cage-r32"]["positions"]), 3)
+        self.assertEqual(len(by_method["cage-r32"]["cells"]), 12)
 
     def test_completed_case_is_reused_without_loading_model(self):
         manifest = load_passkey_manifest(
@@ -367,6 +459,68 @@ class PasskeyRunnerTests(unittest.TestCase):
             quality = json.loads((root / "summary" / "quality.json").read_text())
             self.assertEqual(quality["quality_gate"], "INCOMPLETE")
             load_model.assert_not_called()
+
+    def test_stage_b_loads_each_method_once_and_completes_all_cases(self):
+        manifest = load_passkey_manifest(
+            ROOT / "configs" / "cage_passkey_llama2_7b_stage_b_smoke.json"
+        )
+        tokenizer = FakeTokenizer()
+        fake_config = type(
+            "Config",
+            (),
+            {
+                "model_type": "llama",
+                "max_position_embeddings": 4096,
+                "rope_scaling": None,
+            },
+        )()
+
+        def fake_run_case(**kwargs):
+            return completed_record(
+                kwargs["case"], model_reference=manifest["model"]["reference"]
+            )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = {**manifest, "output_dir": str(root / "output")}
+            manifest_path = root / "input.json"
+            manifest_path.write_text("{}", encoding="utf-8")
+            with (
+                mock.patch.object(
+                    passkey_runner, "load_passkey_manifest", return_value=manifest
+                ),
+                mock.patch.object(
+                    passkey_runner,
+                    "source_state_identity",
+                    return_value=source_state(),
+                ),
+                mock.patch.object(
+                    passkey_runner,
+                    "_load_preflight",
+                    return_value=(fake_config, tokenizer),
+                ),
+                mock.patch.object(
+                    passkey_runner, "_load_model", return_value=object()
+                ) as load_model,
+                mock.patch.object(
+                    passkey_runner, "run_case", side_effect=fake_run_case
+                ) as run_case,
+                mock.patch.object(passkey_runner.gc, "collect"),
+                mock.patch.object(passkey_runner.torch.cuda, "empty_cache"),
+            ):
+                exit_code, result = passkey_runner.run_manifest(manifest_path)
+
+            self.assertEqual(exit_code, passkey_runner.EXIT_SUCCESS)
+            self.assertEqual(load_model.call_count, 5)
+            self.assertEqual(run_case.call_count, 60)
+            self.assertEqual(result["completed_cases"], 60)
+            self.assertEqual(result["failure_records"], 0)
+            self.assertEqual(result["completion_gate"], "PASS")
+            self.assertEqual(result["quality_gate"], "NOT_APPLICABLE")
+            self.assertEqual(
+                [call.args[2] for call in load_model.call_args_list],
+                ["fp16", "kivi", "kivi", "cage", "cage"],
+            )
 
     def test_dirty_source_is_rejected_before_model_preflight(self):
         manifest = load_passkey_manifest(

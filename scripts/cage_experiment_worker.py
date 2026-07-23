@@ -17,7 +17,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from utils.cage_experiment_config import (
-    expand_jobs, load_and_resolve_manifest, validate_resolved_manifest,
+    apply_method_config, expand_jobs, load_and_resolve_manifest,
+    validate_resolved_manifest,
 )
 from utils.cage_experiment_hooks import (
     begin_candidate_capture, begin_reference_capture, collect_layer_metrics,
@@ -92,26 +93,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--job-index", required=True, type=_nonnegative)
     return parser.parse_args(argv)
-
-
-def apply_method_config(config: Any, method: str, values: dict[str, Any]) -> Any:
-    if getattr(config, "model_type", None) != "llama":
-        raise ValueError("experiment worker requires model_type == 'llama'")
-    for name, value in values.items():
-        setattr(config, name, value)
-    if method == "kivi":
-        config.cage_enable = False
-        config.use_flash = True
-    elif method == "cage":
-        config.cage_enable = True
-        config.cage_mode = "fake"
-        config.use_flash = True
-        # The shared KIVI attention constructor still requires this legacy
-        # field; CAGE fake quantization uses its resolved per-bucket sizes.
-        config.group_size = int(values["cage_k_group_sizes"][0]) if "cage_k_group_sizes" in values else 32
-    elif method != "fp16":
-        raise ValueError(f"unsupported method {method!r}")
-    return config
 
 
 def attach_layer_context(layer_records: Sequence[dict[str, Any]], layer_memory: Sequence[dict[str, Any]],

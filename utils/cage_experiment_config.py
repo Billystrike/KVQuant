@@ -200,6 +200,38 @@ def expand_jobs(manifest: dict) -> list[dict]:
     return jobs
 
 
+def apply_method_config(config: Any, method: str, values: dict[str, Any]) -> Any:
+    """Apply one resolved FP16/KIVI/CAGE method to a Llama config."""
+
+    if getattr(config, "model_type", None) != "llama":
+        raise ValueError("experiment worker requires model_type == 'llama'")
+    for name, value in values.items():
+        setattr(config, name, value)
+    if method == "kivi":
+        config.cage_enable = False
+        config.use_flash = True
+    elif method == "cage":
+        config.cage_enable = True
+        config.cage_mode = "fake"
+        config.use_flash = True
+        # The shared KIVI attention constructor still requires this legacy
+        # field; CAGE fake quantization uses its resolved per-bucket sizes.
+        config.group_size = (
+            int(values["cage_k_group_sizes"][0])
+            if "cage_k_group_sizes" in values
+            else 32
+        )
+    elif method != "fp16":
+        raise ValueError(f"unsupported method {method!r}")
+    return config
+
+
+def resolve_method(value: Any, index: int = 0) -> dict[str, Any]:
+    """Resolve and validate one raw method entry using the matrix protocol."""
+
+    return _resolve_method(value, index)
+
+
 def _resolve_method(value: Any, index: int) -> dict:
     item = _object(f"methods[{index}]", value)
     method = item.get("method")

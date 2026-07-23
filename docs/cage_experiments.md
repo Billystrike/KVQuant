@@ -191,6 +191,51 @@ construction before running calibration. Do not tune a prompt using quantized
 method outcomes. Only after the FP16 calibration gate passes may a separate
 Stage-B manifest add KIVI and CAGE configurations.
 
+## Passkey Stage B: FP16/KIVI/CAGE comparison
+
+Stage B is enabled only after the Stage-A FP16 calibration gate passes. Its
+checked-in manifests are:
+
+```text
+configs/cage_passkey_llama2_7b_stage_b_smoke.json  # 60 cases
+configs/cage_passkey_llama2_7b_stage_b.json        # 300 cases
+```
+
+Both use the frozen Stage-A prompt construction, lengths, positions, key seed,
+and generation settings. The method matrix is FP16; 2-bit KIVI g32-r32 and
+g64-r64; and 2-bit CAGE fake r32 and r64 with the same importance policies,
+bucket groups, and clipping defaults as the core Pareto pilot. CAGE r128 is not
+included because it was not selected from the core Pareto results.
+
+The smoke uses one key across 12 length/position cells and five methods. The
+full run uses five keys for 300 cases. Both write to
+`/root/autodl-tmp/cage_passkey_stage_b`; case identity excludes matrix-wide key
+count, so all 60 smoke cases are reusable by the full manifest when source state
+is unchanged. Stage-A results live in a separate directory and are not reused
+across the Stage-B implementation commit.
+
+Run the smoke from a clean committed checkout:
+
+```bash
+env -u OMP_NUM_THREADS PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+  python scripts/cage_run_passkey.py \
+  --manifest configs/cage_passkey_llama2_7b_stage_b_smoke.json
+```
+
+Stage B has a completion gate rather than a predeclared quantized-accuracy
+gate. The smoke passes operational validation only when all 60 expected cases
+are valid and no expected failure records exist. Exact-match and containment
+accuracy are reported separately for every method and every
+method/length/position cell. Low quantized accuracy is a scientific result, not
+a process failure. Inspect the smoke comparison before authorizing the 300-case
+full run.
+
+The runner loads each method once, runs its pending cases, releases the model,
+and then loads the next method. A valid repeat loads only tokenizer/config
+metadata and rebuilds summaries without loading model weights. Stage-B CAGE is
+still the fake-quant prototype; elapsed time and CUDA peaks remain diagnostics
+and must not be presented as compressed-kernel performance.
+
 Passkey runner exit codes are 0 for successful execution, 2 for manifest,
 clean-source, tokenizer, or native-context preflight errors, 3 for CUDA OOM, 4
 for model construction/load errors, and 6 when one or more individual cases
