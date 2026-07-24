@@ -260,3 +260,81 @@ for model construction/load errors, and 6 when one or more individual cases
 fail while later cases continue. Accuracy below a scientific gate does not
 masquerade as a process error; it is reported in the completed summary and must
 be evaluated separately.
+
+## Cache-conditioned continuation PPL pilot
+
+The PPL pilot measures teacher-forced continuation loss while consuming the
+stored KV cache one token at a time. Do not substitute a single full-sequence
+`labels=` forward pass: it does not exercise historical cache quantization.
+This experiment is called cache-conditioned continuation PPL rather than
+canonical full-corpus WikiText-2 PPL.
+
+The corpus is the pinned `Salesforce/wikitext` `wikitext-2-raw-v1` test split
+at revision `00aa25585682d4957f9e86edc73f59be7419af99`. The runner joins rows
+with two newlines, tokenizes without added special tokens, and checks the
+declared text and token SHA-256 values before loading model weights. Dataset
+fingerprint and loader version are provenance diagnostics; the content hashes
+are authoritative.
+
+The checked-in manifests are:
+
+```text
+configs/cage_ppl_llama2_7b_acceptance.json  # 6 cases
+configs/cage_ppl_llama2_7b.json             # 200 cases
+```
+
+The acceptance matrix uses anchor 0, prompt lengths 512 and 4032, and FP16,
+KIVI g32-r32, and CAGE r32. The full matrix uses five deterministic corpus
+anchors, prompt lengths 512/1024/2048/4032, and all ten methods from the core
+Pareto pilot. Both write to `/root/autodl-tmp/cage_ppl_pilot`; the six
+acceptance IDs are reusable by the full manifest when source state is
+unchanged.
+
+Each case contains 64 continuation targets. The prefill boundary target is
+reported separately. The primary PPL aggregates the following 63 targets,
+whose logits are produced by one-token decode queries that consume the stored
+cache. FP16 also records a no-cache full-sequence score for the same 64 targets
+as a numerical calibration diagnostic. Do not declare a GPU calibration
+tolerance until the real acceptance deltas have been inspected.
+
+Run acceptance from a clean committed checkout with the already prepared
+dataset cache:
+
+```bash
+env -u OMP_NUM_THREADS \
+  HF_DATASETS_CACHE=/root/autodl-tmp/hf_datasets_cache \
+  PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+  python scripts/cage_run_ppl.py \
+  --manifest configs/cage_ppl_llama2_7b_acceptance.json
+```
+
+The output layout is:
+
+```text
+/root/autodl-tmp/cage_ppl_pilot/
+  manifest.resolved.json
+  cases/<case_id>.json
+  failures/<case_id>.json
+  summary/cases.jsonl
+  summary/cases.csv
+  summary/quality.json
+```
+
+Acceptance operationally passes only when all six expected cases validate and
+no expected failure record exists. `quality_gate` remains `NOT_APPLICABLE`:
+candidate PPL differences are scientific outputs rather than process failures.
+The observed FP16 incremental-versus-one-shot token-NLL deltas must be reviewed
+before the full run. A repeat with an external manifest that changes only
+`output_dir` is used to establish GPU numerical consistency.
+
+The full matrix contains 200 cases and 12,600 primary cache-dependent target
+tokens. Length-stratified aggregate NLL/PPL and paired differences versus FP16
+are primary. Overall PPL across prompt lengths is diagnostic because it repeats
+each continuation under four context lengths. Five deterministic anchors do
+not establish population-level significance. CAGE fake-path runtime and CUDA
+peaks are diagnostics, not compressed-kernel performance.
+
+PPL runner exit codes are 0 for successful execution, 2 for manifest, corpus,
+clean-source, tokenizer, or native-context preflight errors, 3 for CUDA OOM, 4
+for model construction/load errors, and 6 when one or more individual cases
+fail while later cases continue.
