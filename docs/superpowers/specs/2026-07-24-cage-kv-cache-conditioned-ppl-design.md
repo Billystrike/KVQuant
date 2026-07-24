@@ -71,8 +71,9 @@ stored for audit and paired analysis.
 
 For FP16 only, a no-cache full-sequence forward pass also scores the same 64
 targets. Its difference from incremental scoring is a numerical calibration
-diagnostic. A hard tolerance will be chosen only after the real acceptance
-run; it is not silently inferred from CPU fakes.
+diagnostic. After real acceptance and separate-output repeat validation, the
+frozen limits are `0.005` for the maximum per-case mean absolute token-NLL
+delta and `0.03` for the maximum individual token-NLL delta.
 
 ## Experiment matrices
 
@@ -120,3 +121,18 @@ CAGE remains a fake-quant prototype without a fused variable-group CUDA
 kernel. Runtime and CUDA peaks are diagnostics, not compressed-kernel
 performance claims. This pilot does not replace standard full-corpus PPL,
 LongBench, QA, or other downstream evaluation.
+
+## Analysis and cross-pilot alignment
+
+The read-only analysis validates all 200 completed cases, exact expected-ID
+coverage, summaries, shared input hashes, and FP16 calibration before writing
+derived tables. NLL aggregation is token-weighted, and paired candidate-minus-
+FP16 differences use the shared prompt-length/anchor input groups. Dispersion
+is population standard deviation over deterministic cases or paired anchors;
+it is descriptive rather than inferential.
+
+The optional memory–perturbation join uses method ID and exact prompt length.
+It produces 30 matched rows for 512, 1024, and 2048. PPL 4032 and perturbation
+4095 are not remapped because their prompt lengths and continuation accounting
+differ. Two-objective memory–PPL and three-objective memory–perturbation–PPL
+Pareto membership are computed separately within each matched prompt length.

@@ -15,3 +15,6 @@
    validation, and interpretation boundaries in `docs/cage_experiments.md`.
 7. Run the full CPU suite locally. On the server, run only acceptance until
    real FP16 incremental-versus-one-shot deltas are observed and reviewed.
+8. After the validated full run is archived, add a read-only analysis that
+   emits method/length/anchor summaries, paired FP16 deltas, PPL figures, and
+   an exact-length joint table with the frozen memory–perturbation analysis.

@@ -294,8 +294,10 @@ Each case contains 64 continuation targets. The prefill boundary target is
 reported separately. The primary PPL aggregates the following 63 targets,
 whose logits are produced by one-token decode queries that consume the stored
 cache. FP16 also records a no-cache full-sequence score for the same 64 targets
-as a numerical calibration diagnostic. Do not declare a GPU calibration
-tolerance until the real acceptance deltas have been inspected.
+as a numerical calibration diagnostic. After the real acceptance and
+separate-output repeat matched, the frozen full-run limits were set to `0.005`
+for the maximum per-case mean absolute token-NLL delta and `0.03` for the
+maximum individual token-NLL delta.
 
 Run acceptance from a clean committed checkout with the already prepared
 dataset cache:
@@ -338,3 +340,21 @@ PPL runner exit codes are 0 for successful execution, 2 for manifest, corpus,
 clean-source, tokenizer, or native-context preflight errors, 3 for CUDA OOM, 4
 for model construction/load errors, and 6 when one or more individual cases
 fail while later cases continue.
+
+Run the read-only analysis only after the 200-case output and its independent
+repeat have been validated and archived. Use a new or empty analysis directory:
+
+```bash
+python scripts/cage_analyze_ppl.py \
+  --results-dir /root/autodl-tmp/cage_ppl_pilot \
+  --pareto-analysis-dir /root/autodl-tmp/cage_pareto_analysis_20260721_11aff03c_3803eed \
+  --analysis-dir /root/autodl-tmp/cage_ppl_analysis
+```
+
+The analysis writes token-weighted method, prompt-length, anchor, and paired
+FP16 comparison tables; a Markdown summary; PNG/PDF PPL figures; and an
+optional joint memory–perturbation–PPL selection table. The join is exact on
+method ID and prompt length. Therefore 512, 1024, and 2048 contribute 30 joint
+rows, while PPL length 4032 and perturbation length 4095 remain explicitly
+unmatched. The analysis never silently treats those native-context settings as
+identical.
