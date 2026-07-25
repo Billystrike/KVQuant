@@ -18,6 +18,8 @@ output_samples
 !configs/cage_passkey_llama2_7b_fp16_calibration.json
 !configs/cage_passkey_llama2_7b_stage_b_smoke.json
 !configs/cage_passkey_llama2_7b_stage_b.json
+!configs/cage_ppl_paired_llama2_7b_acceptance.json
+!configs/cage_ppl_paired_llama2_7b.json
 *.jsonl
 third_party
 speed_logs

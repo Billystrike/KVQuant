@@ -358,3 +358,27 @@ method ID and prompt length. Therefore 512, 1024, and 2048 contribute 30 joint
 rows, while PPL length 4032 and perturbation length 4095 remain explicitly
 unmatched. The analysis never silently treats those native-context settings as
 identical.
+
+## Fifty-anchor paired PPL follow-up
+
+The paired follow-up is pre-registered in
+`docs/superpowers/specs/2026-07-25-cage-kv-paired-ppl-design.md`. It narrows the
+method set to FP16, KIVI g32-r128, KIVI g64-r64, CAGE r64, and CAGE r128, then
+expands the deterministic corpus grid from five to fifty non-overlapping
+maximum-context windows. The checked-in manifests are:
+
+```text
+configs/cage_ppl_paired_llama2_7b_acceptance.json  # 10 cases
+configs/cage_ppl_paired_llama2_7b.json             # 1,000 cases
+```
+
+The full matrix has 200 shared input groups and 63,000 primary
+cache-dependent targets. It writes to `/root/autodl-tmp/cage_ppl_paired`, not
+the frozen first-pilot directory. Acceptance uses anchor 0 and lengths 512 and
+4032, and is a strict subset of the full matrix when source state is unchanged.
+
+The two declared comparisons are CAGE r128 minus KIVI g32-r128 and CAGE r64
+minus KIVI g64-r64. Negative paired delta NLL favors CAGE. Analysis uses one
+anchor as the resampling unit, 10,000 fixed-seed bootstrap resamples, and
+explicitly labels the resulting intervals as descriptive over the systematic
+corpus grid rather than population-level confidence intervals.

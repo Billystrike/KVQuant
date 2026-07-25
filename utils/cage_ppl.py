@@ -21,6 +21,8 @@ PPL_CONTINUATION_TOKENS = 64
 PPL_DECODE_TARGETS = 63
 PPL_ANCHOR_INDICES = (0, 1, 2, 3, 4)
 PPL_SELECTION_ID = "interior-sixths-v1"
+PPL_PAIRED_ANCHOR_INDICES = tuple(range(50))
+PPL_PAIRED_SELECTION_ID = "interior-51sts-v1"
 
 WIKITEXT_ID = "Salesforce/wikitext"
 WIKITEXT_CONFIG = "wikitext-2-raw-v1"
@@ -78,6 +80,20 @@ PPL_FULL_RAW_METHODS = (
         "v_bits": 2, "group_size": 128, "residual_length": 128,
     },
     {"id": "cage-r32", "method": "cage", "residual_length": 32},
+    {"id": "cage-r64", "method": "cage", "residual_length": 64},
+    {"id": "cage-r128", "method": "cage", "residual_length": 128},
+)
+
+PPL_PAIRED_RAW_METHODS = (
+    {"id": "fp16", "method": "fp16"},
+    {
+        "id": "kivi-g32-r128", "method": "kivi", "k_bits": 2,
+        "v_bits": 2, "group_size": 32, "residual_length": 128,
+    },
+    {
+        "id": "kivi-g64-r64", "method": "kivi", "k_bits": 2,
+        "v_bits": 2, "group_size": 64, "residual_length": 64,
+    },
     {"id": "cage-r64", "method": "cage", "residual_length": 64},
     {"id": "cage-r128", "method": "cage", "residual_length": 128},
 )
@@ -219,31 +235,37 @@ def load_ppl_manifest(path: str | Path) -> dict[str, Any]:
         raise PPLError("PPL corpus must equal the frozen WikiText-2 raw test snapshot")
 
     methods = _resolved_methods(manifest["methods"])
-    acceptance = _resolved_methods(PPL_ACCEPTANCE_RAW_METHODS)
-    full = _resolved_methods(PPL_FULL_RAW_METHODS)
-    if methods == acceptance:
-        protocol_stage = "acceptance"
-    elif methods == full:
-        protocol_stage = "full"
-    else:
-        raise PPLError("PPL methods must equal the acceptance or full matrix")
-
     lengths = manifest["prompt_lengths"]
     anchors = manifest["anchor_indices"]
-    if protocol_stage == "acceptance":
-        if lengths != [512, 4032] or anchors != [0]:
-            raise PPLError("PPL acceptance requires lengths [512, 4032] and anchor [0]")
-    else:
-        if tuple(lengths) != PPL_PROMPT_LENGTHS or tuple(anchors) != PPL_ANCHOR_INDICES:
-            raise PPLError("PPL full matrix requires all declared lengths and anchors")
-
     measurement = _require_object("measurement", manifest["measurement"])
     _require_fields("measurement", measurement, MEASUREMENT_FIELDS)
-    if measurement != {
-        "selection_id": PPL_SELECTION_ID,
-        "continuation_tokens": PPL_CONTINUATION_TOKENS,
-    }:
-        raise PPLError("PPL measurement differs from the frozen scoring protocol")
+    selection_id = measurement.get("selection_id")
+    if measurement.get("continuation_tokens") != PPL_CONTINUATION_TOKENS:
+        raise PPLError("PPL continuation_tokens differs from the frozen scoring protocol")
+
+    acceptance = _resolved_methods(PPL_ACCEPTANCE_RAW_METHODS)
+    full = _resolved_methods(PPL_FULL_RAW_METHODS)
+    paired = _resolved_methods(PPL_PAIRED_RAW_METHODS)
+    identity = (methods, lengths, anchors, selection_id)
+    if identity == (acceptance, [512, 4032], [0], PPL_SELECTION_ID):
+        protocol_stage = "acceptance"
+    elif identity == (
+        full, list(PPL_PROMPT_LENGTHS), list(PPL_ANCHOR_INDICES), PPL_SELECTION_ID
+    ):
+        protocol_stage = "full"
+    elif identity == (paired, [512, 4032], [0], PPL_PAIRED_SELECTION_ID):
+        protocol_stage = "paired_acceptance"
+    elif identity == (
+        paired,
+        list(PPL_PROMPT_LENGTHS),
+        list(PPL_PAIRED_ANCHOR_INDICES),
+        PPL_PAIRED_SELECTION_ID,
+    ):
+        protocol_stage = "paired_full"
+    else:
+        raise PPLError(
+            "PPL methods, lengths, anchors, and selection_id must equal a frozen matrix"
+        )
     if max(lengths) + PPL_CONTINUATION_TOKENS > 4096:
         raise PPLError("PPL prompt plus continuation exceeds native context")
     _require_string("output_dir", manifest["output_dir"])
@@ -321,16 +343,29 @@ def validate_corpus_snapshot(
     return snapshot, token_ids
 
 
-def continuation_anchor(token_count: int, anchor_index: int) -> int:
+def continuation_anchor(
+    token_count: int,
+    anchor_index: int,
+    *,
+    selection_id: str = PPL_SELECTION_ID,
+) -> int:
     _require_int("token_count", token_count, minimum=1)
     _require_int("anchor_index", anchor_index)
-    if anchor_index not in PPL_ANCHOR_INDICES:
-        raise PPLError(f"anchor_index must be one of {list(PPL_ANCHOR_INDICES)}")
+    if selection_id == PPL_SELECTION_ID:
+        allowed = PPL_ANCHOR_INDICES
+        denominator = len(PPL_ANCHOR_INDICES) + 1
+    elif selection_id == PPL_PAIRED_SELECTION_ID:
+        allowed = PPL_PAIRED_ANCHOR_INDICES
+        denominator = len(PPL_PAIRED_ANCHOR_INDICES) + 1
+    else:
+        raise PPLError(f"unknown PPL selection_id {selection_id!r}")
+    if anchor_index not in allowed:
+        raise PPLError(f"anchor_index must be one of {list(allowed)}")
     minimum = max(PPL_PROMPT_LENGTHS)
     maximum = token_count - PPL_CONTINUATION_TOKENS
     if maximum < minimum:
         raise PPLError("token stream is too short for the PPL protocol")
-    return minimum + ((maximum - minimum) * (anchor_index + 1) // 6)
+    return minimum + ((maximum - minimum) * (anchor_index + 1) // denominator)
 
 
 def normalized_model_identity(model: dict[str, Any]) -> dict[str, Any]:
@@ -369,7 +404,11 @@ def expand_ppl_cases(
         method = _case_method(resolved_method)
         for prompt_length in manifest["prompt_lengths"]:
             for anchor_index in manifest["anchor_indices"]:
-                start = continuation_anchor(len(token_ids), anchor_index)
+                start = continuation_anchor(
+                    len(token_ids),
+                    anchor_index,
+                    selection_id=manifest["measurement"]["selection_id"],
+                )
                 prompt = token_ids[start - prompt_length:start]
                 continuation = token_ids[start:start + PPL_CONTINUATION_TOKENS]
                 full = [*prompt, *continuation]
@@ -582,7 +621,8 @@ def aggregate_ppl_cases(
 
 __all__ = [
     "PPL_ACCEPTANCE_RAW_METHODS", "PPL_ANCHOR_INDICES", "PPL_CONTINUATION_TOKENS",
-    "PPL_DECODE_TARGETS", "PPL_FULL_RAW_METHODS", "PPL_PROMPT_LENGTHS",
+    "PPL_DECODE_TARGETS", "PPL_FULL_RAW_METHODS", "PPL_PAIRED_ANCHOR_INDICES",
+    "PPL_PAIRED_RAW_METHODS", "PPL_PAIRED_SELECTION_ID", "PPL_PROMPT_LENGTHS",
     "PPL_SCHEMA_VERSION", "PPLError", "aggregate_ppl_cases", "continuation_anchor",
     "expand_ppl_cases", "is_valid_completed_ppl_case", "load_ppl_manifest",
     "resolved_ppl_manifest", "token_ids_sha256", "validate_completed_ppl_case",

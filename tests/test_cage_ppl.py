@@ -11,6 +11,8 @@ import torch
 import scripts.cage_run_ppl as ppl_runner
 from utils.cage_ppl import (
     PPL_CONTINUATION_TOKENS,
+    PPL_PAIRED_ANCHOR_INDICES,
+    PPL_PAIRED_SELECTION_ID,
     PPL_SCHEMA_VERSION,
     PPLError,
     aggregate_ppl_cases,
@@ -184,6 +186,41 @@ class PPLManifestTests(unittest.TestCase):
             )
         )
 
+    def test_checked_in_paired_acceptance_is_subset_of_fifty_anchor_matrix(self):
+        acceptance = load_ppl_manifest(
+            ROOT / "configs" / "cage_ppl_paired_llama2_7b_acceptance.json"
+        )
+        full = load_ppl_manifest(ROOT / "configs" / "cage_ppl_paired_llama2_7b.json")
+        self.assertEqual(acceptance["protocol_stage"], "paired_acceptance")
+        self.assertEqual(full["protocol_stage"], "paired_full")
+        self.assertEqual(len(acceptance["methods"]), 5)
+        self.assertEqual(len(full["methods"]), 5)
+        self.assertEqual(len(full["anchor_indices"]), 50)
+        self.assertEqual(
+            len(acceptance["methods"])
+            * len(acceptance["prompt_lengths"])
+            * len(acceptance["anchor_indices"]),
+            10,
+        )
+        self.assertEqual(
+            len(full["methods"])
+            * len(full["prompt_lengths"])
+            * len(full["anchor_indices"]),
+            1000,
+        )
+        self.assertEqual(acceptance["output_dir"], full["output_dir"])
+
+        stream = SyntheticTokenStream(full["corpus"]["expected_token_count"])
+        acceptance_cases = expand_ppl_cases(acceptance, stream, source_state())
+        full_cases = expand_ppl_cases(full, stream, source_state())
+        self.assertEqual(len(acceptance_cases), 10)
+        self.assertEqual(len(full_cases), 1000)
+        self.assertTrue(
+            {case["case_id"] for case in acceptance_cases}.issubset(
+                {case["case_id"] for case in full_cases}
+            )
+        )
+
     def test_rejects_corpus_identity_drift(self):
         raw = json.loads(
             (ROOT / "configs" / "cage_ppl_llama2_7b_acceptance.json").read_text()
@@ -208,6 +245,24 @@ class PPLInputTests(unittest.TestCase):
         self.assertEqual(len(case["continuation_ids"]), 64)
         self.assertEqual(case["input"]["continuation_start"], expected)
         self.assertEqual(case["input"]["prompt_ids_sha256"], token_ids_sha256(case["prompt_ids"]))
+
+    def test_fifty_anchor_grid_is_ordered_and_nonoverlapping_at_max_context(self):
+        token_count = 341468
+        starts = [
+            continuation_anchor(
+                token_count,
+                anchor_index,
+                selection_id=PPL_PAIRED_SELECTION_ID,
+            )
+            for anchor_index in PPL_PAIRED_ANCHOR_INDICES
+        ]
+        self.assertEqual(len(starts), len(set(starts)))
+        self.assertEqual(starts, sorted(starts))
+        self.assertGreaterEqual(starts[0], 4032)
+        self.assertLessEqual(starts[-1] + PPL_CONTINUATION_TOKENS, token_count)
+        self.assertTrue(
+            all(right - left > 4032 for left, right in zip(starts, starts[1:]))
+        )
 
     def test_validates_corpus_content_and_token_identity(self):
         texts = ["ab", "cd"]
@@ -396,6 +451,63 @@ class PPLRunnerTests(unittest.TestCase):
         self.assertEqual(load_model.call_count, 3)
         self.assertEqual(run_case.call_count, 6)
         self.assertEqual(result["completed_cases"], 6)
+        self.assertEqual(result["failure_records"], 0)
+        self.assertEqual(result["completion_gate"], "PASS")
+
+    def test_paired_acceptance_loads_five_methods_once_and_completes_ten_cases(self):
+        manifest = load_ppl_manifest(
+            ROOT / "configs" / "cage_ppl_paired_llama2_7b_acceptance.json"
+        )
+        stream = SyntheticTokenStream(manifest["corpus"]["expected_token_count"])
+        native_config = SimpleNamespace(
+            model_type="llama", max_position_embeddings=4096, rope_scaling=None
+        )
+        snapshot = {
+            "token_count": manifest["corpus"]["expected_token_count"],
+            "token_ids_sha256": manifest["corpus"]["expected_token_ids_sha256"],
+        }
+
+        def fake_run_case(**kwargs):
+            record = completed_record(kwargs["case"])
+            record["model"] = {**manifest["model"], "model_type": "llama"}
+            return record
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            selected_manifest = {**manifest, "output_dir": str(output)}
+            with (
+                mock.patch.object(
+                    ppl_runner, "load_ppl_manifest", return_value=selected_manifest
+                ),
+                mock.patch.object(
+                    ppl_runner, "source_state_identity", return_value=source_state()
+                ),
+                mock.patch.object(
+                    ppl_runner,
+                    "_load_preflight",
+                    return_value=(native_config, FakeTokenizer(), snapshot, stream),
+                ),
+                mock.patch.object(
+                    ppl_runner, "_load_model", return_value=(object(), 0.1)
+                ) as load_model,
+                mock.patch.object(
+                    ppl_runner, "run_case", side_effect=fake_run_case
+                ) as run_case,
+                mock.patch.object(
+                    ppl_runner,
+                    "collect_provenance",
+                    return_value={"source_state": source_state()},
+                ),
+                mock.patch.object(ppl_runner.gc, "collect"),
+                mock.patch.object(ppl_runner.torch.cuda, "empty_cache"),
+            ):
+                exit_code, result = ppl_runner.run_manifest("manifest.json")
+
+        self.assertEqual(exit_code, ppl_runner.EXIT_SUCCESS)
+        self.assertEqual(load_model.call_count, 5)
+        self.assertEqual(run_case.call_count, 10)
+        self.assertEqual(result["protocol_stage"], "paired_acceptance")
+        self.assertEqual(result["completed_cases"], 10)
         self.assertEqual(result["failure_records"], 0)
         self.assertEqual(result["completion_gate"], "PASS")
 
