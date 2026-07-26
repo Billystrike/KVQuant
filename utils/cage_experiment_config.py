@@ -24,6 +24,7 @@ _METHOD_FIELDS = {
         "cage_v_enable", "cage_k_importance", "cage_k_group_sizes",
         "cage_k_clip_percentiles", "cage_k_num_buckets", "cage_v_importance",
         "cage_v_group_sizes", "cage_v_clip_percentiles", "cage_v_num_buckets",
+        "cage_ablation", "cage_assignment_seed",
     },
 }
 _CAGE_DEFAULTS = {
@@ -41,6 +42,8 @@ _CAGE_DEFAULTS = {
     "cage_v_group_sizes": [32, 64, 128],
     "cage_v_clip_percentiles": [0.999, 0.995, 0.99],
     "cage_v_num_buckets": 3,
+    "cage_ablation": False,
+    "cage_assignment_seed": 1729,
 }
 _SUPPORTED_DTYPES = {"float16", "bfloat16"}
 _SUPPORTED_DEVICES = {"cpu", "cuda"}
@@ -271,10 +274,28 @@ def _validate_cage(config: dict) -> None:
     for name in ("cage_k_enable", "cage_v_enable"):
         if config[name] is not True:
             raise ValueError(f"{name} must be true for the scoped core pilot")
-    if config["cage_k_importance"] != "q2_var":
-        raise ValueError("cage_k_importance must equal 'q2_var' for the scoped core pilot")
-    if config["cage_v_importance"] != "wo_var":
-        raise ValueError("cage_v_importance must equal 'wo_var' for the scoped core pilot")
+    if not isinstance(config["cage_ablation"], bool):
+        raise ValueError("cage_ablation must be a bool")
+    if (
+        isinstance(config["cage_assignment_seed"], bool)
+        or not isinstance(config["cage_assignment_seed"], int)
+        or config["cage_assignment_seed"] < 0
+    ):
+        raise ValueError("cage_assignment_seed must be a nonnegative integer")
+    if config["cage_ablation"]:
+        if config["cage_k_importance"] not in {"q2_var", "fixed_random"}:
+            raise ValueError(
+                "ablation cage_k_importance must be 'q2_var' or 'fixed_random'"
+            )
+        if config["cage_v_importance"] not in {"wo_var", "fixed_random"}:
+            raise ValueError(
+                "ablation cage_v_importance must be 'wo_var' or 'fixed_random'"
+            )
+    else:
+        if config["cage_k_importance"] != "q2_var":
+            raise ValueError("cage_k_importance must equal 'q2_var' for the scoped core pilot")
+        if config["cage_v_importance"] != "wo_var":
+            raise ValueError("cage_v_importance must equal 'wo_var' for the scoped core pilot")
     for prefix in ("cage_k", "cage_v"):
         _nonempty_string(f"{prefix}_importance", config[f"{prefix}_importance"])
         count = config[f"{prefix}_num_buckets"]

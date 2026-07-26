@@ -172,6 +172,35 @@ def assign_channel_buckets(
     )
 
 
+def fixed_random_importance_like(
+    importance: torch.Tensor,
+    *,
+    seed: int,
+) -> torch.Tensor:
+    """Return deterministic random ranking scores with the same [H, D] shape.
+
+    Scores are generated on CPU from an explicit seed and then transferred to
+    the input device.  This is an ablation control: it preserves bucket sizes,
+    group sizes, clipping, and cache accounting while removing the learned
+    importance ordering.
+    """
+
+    importance = _prepare_bucket_importance(importance)
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise ValueError(f"seed must be a nonnegative integer, got {seed!r}")
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(seed)
+    scores = torch.rand(
+        tuple(importance.shape),
+        generator=generator,
+        dtype=torch.float64,
+        device="cpu",
+    )
+    # Keep float64 so the null ranking does not acquire avoidable ties when
+    # the model cache uses float16.  These scores are used only by argsort.
+    return scores.to(device=importance.device)
+
+
 def _group_output_projection_norm(
     o_proj_weight: torch.Tensor,
     num_heads: int,
@@ -297,4 +326,5 @@ __all__ = [
     "assign_channel_buckets",
     "compute_key_importance",
     "compute_value_importance",
+    "fixed_random_importance_like",
 ]

@@ -88,6 +88,27 @@ class CageAttentionIntegrationTest(unittest.TestCase):
         attention._flash_attention_forward = lambda query, *_args, **_kwargs: torch.zeros_like(query)
         return attention
 
+    def test_fixed_random_ablation_is_repeatable_and_changes_by_layer(self):
+        config = self._config()
+        config.cage_ablation = True
+        config.cage_assignment_seed = 1729
+        config.cage_k_importance = "fixed_random"
+        config.cage_v_importance = "fixed_random"
+        importance = torch.ones(config.num_key_value_heads, 32)
+        layer_zero = LlamaFlashAttention_KIVI(config, layer_idx=0)
+        layer_one = LlamaFlashAttention_KIVI(config, layer_idx=1)
+        first = layer_zero._cage_assignment_scores(
+            importance, policy="fixed_random", side_offset=0,
+        )
+        repeated = layer_zero._cage_assignment_scores(
+            importance, policy="fixed_random", side_offset=0,
+        )
+        next_layer = layer_one._cage_assignment_scores(
+            importance, policy="fixed_random", side_offset=0,
+        )
+        self.assertTrue(torch.equal(first, repeated))
+        self.assertFalse(torch.equal(first, next_layer))
+
     def test_cage_prefill_attention_is_fp16_and_cache_uses_kivi_buffers(self):
         torch.manual_seed(0)
         quantized = self._attention()

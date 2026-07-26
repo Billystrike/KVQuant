@@ -54,6 +54,7 @@ class CageExperimentWorkerTest(unittest.TestCase):
                     "cage_k_num_buckets": 1, "cage_v_importance": "wo_var",
                     "cage_v_group_sizes": [2], "cage_v_clip_percentiles": [1.0],
                     "cage_v_num_buckets": 1,
+                    "cage_ablation": False, "cage_assignment_seed": 1729,
                 },
             }],
             "measurement": {"decode_tokens": 1, "seed": 7},

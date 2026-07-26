@@ -1,0 +1,27 @@
+{
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "device": "cuda",
+    "max_position_embeddings": 4096
+  },
+  "prompts_file": "/root/autodl-tmp/cage_pilot_prompts.jsonl",
+  "sample_ids": ["doc-001"],
+  "prompt_lengths": [512, 2048],
+  "methods": [
+    {"id": "kivi-g64-r64", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 64, "residual_length": 64},
+    {"id": "kivi-g32-r128", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 128},
+    {"id": "cage-r64-full", "method": "cage", "residual_length": 64, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]},
+    {"id": "cage-r64-k-adaptive", "method": "cage", "residual_length": 64, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [64, 64, 64], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.995, 0.995, 0.995]},
+    {"id": "cage-r64-v-adaptive", "method": "cage", "residual_length": 64, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [64, 64, 64], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.995, 0.995, 0.995], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]},
+    {"id": "cage-r64-uniform", "method": "cage", "residual_length": 64, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [64, 64, 64], "cage_v_group_sizes": [64, 64, 64], "cage_k_clip_percentiles": [0.995, 0.995, 0.995], "cage_v_clip_percentiles": [0.995, 0.995, 0.995]},
+    {"id": "cage-r64-fixed-random", "method": "cage", "residual_length": 64, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_importance": "fixed_random", "cage_v_importance": "fixed_random", "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]},
+    {"id": "cage-r128-full", "method": "cage", "residual_length": 128, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]},
+    {"id": "cage-r128-k-adaptive", "method": "cage", "residual_length": 128, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [64, 64, 64], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.995, 0.995, 0.995]},
+    {"id": "cage-r128-v-adaptive", "method": "cage", "residual_length": 128, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [64, 64, 64], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.995, 0.995, 0.995], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]},
+    {"id": "cage-r128-uniform", "method": "cage", "residual_length": 128, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_group_sizes": [64, 64, 64], "cage_v_group_sizes": [64, 64, 64], "cage_k_clip_percentiles": [0.995, 0.995, 0.995], "cage_v_clip_percentiles": [0.995, 0.995, 0.995]},
+    {"id": "cage-r128-fixed-random", "method": "cage", "residual_length": 128, "cage_ablation": true, "cage_assignment_seed": 1729, "cage_k_importance": "fixed_random", "cage_v_importance": "fixed_random", "cage_k_group_sizes": [32, 64, 128], "cage_v_group_sizes": [32, 64, 128], "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_clip_percentiles": [0.999, 0.995, 0.99]}
+  ],
+  "measurement": {"decode_tokens": 1, "seed": 0},
+  "output_dir": "/root/autodl-tmp/cage_ablation_llama2_7b"
+}

@@ -50,6 +50,7 @@ class CageExperimentConfigTests(unittest.TestCase):
             "cage_k_clip_percentiles": [0.999, 0.995, 0.99], "cage_k_num_buckets": 3,
             "cage_v_importance": "wo_var", "cage_v_group_sizes": [32, 64, 128],
             "cage_v_clip_percentiles": [0.999, 0.995, 0.99], "cage_v_num_buckets": 3,
+            "cage_ablation": False, "cage_assignment_seed": 1729,
         })
 
     def test_rejects_unknown_method(self):
@@ -112,6 +113,41 @@ class CageExperimentConfigTests(unittest.TestCase):
         self.assertEqual(len(full_points & acceptance_points), 6)
         self.assertEqual(len(full_points | acceptance_points), 120)
         self.assertEqual(full["prompt_lengths"], [512, 1024, 2048, 4095])
+
+    def test_ablation_manifests_freeze_144_points_and_24_point_overlap(self):
+        root = Path(__file__).parents[1]
+        full = load_and_resolve_manifest(
+            root / "configs" / "cage_ablation_llama2_7b.json"
+        )
+        acceptance = load_and_resolve_manifest(
+            root / "configs" / "cage_ablation_llama2_7b_acceptance.json"
+        )
+
+        def points(manifest):
+            return {
+                (
+                    method["method"],
+                    json.dumps(
+                        method["method_config"],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    sample_id,
+                    prompt_length,
+                )
+                for method in manifest["methods"]
+                for sample_id in manifest["sample_ids"]
+                for prompt_length in manifest["prompt_lengths"]
+            }
+
+        full_points = points(full)
+        acceptance_points = points(acceptance)
+        self.assertEqual(len(expand_jobs(full)), 12)
+        self.assertEqual(len(full_points), 144)
+        self.assertEqual(len(expand_jobs(acceptance)), 12)
+        self.assertEqual(len(acceptance_points), 24)
+        self.assertEqual(len(full_points & acceptance_points), 24)
+        self.assertTrue(acceptance_points < full_points)
 
     def test_rejects_invalid_kivi_pair(self):
         manifest = self._manifest()
@@ -188,6 +224,27 @@ class CageExperimentConfigTests(unittest.TestCase):
             mutate(manifest["methods"][2])
             with self.subTest(method=manifest["methods"][2]), self.assertRaises(ValueError):
                 self._load(manifest)
+
+    def test_ablation_flag_allows_fixed_random_assignment_with_explicit_seed(self):
+        manifest = self._manifest()
+        cage = manifest["methods"][2]
+        cage.update({
+            "cage_ablation": True,
+            "cage_assignment_seed": 41,
+            "cage_k_importance": "fixed_random",
+            "cage_v_importance": "fixed_random",
+        })
+        config = self._load(manifest)["methods"][2]["method_config"]
+        self.assertTrue(config["cage_ablation"])
+        self.assertEqual(config["cage_assignment_seed"], 41)
+        self.assertEqual(config["cage_k_importance"], "fixed_random")
+        self.assertEqual(config["cage_v_importance"], "fixed_random")
+
+    def test_rejects_fixed_random_assignment_without_ablation_flag(self):
+        manifest = self._manifest()
+        manifest["methods"][2]["cage_k_importance"] = "fixed_random"
+        with self.assertRaisesRegex(ValueError, "scoped core pilot"):
+            self._load(manifest)
 
 
 if __name__ == "__main__":

@@ -27,6 +27,8 @@ class CageConfig:
     cage_collect_metrics: bool = False
     cage_dump_dir: str | None = None
     cage_memory_summary: bool = False
+    cage_ablation: bool = False
+    cage_assignment_seed: int = 1729
 
     def __post_init__(self):
         if self.cage_k_group_sizes is None:
@@ -69,6 +71,8 @@ def get_cage_config(config: Any) -> CageConfig:
         cage_collect_metrics=getattr(config, "cage_collect_metrics", False),
         cage_dump_dir=getattr(config, "cage_dump_dir", None),
         cage_memory_summary=getattr(config, "cage_memory_summary", False),
+        cage_ablation=getattr(config, "cage_ablation", False),
+        cage_assignment_seed=getattr(config, "cage_assignment_seed", 1729),
     )
 
     if cage_config.cage_enable:
@@ -105,6 +109,24 @@ def _validate_enabled_config(config: CageConfig) -> None:
         config.cage_v_group_sizes,
         config.cage_v_clip_percentiles,
     )
+    if not isinstance(config.cage_ablation, bool):
+        raise ValueError("cage_ablation must be a bool")
+    if (
+        isinstance(config.cage_assignment_seed, bool)
+        or not isinstance(config.cage_assignment_seed, int)
+        or config.cage_assignment_seed < 0
+    ):
+        raise ValueError("cage_assignment_seed must be a nonnegative integer")
+    if config.cage_ablation:
+        if config.cage_k_importance not in {"q2_var", "fixed_random"}:
+            raise ValueError("unsupported CAGE Key ablation importance policy")
+        if config.cage_v_importance not in {"wo_var", "fixed_random"}:
+            raise ValueError("unsupported CAGE Value ablation importance policy")
+    elif (
+        config.cage_k_importance != "q2_var"
+        or config.cage_v_importance != "wo_var"
+    ):
+        raise ValueError("alternate CAGE importance policies require cage_ablation=True")
 
 
 def _validate_bucket_policy(

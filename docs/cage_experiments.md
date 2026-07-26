@@ -409,3 +409,19 @@ The ledger is an analysis of frozen evidence, not a new experiment. Its claim
 boundary remains Llama-2-7B fake quantization with packed paper-memory
 estimates; mechanism ablations and task-level evaluation are still required
 before closing the paper experiments.
+
+## Llama-2-7B mechanism ablation
+
+The mechanism ablation is frozen in
+`docs/superpowers/specs/2026-07-26-cage-kv-llama2-mechanism-ablation-design.md`.
+It uses `configs/cage_ablation_llama2_7b_acceptance.json` for 24 acceptance
+points and `configs/cage_ablation_llama2_7b.json` for 144 full points. The
+study compares full, Key-adaptive-only, Value-adaptive-only, uniform, and
+same-budget fixed-random policies at residual lengths 64 and 128, together
+with their two KIVI operating-point baselines.
+
+Alternate assignment policies require the explicit scientific-identity field
+`cage_ablation=true`. Core pilot manifests retain `cage_ablation=false` and
+continue to reject alternate importance policies. Fixed-random assignment is
+deterministic per layer from base seed 1729; it changes assignment only, not
+bucket sizes, group sizes, clipping, or paper-memory accounting.

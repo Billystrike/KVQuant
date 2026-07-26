@@ -6,10 +6,31 @@ from models.cage_importance import (
     assign_channel_buckets,
     compute_key_importance,
     compute_value_importance,
+    fixed_random_importance_like,
 )
 
 
 class CageImportanceTest(unittest.TestCase):
+    def test_fixed_random_control_is_seeded_and_shape_preserving(self):
+        importance = torch.ones(2, 8, dtype=torch.float16)
+        first = fixed_random_importance_like(importance, seed=17)
+        second = fixed_random_importance_like(importance, seed=17)
+        different = fixed_random_importance_like(importance, seed=18)
+        self.assertEqual(first.shape, importance.shape)
+        self.assertEqual(first.dtype, torch.float64)
+        self.assertTrue(torch.equal(first, second))
+        self.assertFalse(torch.equal(first, different))
+        assignment = assign_channel_buckets(first, num_buckets=3)
+        repeated = assign_channel_buckets(second, num_buckets=3)
+        for left, right in zip(assignment.bucket_indices, repeated.bucket_indices):
+            self.assertTrue(torch.equal(left, right))
+
+    def test_fixed_random_control_rejects_invalid_seed(self):
+        importance = torch.ones(1, 4)
+        for seed in (-1, True, 1.5):
+            with self.assertRaises(ValueError):
+                fixed_random_importance_like(importance, seed=seed)
+
     def test_key_importance_uses_query_energy_and_key_variance_for_mha(self):
         query_states = torch.tensor(
             [

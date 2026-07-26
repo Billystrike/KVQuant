@@ -18,7 +18,12 @@ from models.cage_cache import (
     unpack_cage_past_key_value,
 )
 from models.cage_config import get_cage_config
-from models.cage_importance import assign_channel_buckets, compute_key_importance, compute_value_importance
+from models.cage_importance import (
+    assign_channel_buckets,
+    compute_key_importance,
+    compute_value_importance,
+    fixed_random_importance_like,
+)
 from models.cage_quant import fake_quant_k_by_channel_buckets, fake_quant_v_by_channel_buckets
 from utils.cage_metrics import collect_cage_perturbation_metrics, compute_cage_perturbation_metrics
 from utils.kv_cache_reconstruction import reconstruct_kivi_cache
@@ -46,10 +51,11 @@ logger = logging.get_logger(__name__)
 class LlamaAttention_KIVI(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
-    def __init__(self, config: LlamaConfig):
+    def __init__(self, config: LlamaConfig, layer_idx: int = 0):
         super().__init__()
         self.config = config
         self.cage_config = get_cage_config(config)
+        self.layer_idx = int(layer_idx)
         self.attention_dropout = config.attention_dropout
         self.hidden_size = config.hidden_size
         self.num_heads = config.num_attention_heads
@@ -211,12 +217,22 @@ class LlamaAttention_KIVI(nn.Module):
                 num_key_value_heads=self.num_key_value_heads,
                 head_dim=self.head_dim,
             )
-            key_assignment = assign_channel_buckets(
+            key_assignment_scores = self._cage_assignment_scores(
                 key_importance,
+                policy=cage_config.cage_k_importance,
+                side_offset=0,
+            )
+            value_assignment_scores = self._cage_assignment_scores(
+                value_importance,
+                policy=cage_config.cage_v_importance,
+                side_offset=1,
+            )
+            key_assignment = assign_channel_buckets(
+                key_assignment_scores,
                 num_buckets=cage_config.cage_k_num_buckets,
             )
             value_assignment = assign_channel_buckets(
-                value_importance,
+                value_assignment_scores,
                 num_buckets=cage_config.cage_v_num_buckets,
             )
             key_bucket_indices = self._bucket_indices_like(key_assignment.bucket_indices, key_states)
@@ -377,6 +393,27 @@ class LlamaAttention_KIVI(nn.Module):
                 kv_seq_len=kv_seq_len,
             )
         return attn_output, next_cache
+
+    def _cage_assignment_scores(
+        self,
+        importance: torch.Tensor,
+        *,
+        policy: str,
+        side_offset: int,
+    ) -> torch.Tensor:
+        if policy in {"q2_var", "wo_var"}:
+            return importance
+        if policy == "fixed_random" and self.cage_config.cage_ablation:
+            seed = (
+                self.cage_config.cage_assignment_seed
+                + 2 * self.layer_idx
+                + side_offset
+            )
+            return fixed_random_importance_like(importance, seed=seed)
+        raise ValueError(
+            f"unsupported CAGE assignment policy {policy!r} for "
+            f"cage_ablation={self.cage_config.cage_ablation}"
+        )
 
     def _split_cage_key_history(self, states: torch.Tensor):
         remainder = states.shape[-2] % self.residual_length
@@ -1112,13 +1149,13 @@ class LlamaFlashAttention_KIVI(LlamaAttention_KIVI):
     
 
 class LlamaDecoderLayer_KIVI(nn.Module):
-    def __init__(self, config: LlamaConfig):
+    def __init__(self, config: LlamaConfig, layer_idx: int = 0):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.self_attn = (
-            LlamaAttention_KIVI(config=config)
+            LlamaAttention_KIVI(config=config, layer_idx=layer_idx)
             if not getattr(config, "use_flash", False)
-            else LlamaFlashAttention_KIVI(config=config)
+            else LlamaFlashAttention_KIVI(config=config, layer_idx=layer_idx)
         )
         self.mlp = LlamaMLP(config)
         self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -1200,7 +1237,10 @@ class LlamaModel_KIVI(LlamaPreTrainedModel):
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-        self.layers = nn.ModuleList([LlamaDecoderLayer_KIVI(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.ModuleList([
+            LlamaDecoderLayer_KIVI(config, layer_idx=layer_idx)
+            for layer_idx in range(config.num_hidden_layers)
+        ])
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
