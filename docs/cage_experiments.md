@@ -395,3 +395,17 @@ repeat omitted before full execution is performed and archived afterward as a
 reproducibility audit, not represented as having occurred in the planned
 order. That post-full audit completed 10/10 cases and reproduced all 985
 scientific numeric fields bitwise (`worst delta = 0`).
+
+## Llama-2-7B paper evidence synthesis
+
+After the three frozen analyses are archived, build the cross-experiment ledger
+with `scripts/cage_build_paper_evidence.py`. The synthesis compares CAGE r128
+against KIVI g32-r128 and CAGE r64 against KIVI g64-r64. It joins memory,
+perturbation, and paired PPL only at exact lengths 512, 1024, and 2048. Pareto
+4095 and paired-PPL 4032 remain explicitly unmatched. Passkey is joined only
+for r64 because Stage B did not contain both r128 methods.
+
+The ledger is an analysis of frozen evidence, not a new experiment. Its claim
+boundary remains Llama-2-7B fake quantization with packed paper-memory
+estimates; mechanism ablations and task-level evaluation are still required
+before closing the paper experiments.
