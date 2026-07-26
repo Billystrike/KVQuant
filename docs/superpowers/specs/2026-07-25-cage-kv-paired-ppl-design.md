@@ -66,6 +66,32 @@ FP16 incremental-versus-one-shot calibration retains the previously frozen
 limits: maximum per-case mean absolute token-NLL delta at most 0.005 and
 maximum individual token-NLL delta at most 0.03.
 
+## Post-run deviation record (2026-07-26)
+
+This section was added after the frozen 1,000-case matrix completed and must
+not be read as part of the pre-registration. The per-case mean calibration
+gate passed (`0.0032123428350701033 <= 0.005`), while the maximum individual
+token gate failed (`0.030837535858154297 > 0.03`). Three primary decode tokens
+in three cases exceeded the limit out of 12,800 FP16 calibration comparisons;
+the maximum excess was `0.000837535858154298`. The frozen threshold is not
+retrospectively raised.
+
+The raw matrix is retained. Primary analysis is restricted to the two
+pre-registered incremental CAGE-versus-KIVI comparisons, which do not consume
+the FP16 one-shot reference. FP16 remains a diagnostic reference and the
+calibration outcome is reported as `FAIL` with protocol status
+`RECORDED_DEVIATION`. Canonical full-corpus PPL and exact incremental/one-shot
+equivalence remain outside the claim scope.
+
+The implementation plan called for a separate-output acceptance repeat before
+the full run. That repeat was inadvertently deferred until after full-matrix
+completion. It is therefore a post-full reproducibility audit, not evidence
+that the original execution order conformed to the plan. Its timing and result
+must be retained with the archived artifacts. The completed audit compared 985
+scientific numeric fields, all 985 were bitwise identical, and the worst delta
+was zero. Its archive SHA-256 is
+`64d4a3ac1a2c3520691f68e620f474e1747a594df54d4036f2baff4c647e8ac7`.
+
 ## Interpretation boundary
 
 This experiment can strengthen or weaken the claim that CAGE preserves

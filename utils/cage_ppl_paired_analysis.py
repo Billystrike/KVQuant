@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from utils.cage_ppl import (
+    PPL_CONTINUATION_TOKENS,
     PPL_DECODE_TARGETS,
     PPL_PAIRED_ANCHOR_INDICES,
     PPL_PAIRED_RAW_METHODS,
@@ -21,9 +22,12 @@ from utils.cage_ppl import (
 )
 
 
-PAIRED_ANALYSIS_SCHEMA_VERSION = 1
+PAIRED_ANALYSIS_SCHEMA_VERSION = 2
 BOOTSTRAP_SEED = 20260725
 BOOTSTRAP_RESAMPLES = 10_000
+FP16_CALIBRATION_MEAN_LIMIT = 0.005
+FP16_CALIBRATION_MAX_TOKEN_LIMIT = 0.03
+PRIMARY_ANALYSIS_SCOPE = "pre_registered_cage_vs_kivi_paired_comparisons_only"
 PAIRED_METHOD_IDS = tuple(method["id"] for method in PPL_PAIRED_RAW_METHODS)
 DECLARED_COMPARISONS = (
     {
@@ -162,11 +166,14 @@ def aggregate_paired_results(
     }
     delta_rows = _anchor_delta_rows(record_lookup)
     paired_rows = _paired_rows(delta_rows, method_rows, length_rows)
+    calibration_audit, calibration_violations = _fp16_calibration_tables(records)
     return {
         "method_summary": method_rows,
         "length_summary": length_rows,
         "paired_comparisons": paired_rows,
         "anchor_deltas": delta_rows,
+        "fp16_calibration_audit": calibration_audit,
+        "fp16_calibration_violations": calibration_violations,
     }
 
 
@@ -185,11 +192,15 @@ def write_paired_analysis_outputs(
         raise PairedPPLAnalysisError(f"analysis directory is not empty: {destination}")
     destination.mkdir(parents=True, exist_ok=True)
     outputs = []
-    for name in ("method_summary", "length_summary", "paired_comparisons", "anchor_deltas"):
+    for name in (
+        "method_summary", "length_summary", "paired_comparisons", "anchor_deltas",
+        "fp16_calibration_audit", "fp16_calibration_violations",
+    ):
         rows = tables[name]
         outputs.append(_write_jsonl(destination / f"{name}.jsonl", rows))
         outputs.append(_write_csv(destination / f"{name}.csv", rows))
 
+    calibration = tables["fp16_calibration_audit"][0]
     protocol = {
         "schema_version": PAIRED_ANALYSIS_SCHEMA_VERSION,
         "input_ppl_schema_version": PPL_SCHEMA_VERSION,
@@ -201,6 +212,8 @@ def write_paired_analysis_outputs(
         "method_ids": list(PAIRED_METHOD_IDS),
         "prompt_lengths": list(PPL_PROMPT_LENGTHS),
         "declared_comparisons": list(DECLARED_COMPARISONS),
+        "primary_analysis_scope": PRIMARY_ANALYSIS_SCOPE,
+        "fp16_role": "diagnostic_reference_only",
         "paired_direction": "candidate CAGE mean NLL minus baseline KIVI mean NLL",
         "anchor_cluster": (
             "one anchor is the resampling unit; overall diagnostic first averages "
@@ -216,16 +229,24 @@ def write_paired_analysis_outputs(
             "anchors are systematic deterministic locations, not random population draws; "
             "bootstrap intervals do not establish population-level significance"
         ),
-        "fp16_calibration": {
-            "cases": quality_summary["fp16_calibration_cases"],
-            "max_mean_abs_token_nll_delta": quality_summary[
-                "fp16_calibration_max_mean_abs_token_nll_delta"
-            ],
-            "max_abs_token_nll_delta": quality_summary[
-                "fp16_calibration_max_abs_token_nll_delta"
-            ],
-            "mean_limit": 0.005,
-            "max_limit": 0.03,
+        "fp16_calibration": calibration,
+        "post_run_protocol_record": {
+            "recorded_on": "2026-07-26",
+            "status": calibration["protocol_status"],
+            "calibration_gate": calibration["overall_gate"],
+            "decision": (
+                "retain the frozen raw matrix and restrict primary analysis to the "
+                "two pre-registered incremental CAGE-versus-KIVI comparisons"
+            ),
+            "prohibited_action": "do not retrospectively raise the frozen 0.03 limit",
+            "acceptance_repeat_timing": "post-full reproducibility audit",
+            "acceptance_repeat_result": "PASS_BITWISE",
+            "acceptance_repeat_numeric_comparisons": 985,
+            "acceptance_repeat_bitwise_equal_numeric_comparisons": 985,
+            "acceptance_repeat_worst_metric_delta": 0.0,
+            "acceptance_repeat_archive_sha256": (
+                "64d4a3ac1a2c3520691f68e620f474e1747a594df54d4036f2baff4c647e8ac7"
+            ),
         },
         "source_state": resolved_manifest["source_state"],
     }
@@ -320,8 +341,121 @@ def _validate_quality(
         "FP16 max token calibration delta",
         quality.get("fp16_calibration_max_abs_token_nll_delta"), minimum=0.0,
     )
-    if mean_delta > 0.005 or max_delta > 0.03:
-        raise PairedPPLAnalysisError("FP16 calibration exceeds frozen limits")
+    audit = tables["fp16_calibration_audit"]
+    if len(audit) != 1:
+        raise PairedPPLAnalysisError("FP16 calibration audit must contain one row")
+    audit_row = audit[0]
+    if not _equivalent(mean_delta, audit_row["max_case_mean_abs_token_nll_delta"]):
+        raise PairedPPLAnalysisError("FP16 maximum mean calibration delta differs")
+    if not _equivalent(max_delta, audit_row["max_abs_token_nll_delta"]):
+        raise PairedPPLAnalysisError("FP16 maximum token calibration delta differs")
+
+
+def _fp16_calibration_tables(
+    records: Sequence[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    fp16 = [record for record in records if record["method"]["id"] == "fp16"]
+    if len(fp16) != 200:
+        raise PairedPPLAnalysisError(
+            f"FP16 calibration requires 200 cases, got {len(fp16)}"
+        )
+
+    case_means = []
+    events = []
+    for record in fp16:
+        scoring = record["scoring"]
+        reference = scoring.get("fp16_one_shot_reference")
+        if not isinstance(reference, dict):
+            raise PairedPPLAnalysisError(
+                f"FP16 case {record['case_id']} lacks one-shot calibration"
+            )
+        incremental = scoring.get("token_nlls")
+        one_shot = reference.get("token_nlls")
+        if (
+            not isinstance(incremental, list)
+            or not isinstance(one_shot, list)
+            or len(incremental) != PPL_CONTINUATION_TOKENS
+            or len(one_shot) != PPL_CONTINUATION_TOKENS
+        ):
+            raise PairedPPLAnalysisError("FP16 calibration requires two 64-token traces")
+        deltas = [
+            abs(
+                _finite(f"incremental token NLL {index}", left, minimum=0.0)
+                - _finite(f"one-shot token NLL {index}", right, minimum=0.0)
+            )
+            for index, (left, right) in enumerate(zip(incremental, one_shot))
+        ]
+        case_mean = math.fsum(deltas) / len(deltas)
+        if not _equivalent(case_mean, reference.get("mean_absolute_token_nll_delta")):
+            raise PairedPPLAnalysisError(
+                f"FP16 case {record['case_id']} mean calibration delta differs"
+            )
+        if not _equivalent(max(deltas), reference.get("max_absolute_token_nll_delta")):
+            raise PairedPPLAnalysisError(
+                f"FP16 case {record['case_id']} maximum calibration delta differs"
+            )
+        case_means.append(case_mean)
+        for token_index, (left, right, delta) in enumerate(
+            zip(incremental, one_shot, deltas)
+        ):
+            if delta <= FP16_CALIBRATION_MAX_TOKEN_LIMIT:
+                continue
+            events.append({
+                "case_id": record["case_id"],
+                "prompt_length": record["input"]["prompt_length"],
+                "anchor_index": record["input"]["anchor_index"],
+                "continuation_start": record["input"]["continuation_start"],
+                "token_index": token_index,
+                "target_scope": "boundary" if token_index == 0 else "primary_decode",
+                "incremental_nll": left,
+                "one_shot_reference_nll": right,
+                "absolute_token_nll_delta": delta,
+                "frozen_limit": FP16_CALIBRATION_MAX_TOKEN_LIMIT,
+                "excess_over_limit": delta - FP16_CALIBRATION_MAX_TOKEN_LIMIT,
+            })
+
+    events.sort(key=lambda row: (-row["absolute_token_nll_delta"], row["case_id"]))
+    max_case_mean = max(case_means)
+    max_token = max(
+        abs(left - right)
+        for record in fp16
+        for left, right in zip(
+            record["scoring"]["token_nlls"],
+            record["scoring"]["fp16_one_shot_reference"]["token_nlls"],
+        )
+    )
+    mean_gate = "PASS" if max_case_mean <= FP16_CALIBRATION_MEAN_LIMIT else "FAIL"
+    max_gate = "PASS" if max_token <= FP16_CALIBRATION_MAX_TOKEN_LIMIT else "FAIL"
+    overall_gate = "PASS" if mean_gate == max_gate == "PASS" else "FAIL"
+    violation_case_count = len({row["case_id"] for row in events})
+    audit = [{
+        "fp16_case_count": len(fp16),
+        "reference_token_count": len(fp16) * PPL_CONTINUATION_TOKENS,
+        "max_case_mean_abs_token_nll_delta": max_case_mean,
+        "mean_limit": FP16_CALIBRATION_MEAN_LIMIT,
+        "mean_gate": mean_gate,
+        "mean_violation_case_count": sum(
+            value > FP16_CALIBRATION_MEAN_LIMIT for value in case_means
+        ),
+        "max_abs_token_nll_delta": max_token,
+        "max_token_limit": FP16_CALIBRATION_MAX_TOKEN_LIMIT,
+        "max_token_gate": max_gate,
+        "max_token_excess": max(0.0, max_token - FP16_CALIBRATION_MAX_TOKEN_LIMIT),
+        "token_violation_count": len(events),
+        "token_violation_case_count": violation_case_count,
+        "primary_token_violation_count": sum(
+            row["target_scope"] == "primary_decode" for row in events
+        ),
+        "boundary_token_violation_count": sum(
+            row["target_scope"] == "boundary" for row in events
+        ),
+        "token_violation_rate": len(events) / (len(fp16) * PPL_CONTINUATION_TOKENS),
+        "overall_gate": overall_gate,
+        "protocol_status": "CONFORMING" if overall_gate == "PASS" else "RECORDED_DEVIATION",
+        "primary_analysis_scope": PRIMARY_ANALYSIS_SCOPE,
+        "fp16_role": "diagnostic_reference_only",
+    }]
+    return audit, events
 
 
 def _nll_row(
@@ -489,8 +623,31 @@ def _percentile(sorted_values: Sequence[float], probability: float) -> float:
 
 
 def _render_markdown(tables: dict[str, list[dict[str, Any]]]) -> str:
+    calibration = tables["fp16_calibration_audit"][0]
     lines = [
         "# CAGE-KV 50-anchor paired PPL study",
+        "",
+        "## Analysis scope and recorded protocol deviation",
+        "",
+        "Primary analysis is restricted to the two pre-registered incremental "
+        "CAGE-versus-KIVI paired comparisons. FP16 is a diagnostic reference only.",
+        "",
+        f"The frozen FP16 calibration gate is **{calibration['overall_gate']}** and the "
+        f"post-run protocol status is **{calibration['protocol_status']}**. The per-case "
+        f"mean gate is {calibration['mean_gate']} "
+        f"({calibration['max_case_mean_abs_token_nll_delta']:.9f} <= "
+        f"{calibration['mean_limit']:.3f}); the maximum-token gate is "
+        f"{calibration['max_token_gate']} "
+        f"({calibration['max_abs_token_nll_delta']:.9f} vs frozen limit "
+        f"{calibration['max_token_limit']:.2f}).",
+        "",
+        f"There are {calibration['token_violation_count']} violating tokens in "
+        f"{calibration['token_violation_case_count']} cases out of "
+        f"{calibration['reference_token_count']} FP16 calibration comparisons. The "
+        "frozen threshold is not retrospectively changed. These one-shot-reference "
+        "differences do not enter the direct incremental CAGE-minus-KIVI deltas below.",
+        "",
+        "## Pre-registered direct comparisons",
         "",
         "Paired direction is CAGE candidate mean NLL minus KIVI baseline mean NLL; "
         "negative values favor CAGE.",
@@ -561,7 +718,8 @@ def _plot_paired(
         axis.grid(True, alpha=0.25)
     figure.suptitle(
         "CAGE-KV 50-anchor direct paired comparison\n"
-        "Bars are pre-registered descriptive paired-bootstrap 95% intervals",
+        "Bars are pre-registered descriptive paired-bootstrap 95% intervals; "
+        "FP16 is diagnostic only",
         fontsize=14,
     )
     figure.tight_layout(rect=(0, 0, 1, 0.9))

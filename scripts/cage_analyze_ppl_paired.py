@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -45,7 +45,7 @@ def run_analysis(
     analysis_dir: str | Path,
     *,
     make_plots: bool = True,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     resolved, records, quality = load_completed_paired_matrix(results_dir)
     tables = aggregate_paired_results(records, resolved)
     outputs = write_paired_analysis_outputs(
@@ -55,12 +55,20 @@ def run_analysis(
         quality_summary=quality,
         make_plots=make_plots,
     )
+    calibration = tables["fp16_calibration_audit"][0]
     return {
         "validated_cases": len(records),
         "method_rows": len(tables["method_summary"]),
         "length_rows": len(tables["length_summary"]),
         "paired_rows": len(tables["paired_comparisons"]),
         "anchor_delta_rows": len(tables["anchor_deltas"]),
+        "fp16_calibration_audit_rows": len(tables["fp16_calibration_audit"]),
+        "fp16_calibration_violation_rows": len(
+            tables["fp16_calibration_violations"]
+        ),
+        "fp16_calibration_gate": calibration["overall_gate"],
+        "protocol_status": calibration["protocol_status"],
+        "primary_analysis_scope": calibration["primary_analysis_scope"],
         "output_files": len(outputs),
     }
 
@@ -79,7 +87,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for key, value in result.items():
         print(f"{key}={value}")
-    print("PAIRED_PPL_ANALYSIS_RESULT=PASS")
+    print(f"FP16_CALIBRATION_GATE={result['fp16_calibration_gate']}")
+    print(f"PROTOCOL_STATUS={result['protocol_status']}")
+    print(f"PRIMARY_ANALYSIS_SCOPE={result['primary_analysis_scope']}")
+    if result["protocol_status"] == "RECORDED_DEVIATION":
+        print("PAIRED_PPL_ANALYSIS_RESULT=PASS_WITH_RECORDED_DEVIATION")
+    else:
+        print("PAIRED_PPL_ANALYSIS_RESULT=PASS")
     return 0
 
 

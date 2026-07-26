@@ -382,3 +382,16 @@ minus KIVI g64-r64. Negative paired delta NLL favors CAGE. Analysis uses one
 anchor as the resampling unit, 10,000 fixed-seed bootstrap resamples, and
 explicitly labels the resulting intervals as descriptive over the systematic
 corpus grid rather than population-level confidence intervals.
+
+The frozen run completed 1,000/1,000 cases, but its FP16 maximum individual
+token calibration delta was `0.030837535858154297`, narrowly above the
+pre-registered `0.03` limit. Three of 12,800 comparisons exceeded the limit;
+the per-case mean gate passed. This is retained as a post-run protocol
+deviation rather than hidden by changing the threshold. Paired analysis is
+therefore restricted to the two declared incremental CAGE-versus-KIVI
+comparisons, with FP16 used only as a diagnostic reference. See the dated
+post-run record in the paired design document. The separate-output acceptance
+repeat omitted before full execution is performed and archived afterward as a
+reproducibility audit, not represented as having occurred in the planned
+order. That post-full audit completed 10/10 cases and reproduced all 985
+scientific numeric fields bitwise (`worst delta = 0`).

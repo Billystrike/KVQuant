@@ -49,6 +49,21 @@ def _records():
         for prompt_length in PPL_PROMPT_LENGTHS:
             for anchor_index in PPL_PAIRED_ANCHOR_INDICES:
                 mean = 1.0 + anchor_index * 0.001 + penalties[method["id"]]
+                token_nlls = [mean] * 64
+                reference = None
+                if method["id"] == "fp16":
+                    reference_nlls = list(token_nlls)
+                    if case_index < 3:
+                        reference_nlls[case_index + 1] -= 0.0305 + case_index * 0.0001
+                    deltas = [
+                        abs(left - right)
+                        for left, right in zip(token_nlls, reference_nlls)
+                    ]
+                    reference = {
+                        "token_nlls": reference_nlls,
+                        "mean_absolute_token_nll_delta": sum(deltas) / len(deltas),
+                        "max_absolute_token_nll_delta": max(deltas),
+                    }
                 records.append({
                     "case_id": f"case-{case_index:04d}",
                     "method": {
@@ -68,6 +83,8 @@ def _records():
                         "decode_target_count": 63,
                         "decode_nll_sum": mean * 63,
                         "decode_mean_nll": mean,
+                        "token_nlls": token_nlls,
+                        "fp16_one_shot_reference": reference,
                     },
                     "provenance": {"source_state": _source_state()},
                 })
@@ -90,14 +107,20 @@ def _manifest(records):
 
 
 def _quality(tables):
+    audit = tables["fp16_calibration_audit"][0]
     return {
         "fp16_calibration_cases": 200,
-        "fp16_calibration_max_mean_abs_token_nll_delta": 0.001,
-        "fp16_calibration_max_abs_token_nll_delta": 0.01,
+        "fp16_calibration_max_mean_abs_token_nll_delta": audit[
+            "max_case_mean_abs_token_nll_delta"
+        ],
+        "fp16_calibration_max_abs_token_nll_delta": audit[
+            "max_abs_token_nll_delta"
+        ],
     }
 
 
 def _full_quality(tables):
+    audit = tables["fp16_calibration_audit"][0]
     return {
         "schema_version": 1,
         "protocol_stage": "paired_full",
@@ -107,8 +130,12 @@ def _full_quality(tables):
         "completion_gate": "PASS",
         "quality_gate": "NOT_APPLICABLE",
         "fp16_calibration_cases": 200,
-        "fp16_calibration_max_mean_abs_token_nll_delta": 0.001,
-        "fp16_calibration_max_abs_token_nll_delta": 0.01,
+        "fp16_calibration_max_mean_abs_token_nll_delta": audit[
+            "max_case_mean_abs_token_nll_delta"
+        ],
+        "fp16_calibration_max_abs_token_nll_delta": audit[
+            "max_abs_token_nll_delta"
+        ],
         "method_quality": [
             {
                 "method_id": row["method_id"],
@@ -134,6 +161,16 @@ class PairedPPLAggregationTests(unittest.TestCase):
         self.assertEqual(len(self.tables["length_summary"]), 20)
         self.assertEqual(len(self.tables["paired_comparisons"]), 10)
         self.assertEqual(len(self.tables["anchor_deltas"]), 400)
+        self.assertEqual(len(self.tables["fp16_calibration_audit"]), 1)
+        self.assertEqual(len(self.tables["fp16_calibration_violations"]), 3)
+
+        audit = self.tables["fp16_calibration_audit"][0]
+        self.assertEqual(audit["mean_gate"], "PASS")
+        self.assertEqual(audit["max_token_gate"], "FAIL")
+        self.assertEqual(audit["overall_gate"], "FAIL")
+        self.assertEqual(audit["protocol_status"], "RECORDED_DEVIATION")
+        self.assertEqual(audit["token_violation_count"], 3)
+        self.assertEqual(audit["primary_token_violation_count"], 3)
 
         r128 = next(
             row for row in self.tables["paired_comparisons"]
@@ -164,7 +201,7 @@ class PairedPPLAggregationTests(unittest.TestCase):
             second["paired_comparisons"],
         )
 
-    def test_writes_ten_table_and_protocol_outputs_without_plots(self):
+    def test_writes_fourteen_table_and_protocol_outputs_without_plots(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "analysis"
             outputs = write_paired_analysis_outputs(
@@ -174,7 +211,7 @@ class PairedPPLAggregationTests(unittest.TestCase):
                 quality_summary=_quality(self.tables),
                 make_plots=False,
             )
-            self.assertEqual(len(outputs), 10)
+            self.assertEqual(len(outputs), 14)
             self.assertEqual(
                 len((output / "paired_comparisons.jsonl").read_text().splitlines()),
                 10,
@@ -184,8 +221,32 @@ class PairedPPLAggregationTests(unittest.TestCase):
                 400,
             )
             protocol = json.loads((output / "analysis_protocol.json").read_text())
+            self.assertEqual(protocol["schema_version"], 2)
             self.assertEqual(protocol["bootstrap"]["seed"], 20260725)
             self.assertEqual(protocol["bootstrap"]["resamples"], 10_000)
+            self.assertEqual(protocol["fp16_calibration"]["overall_gate"], "FAIL")
+            self.assertEqual(
+                protocol["post_run_protocol_record"]["status"],
+                "RECORDED_DEVIATION",
+            )
+            self.assertEqual(
+                protocol["post_run_protocol_record"]["acceptance_repeat_result"],
+                "PASS_BITWISE",
+            )
+            self.assertEqual(
+                protocol["post_run_protocol_record"][
+                    "acceptance_repeat_bitwise_equal_numeric_comparisons"
+                ],
+                985,
+            )
+            self.assertEqual(
+                len((output / "fp16_calibration_violations.jsonl")
+                    .read_text().splitlines()),
+                3,
+            )
+            summary = (output / "paired_ppl_summary.md").read_text()
+            self.assertIn("recorded protocol deviation", summary)
+            self.assertIn("frozen threshold is not retrospectively changed", summary)
 
             with self.assertRaisesRegex(PairedPPLAnalysisError, "not empty"):
                 write_paired_analysis_outputs(

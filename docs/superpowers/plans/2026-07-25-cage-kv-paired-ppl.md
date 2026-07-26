@@ -17,3 +17,8 @@
    1,000-case matrix.
 8. Independently validate and archive raw and analyzed results before using
    them in the paper evidence table.
+9. Post-run amendment (2026-07-26): preserve the frozen matrix after the
+   maximum-token FP16 calibration gate failed narrowly, record the deviation
+   explicitly, restrict primary analysis to the two declared incremental
+   CAGE-versus-KIVI comparisons, and perform the omitted separate-output
+   acceptance repeat as a post-full reproducibility audit.
