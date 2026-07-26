@@ -221,6 +221,50 @@ class PPLManifestTests(unittest.TestCase):
             )
         )
 
+    def test_checked_in_mechanism_ablation_is_frozen_and_acceptance_is_subset(self):
+        acceptance = load_ppl_manifest(
+            ROOT / "configs" / "cage_ppl_mechanism_ablation_llama2_7b_acceptance.json"
+        )
+        full = load_ppl_manifest(
+            ROOT / "configs" / "cage_ppl_mechanism_ablation_llama2_7b.json"
+        )
+        self.assertEqual(
+            acceptance["protocol_stage"], "mechanism_ablation_acceptance"
+        )
+        self.assertEqual(full["protocol_stage"], "mechanism_ablation_full")
+        self.assertEqual(len(acceptance["methods"]), 10)
+        self.assertEqual(len(full["methods"]), 10)
+        self.assertEqual(len(full["anchor_indices"]), 50)
+        self.assertTrue(all(
+            method["method"] == "cage"
+            and method["method_config"]["cage_ablation"] is True
+            for method in full["methods"]
+        ))
+        self.assertEqual(
+            len(acceptance["methods"])
+            * len(acceptance["prompt_lengths"])
+            * len(acceptance["anchor_indices"]),
+            20,
+        )
+        self.assertEqual(
+            len(full["methods"])
+            * len(full["prompt_lengths"])
+            * len(full["anchor_indices"]),
+            2000,
+        )
+        self.assertEqual(acceptance["output_dir"], full["output_dir"])
+
+        stream = SyntheticTokenStream(full["corpus"]["expected_token_count"])
+        acceptance_cases = expand_ppl_cases(acceptance, stream, source_state())
+        full_cases = expand_ppl_cases(full, stream, source_state())
+        self.assertEqual(len(acceptance_cases), 20)
+        self.assertEqual(len(full_cases), 2000)
+        self.assertTrue(
+            {case["case_id"] for case in acceptance_cases}.issubset(
+                {case["case_id"] for case in full_cases}
+            )
+        )
+
     def test_rejects_corpus_identity_drift(self):
         raw = json.loads(
             (ROOT / "configs" / "cage_ppl_llama2_7b_acceptance.json").read_text()
@@ -510,6 +554,66 @@ class PPLRunnerTests(unittest.TestCase):
         self.assertEqual(result["completed_cases"], 10)
         self.assertEqual(result["failure_records"], 0)
         self.assertEqual(result["completion_gate"], "PASS")
+
+    def test_mechanism_ablation_acceptance_loads_ten_cage_methods(self):
+        manifest = load_ppl_manifest(
+            ROOT / "configs" / "cage_ppl_mechanism_ablation_llama2_7b_acceptance.json"
+        )
+        stream = SyntheticTokenStream(manifest["corpus"]["expected_token_count"])
+        native_config = SimpleNamespace(
+            model_type="llama", max_position_embeddings=4096, rope_scaling=None
+        )
+        snapshot = {
+            "token_count": manifest["corpus"]["expected_token_count"],
+            "token_ids_sha256": manifest["corpus"]["expected_token_ids_sha256"],
+        }
+
+        def fake_run_case(**kwargs):
+            record = completed_record(kwargs["case"])
+            record["model"] = {**manifest["model"], "model_type": "llama"}
+            return record
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            selected_manifest = {**manifest, "output_dir": str(output)}
+            with (
+                mock.patch.object(
+                    ppl_runner, "load_ppl_manifest", return_value=selected_manifest
+                ),
+                mock.patch.object(
+                    ppl_runner, "source_state_identity", return_value=source_state()
+                ),
+                mock.patch.object(
+                    ppl_runner,
+                    "_load_preflight",
+                    return_value=(native_config, FakeTokenizer(), snapshot, stream),
+                ),
+                mock.patch.object(
+                    ppl_runner, "_load_model", return_value=(object(), 0.1)
+                ) as load_model,
+                mock.patch.object(
+                    ppl_runner, "run_case", side_effect=fake_run_case
+                ) as run_case,
+                mock.patch.object(
+                    ppl_runner,
+                    "collect_provenance",
+                    return_value={"source_state": source_state()},
+                ),
+                mock.patch.object(ppl_runner.gc, "collect"),
+                mock.patch.object(ppl_runner.torch.cuda, "empty_cache"),
+            ):
+                exit_code, result = ppl_runner.run_manifest("manifest.json")
+
+        self.assertEqual(exit_code, ppl_runner.EXIT_SUCCESS)
+        self.assertEqual(load_model.call_count, 10)
+        self.assertEqual(run_case.call_count, 20)
+        self.assertEqual(result["protocol_stage"], "mechanism_ablation_acceptance")
+        self.assertEqual(result["completed_cases"], 20)
+        self.assertEqual(result["failure_records"], 0)
+        self.assertEqual(result["completion_gate"], "PASS")
+        self.assertEqual(result["fp16_calibration_cases"], 0)
+        self.assertIsNone(result["fp16_calibration_max_mean_abs_token_nll_delta"])
+        self.assertIsNone(result["fp16_calibration_max_abs_token_nll_delta"])
 
 
 if __name__ == "__main__":

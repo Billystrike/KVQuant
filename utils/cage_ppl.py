@@ -98,6 +98,91 @@ PPL_PAIRED_RAW_METHODS = (
     {"id": "cage-r128", "method": "cage", "residual_length": 128},
 )
 
+PPL_MECHANISM_ABLATION_RAW_METHODS = (
+    {
+        "id": "cage-r64-full", "method": "cage", "residual_length": 64,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_group_sizes": [32, 64, 128],
+        "cage_v_group_sizes": [32, 64, 128],
+        "cage_k_clip_percentiles": [0.999, 0.995, 0.99],
+        "cage_v_clip_percentiles": [0.999, 0.995, 0.99],
+    },
+    {
+        "id": "cage-r64-k-adaptive", "method": "cage", "residual_length": 64,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_group_sizes": [32, 64, 128],
+        "cage_v_num_buckets": 1, "cage_v_group_sizes": [64],
+        "cage_k_clip_percentiles": [0.999, 0.995, 0.99],
+        "cage_v_clip_percentiles": [0.995],
+    },
+    {
+        "id": "cage-r64-v-adaptive", "method": "cage", "residual_length": 64,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_num_buckets": 1, "cage_k_group_sizes": [64],
+        "cage_v_group_sizes": [32, 64, 128],
+        "cage_k_clip_percentiles": [0.995],
+        "cage_v_clip_percentiles": [0.999, 0.995, 0.99],
+    },
+    {
+        "id": "cage-r64-uniform", "method": "cage", "residual_length": 64,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_num_buckets": 1, "cage_v_num_buckets": 1,
+        "cage_k_group_sizes": [64], "cage_v_group_sizes": [64],
+        "cage_k_clip_percentiles": [0.995],
+        "cage_v_clip_percentiles": [0.995],
+    },
+    {
+        "id": "cage-r64-fixed-random", "method": "cage", "residual_length": 64,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_importance": "fixed_random", "cage_v_importance": "fixed_random",
+        "cage_k_group_sizes": [32, 64, 128],
+        "cage_v_group_sizes": [32, 64, 128],
+        "cage_k_clip_percentiles": [0.999, 0.995, 0.99],
+        "cage_v_clip_percentiles": [0.999, 0.995, 0.99],
+    },
+    {
+        "id": "cage-r128-full", "method": "cage", "residual_length": 128,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_group_sizes": [32, 64, 128],
+        "cage_v_group_sizes": [32, 64, 128],
+        "cage_k_clip_percentiles": [0.999, 0.995, 0.99],
+        "cage_v_clip_percentiles": [0.999, 0.995, 0.99],
+    },
+    {
+        "id": "cage-r128-k-adaptive", "method": "cage", "residual_length": 128,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_group_sizes": [32, 64, 128],
+        "cage_v_num_buckets": 1, "cage_v_group_sizes": [64],
+        "cage_k_clip_percentiles": [0.999, 0.995, 0.99],
+        "cage_v_clip_percentiles": [0.995],
+    },
+    {
+        "id": "cage-r128-v-adaptive", "method": "cage", "residual_length": 128,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_num_buckets": 1, "cage_k_group_sizes": [64],
+        "cage_v_group_sizes": [32, 64, 128],
+        "cage_k_clip_percentiles": [0.995],
+        "cage_v_clip_percentiles": [0.999, 0.995, 0.99],
+    },
+    {
+        "id": "cage-r128-uniform", "method": "cage", "residual_length": 128,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_num_buckets": 1, "cage_v_num_buckets": 1,
+        "cage_k_group_sizes": [64], "cage_v_group_sizes": [64],
+        "cage_k_clip_percentiles": [0.995],
+        "cage_v_clip_percentiles": [0.995],
+    },
+    {
+        "id": "cage-r128-fixed-random", "method": "cage", "residual_length": 128,
+        "cage_ablation": True, "cage_assignment_seed": 1729,
+        "cage_k_importance": "fixed_random", "cage_v_importance": "fixed_random",
+        "cage_k_group_sizes": [32, 64, 128],
+        "cage_v_group_sizes": [32, 64, 128],
+        "cage_k_clip_percentiles": [0.999, 0.995, 0.99],
+        "cage_v_clip_percentiles": [0.999, 0.995, 0.99],
+    },
+)
+
 RAW_FIELDS = frozenset({
     "model", "corpus", "methods", "prompt_lengths", "anchor_indices",
     "measurement", "output_dir",
@@ -246,6 +331,7 @@ def load_ppl_manifest(path: str | Path) -> dict[str, Any]:
     acceptance = _resolved_methods(PPL_ACCEPTANCE_RAW_METHODS)
     full = _resolved_methods(PPL_FULL_RAW_METHODS)
     paired = _resolved_methods(PPL_PAIRED_RAW_METHODS)
+    mechanism_ablation = _resolved_methods(PPL_MECHANISM_ABLATION_RAW_METHODS)
     identity = (methods, lengths, anchors, selection_id)
     if identity == (acceptance, [512, 4032], [0], PPL_SELECTION_ID):
         protocol_stage = "acceptance"
@@ -262,6 +348,17 @@ def load_ppl_manifest(path: str | Path) -> dict[str, Any]:
         PPL_PAIRED_SELECTION_ID,
     ):
         protocol_stage = "paired_full"
+    elif identity == (
+        mechanism_ablation, [512, 4032], [0], PPL_PAIRED_SELECTION_ID
+    ):
+        protocol_stage = "mechanism_ablation_acceptance"
+    elif identity == (
+        mechanism_ablation,
+        list(PPL_PROMPT_LENGTHS),
+        list(PPL_PAIRED_ANCHOR_INDICES),
+        PPL_PAIRED_SELECTION_ID,
+    ):
+        protocol_stage = "mechanism_ablation_full"
     else:
         raise PPLError(
             "PPL methods, lengths, anchors, and selection_id must equal a frozen matrix"
@@ -621,7 +718,8 @@ def aggregate_ppl_cases(
 
 __all__ = [
     "PPL_ACCEPTANCE_RAW_METHODS", "PPL_ANCHOR_INDICES", "PPL_CONTINUATION_TOKENS",
-    "PPL_DECODE_TARGETS", "PPL_FULL_RAW_METHODS", "PPL_PAIRED_ANCHOR_INDICES",
+    "PPL_DECODE_TARGETS", "PPL_FULL_RAW_METHODS",
+    "PPL_MECHANISM_ABLATION_RAW_METHODS", "PPL_PAIRED_ANCHOR_INDICES",
     "PPL_PAIRED_RAW_METHODS", "PPL_PAIRED_SELECTION_ID", "PPL_PROMPT_LENGTHS",
     "PPL_SCHEMA_VERSION", "PPLError", "aggregate_ppl_cases", "continuation_anchor",
     "expand_ppl_cases", "is_valid_completed_ppl_case", "load_ppl_manifest",
