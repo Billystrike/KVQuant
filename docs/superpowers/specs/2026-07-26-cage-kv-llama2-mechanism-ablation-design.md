@@ -18,7 +18,7 @@ memory--perturbation tradeoff; it does not assume that CAGE wins every axis.
 
 "Key-only adaptive" and "Value-only adaptive" do not disable quantization of
 the other cache side. Both Key and Value remain 2-bit fake-quantized. The
-non-adaptive side receives the uniform three-bucket schedule.
+non-adaptive side receives the uniform one-bucket schedule.
 
 ## Factors
 
@@ -28,9 +28,11 @@ The adaptive side policy is:
 - group schedule: `[32, 64, 128]` from high to low importance;
 - clip schedule: `[0.999, 0.995, 0.99]`.
 
-The uniform side policy is three buckets with group schedule `[64, 64, 64]`
-and clip schedule `[0.995, 0.995, 0.995]`. It retains identical bucket-index
-structure while making assignment order irrelevant.
+The uniform side policy is one bucket with group schedule `[64]` and clip
+schedule `[0.995]`. A single bucket makes assignment order irrelevant. It also
+removes the adaptive side's extra bucket indices, so all mechanism comparisons
+must report both perturbation and paper-estimate memory rather than treating
+the ablations as equal-memory controls.
 
 The fixed-random control retains both adaptive schedules but replaces Key and
 Value ordering with deterministic random scores. Its base seed is 1729. For

@@ -425,3 +425,8 @@ Alternate assignment policies require the explicit scientific-identity field
 continue to reject alternate importance policies. Fixed-random assignment is
 deterministic per layer from base seed 1729; it changes assignment only, not
 bucket sizes, group sizes, clipping, or paper-memory accounting.
+
+For side-policy ablations, a non-adaptive side uses exactly one bucket with
+group size 64 and clip percentile 0.995. This makes channel assignment
+irrelevant on that side. Only the full-versus-fixed-random contrast is a strict
+same-memory assignment-order control.

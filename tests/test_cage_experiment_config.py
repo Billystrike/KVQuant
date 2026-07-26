@@ -149,6 +149,37 @@ class CageExperimentConfigTests(unittest.TestCase):
         self.assertEqual(len(full_points & acceptance_points), 24)
         self.assertTrue(acceptance_points < full_points)
 
+        methods = {method["id"]: method for method in full["methods"]}
+        for residual in (64, 128):
+            prefix = f"cage-r{residual}"
+            full_config = methods[f"{prefix}-full"]["method_config"]
+            random_config = methods[f"{prefix}-fixed-random"]["method_config"]
+            key_config = methods[f"{prefix}-k-adaptive"]["method_config"]
+            value_config = methods[f"{prefix}-v-adaptive"]["method_config"]
+            uniform_config = methods[f"{prefix}-uniform"]["method_config"]
+
+            comparable_full = dict(full_config)
+            comparable_random = dict(random_config)
+            for field in ("cage_k_importance", "cage_v_importance"):
+                comparable_full.pop(field)
+                comparable_random.pop(field)
+            self.assertEqual(comparable_full, comparable_random)
+
+            self.assertEqual(key_config["cage_k_num_buckets"], 3)
+            self.assertEqual(key_config["cage_v_num_buckets"], 1)
+            self.assertEqual(key_config["cage_v_group_sizes"], [64])
+            self.assertEqual(key_config["cage_v_clip_percentiles"], [0.995])
+
+            self.assertEqual(value_config["cage_k_num_buckets"], 1)
+            self.assertEqual(value_config["cage_v_num_buckets"], 3)
+            self.assertEqual(value_config["cage_k_group_sizes"], [64])
+            self.assertEqual(value_config["cage_k_clip_percentiles"], [0.995])
+
+            self.assertEqual(uniform_config["cage_k_num_buckets"], 1)
+            self.assertEqual(uniform_config["cage_v_num_buckets"], 1)
+            self.assertEqual(uniform_config["cage_k_group_sizes"], [64])
+            self.assertEqual(uniform_config["cage_v_group_sizes"], [64])
+
     def test_rejects_invalid_kivi_pair(self):
         manifest = self._manifest()
         manifest["methods"] = [{
