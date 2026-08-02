@@ -24,6 +24,7 @@ output_samples
 !configs/cage_ablation_llama2_7b.json
 !configs/cage_ppl_mechanism_ablation_llama2_7b_acceptance.json
 !configs/cage_ppl_mechanism_ablation_llama2_7b.json
+!configs/qwen3_8b_matched_memory_protocol_v1.json
 *.jsonl
 third_party
 speed_logs
