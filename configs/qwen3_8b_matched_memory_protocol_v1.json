@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-kitty-matched-memory-v1",
+  "frozen_on": "2026-08-02",
+  "status": "frozen_before_qwen3_cage_quality_results",
+  "model": {
+    "reference": "/root/autodl-tmp/models/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "dtype": "float16",
+    "num_hidden_layers": 36,
+    "num_key_value_heads": 8,
+    "head_dim": 128
+  },
+  "memory_accounting": {
+    "primary_scope": "active_packed_payload_at_exact_prompt_length",
+    "include": [
+      "packed_key_payload",
+      "packed_value_payload",
+      "fp16_scale",
+      "fp16_min_or_zero_point",
+      "persistent_channel_or_bucket_indices",
+      "occupied_fp16_sink",
+      "occupied_fp16_key_buffer",
+      "occupied_fp16_value_buffer",
+      "occupied_fp16_value_local_window",
+      "used_page_table_entries"
+    ],
+    "exclude": [
+      "model_weights",
+      "temporary_quantization_workspace",
+      "fake_quant_fp16_tensor_storage",
+      "cuda_allocator_rounding",
+      "cuda_peak_memory",
+      "unused_preallocated_capacity"
+    ],
+    "cage_bucket_index_dtype": "int64",
+    "cage_bucket_index_bytes_model_wide": 589824,
+    "kitty_memory_audit_sha256": "91275559aabceea6d460ccbfa8b478da4b6273f53af6d8cdeba4cc804ba477a2"
+  },
+  "official_reproduction_matrix": {
+    "memory_matched_claim": false,
+    "methods": [
+      "fp16",
+      "kivi-2-g128-buffer128-sink0",
+      "kivi-star-2-g128-buffer128-sink32",
+      "kitty-12.5pct",
+      "kitty-pro-25pct"
+    ]
+  },
+  "matched_memory_matrix": {
+    "prompt_lengths": [1024, 2048, 4032],
+    "relative_budget_tolerance": 0.03,
+    "target_methods": ["kitty-12.5pct", "kitty-pro-25pct"],
+    "candidate_generation": {
+      "cage": {
+        "residual_lengths": {
+          "start": 32,
+          "stop": 512,
+          "step": 32
+        },
+        "key_group_sizes": [32, 64, 128],
+        "value_group_sizes": [32, 64, 128],
+        "bucket_sizes_for_head_dim_128": [42, 43, 43]
+      },
+      "kivi": {
+        "group_sizes": [32, 64, 128],
+        "residual_lengths": "multiples_of_group_size_from_group_size_through_512"
+      }
+    },
+    "selection_rule": [
+      "Compute complete active packed bytes without using quality results.",
+      "Minimize absolute relative byte difference to the target method.",
+      "On an exact tie choose the smaller byte total, then the smaller residual length, then the smaller group size.",
+      "Admit the pair only when absolute relative byte difference is at most 0.03.",
+      "Do not widen the tolerance or substitute a candidate after observing quality."
+    ],
+    "selections": [
+      {
+        "prompt_length": 1024,
+        "target_method": "kitty-12.5pct",
+        "target_bytes": 46857888,
+        "cage_method": "cage-r224",
+        "cage_bytes": 48253824,
+        "cage_relative_delta": 0.029790843326101157,
+        "kivi_method": "kivi-g64-r320",
+        "kivi_bytes": 47480832,
+        "kivi_relative_delta": 0.013294325173170307
+      },
+      {
+        "prompt_length": 1024,
+        "target_method": "kitty-pro-25pct",
+        "target_bytes": 47890080,
+        "cage_method": "cage-r224",
+        "cage_bytes": 48253824,
+        "cage_relative_delta": 0.007595393451002685,
+        "kivi_method": "kivi-g64-r320",
+        "kivi_bytes": 47480832,
+        "kivi_relative_delta": -0.008545569353820226
+      },
+      {
+        "prompt_length": 2048,
+        "target_method": "kitty-12.5pct",
+        "target_bytes": 69570720,
+        "cage_method": "cage-r224",
+        "cage_bytes": 68684544,
+        "cage_relative_delta": -0.012737772442199868,
+        "kivi_method": null,
+        "kivi_bytes": null,
+        "kivi_relative_delta": null,
+        "kivi_exclusion_reason": "closest eligible-grid candidate exceeds the frozen 3 percent tolerance"
+      },
+      {
+        "prompt_length": 2048,
+        "target_method": "kitty-pro-25pct",
+        "target_bytes": 71782560,
+        "cage_method": "cage-r288",
+        "cage_bytes": 72518400,
+        "cage_relative_delta": 0.010250957892836476,
+        "kivi_method": "kivi-g32-r224",
+        "kivi_bytes": 71958528,
+        "kivi_relative_delta": 0.002451403237778038
+      },
+      {
+        "prompt_length": 4032,
+        "target_method": "kitty-12.5pct",
+        "target_bytes": 105559200,
+        "cage_method": "cage-r32",
+        "cage_bytes": 106206336,
+        "cage_relative_delta": 0.006130550439942706,
+        "kivi_method": "kivi-g64-r128",
+        "kivi_bytes": 104841216,
+        "kivi_relative_delta": -0.006801718845917737
+      },
+      {
+        "prompt_length": 4032,
+        "target_method": "kitty-pro-25pct",
+        "target_bytes": 110130336,
+        "cage_method": "cage-r96",
+        "cage_bytes": 110040192,
+        "cage_relative_delta": -0.0008185210658033792,
+        "kivi_method": "kivi-g128-r256",
+        "kivi_bytes": 111992832,
+        "kivi_relative_delta": 0.016911743554473446
+      }
+    ]
+  },
+  "claim_policy": {
+    "primary_direction": "cage_minus_baseline",
+    "negative_quality_delta_favors_cage": true,
+    "primary_endpoints": [
+      "paired_continuation_mean_nll",
+      "key_reconstruction_error",
+      "value_reconstruction_error",
+      "attention_output_perturbation"
+    ],
+    "required_same_case_fields": [
+      "raw_input",
+      "token_ids",
+      "prompt_length",
+      "continuation_targets",
+      "anchor_identity",
+      "scoring_rule"
+    ],
+    "mechanism_controls": [
+      "same_budget_fixed_random_channel_assignment",
+      "same_budget_uniform_group_assignment",
+      "key_adaptive_value_uniform",
+      "key_uniform_value_adaptive"
+    ],
+    "passkey_role": "saturation_diagnostic_only",
+    "unsupported_claims": [
+      "cage_runtime_latency_improvement",
+      "cage_runtime_throughput_improvement",
+      "cage_realized_cuda_memory_reduction",
+      "kitty-12.5pct_official_runtime_performance"
+    ],
+    "report_unfavorable_primary_results": true,
+    "no_post_hoc_sample_or_budget_selection": true
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "device": "cuda",
+    "max_position_embeddings": 4096
+  },
+  "methods": [
+    {"id": "fp16", "method": "fp16"},
+    {
+      "id": "kivi-g32-r32",
+      "method": "kivi",
+      "k_bits": 2,
+      "v_bits": 2,
+      "group_size": 32,
+      "residual_length": 32
+    },
+    {
+      "id": "kivi-g64-r64",
+      "method": "kivi",
+      "k_bits": 2,
+      "v_bits": 2,
+      "group_size": 64,
+      "residual_length": 64
+    },
+    {"id": "cage-r32", "method": "cage", "residual_length": 32},
+    {"id": "cage-r64", "method": "cage", "residual_length": 64}
+  ],
+  "prompt_template_id": "passkey-v1",
+  "filler_id": "neutral-facts-v1",
+  "prompt_lengths": [512, 1024, 2048, 4032],
+  "passkey_positions_percent": [10, 50, 90],
+  "key_generation": {
+    "seed": 20260723,
+    "count": 5
+  },
+  "generation": {
+    "max_new_tokens": 8,
+    "do_sample": false,
+    "num_beams": 1,
+    "seed": 0
+  },
+  "output_dir": "/root/autodl-tmp/cage_passkey_stage_b"
+}

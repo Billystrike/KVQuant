@@ -1,0 +1,18 @@
+{
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "device": "cuda",
+    "max_position_embeddings": 4096
+  },
+  "prompts_file": "/root/autodl-tmp/cage_pilot_prompts.jsonl",
+  "sample_ids": ["doc-001"],
+  "prompt_lengths": [512, 2048],
+  "methods": [
+    {"id": "fp16", "method": "fp16"},
+    {"id": "kivi-g32-r32", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 32},
+    {"id": "cage-r32", "method": "cage", "residual_length": 32}
+  ],
+  "measurement": {"decode_tokens": 1, "seed": 0},
+  "output_dir": "/root/autodl-tmp/cage_pareto_pilot"
+}

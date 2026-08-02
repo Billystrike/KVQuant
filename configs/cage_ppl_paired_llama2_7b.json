@@ -1,0 +1,42 @@
+{
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "device": "cuda",
+    "max_position_embeddings": 4096
+  },
+  "corpus": {
+    "id": "Salesforce/wikitext",
+    "config": "wikitext-2-raw-v1",
+    "split": "test",
+    "revision": "00aa25585682d4957f9e86edc73f59be7419af99",
+    "join_separator": "\n\n",
+    "add_special_tokens": false,
+    "expected_rows": 4358,
+    "expected_nonempty_rows": 2891,
+    "expected_joined_utf8_bytes": 1296370,
+    "expected_joined_text_sha256": "696cca6b65a171b0a358a4be6732cdfdf2dd6164a32e20fd70e3c13fc4dfae83",
+    "expected_token_count": 341468,
+    "expected_token_ids_sha256": "8163e5b39c668be8eec1e4d82eaecb1ee2a09d958f81873773e93bf4a4484f10"
+  },
+  "methods": [
+    {"id": "fp16", "method": "fp16"},
+    {"id": "kivi-g32-r128", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 128},
+    {"id": "kivi-g64-r64", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 64, "residual_length": 64},
+    {"id": "cage-r64", "method": "cage", "residual_length": 64},
+    {"id": "cage-r128", "method": "cage", "residual_length": 128}
+  ],
+  "prompt_lengths": [512, 1024, 2048, 4032],
+  "anchor_indices": [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+    40, 41, 42, 43, 44, 45, 46, 47, 48, 49
+  ],
+  "measurement": {
+    "selection_id": "interior-51sts-v1",
+    "continuation_tokens": 64
+  },
+  "output_dir": "/root/autodl-tmp/cage_ppl_paired"
+}
