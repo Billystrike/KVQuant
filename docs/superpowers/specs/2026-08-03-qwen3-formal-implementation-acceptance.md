@@ -84,3 +84,25 @@ the B-and-comparison log SHA-256 is
 This closes the CAGE-partition acceptance gate but does not unlock either full
 partition. Kitty must independently pass its two fresh acceptance runs before
 the full-stage lock can be reconsidered.
+
+## Kitty pre-case identity-gate correction
+
+The first Kitty acceptance-A invocation on CAGE commit
+`7520d53f50c4d2b0c5733e6d4bcd475cc7d83d19` stopped at the model/source
+identity gate before executing any case. Its output directory contained only
+`run_identity.json`; no input was scored and no quality result was produced.
+The runner had incorrectly associated Git blob
+`1149778f674ba49aa2dcb5d6d7b62fcff3e29fa9`, which belongs to
+`src/kitty_sim/eval/eval_helper.py`, with `src/kitty_sim/kitty_simulate.py`.
+
+The frozen commit tree, clean worktree, and content read directly from commit
+`dfd2c07b407d6b407179359207c612ab631f3ed1` all independently identify the
+`kitty_simulate.py` blob as
+`1a6dd10496a6692cc34ea340826339e354d4f7fd`. Its SHA-256 is
+`c63d8bff512594a7bd5412b8c201e8a706b2757abbfabd8a95436b9f343ee133`.
+The already-correct `utils_quant.py` blob and SHA-256 are
+`907fd6b1951b869c33216d8eb658df21e8bf9c29` and
+`6bb6df3bbfb702793cff79d712f908f7dee89ada66d3bffc399718b218bfc27a`.
+The corrected runner verifies both Git blob identity and SHA-256 identity for
+both files. A new acceptance A must use a fresh output directory keyed by the
+correcting CAGE commit; the failed directory is retained as audit evidence.

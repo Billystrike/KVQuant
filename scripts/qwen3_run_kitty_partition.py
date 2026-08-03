@@ -49,8 +49,10 @@ EXPECTED = {
     "parameter_count": 8190735360,
     "kitty_commit": "dfd2c07b407d6b407179359207c612ab631f3ed1",
     "transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178",
-    "kitty_simulate_blob": "1149778f674ba49aa2dcb5d6d7b62fcff3e29fa9",
+    "kitty_simulate_blob": "1a6dd10496a6692cc34ea340826339e354d4f7fd",
     "kitty_utils_quant_blob": "907fd6b1951b869c33216d8eb658df21e8bf9c29",
+    "kitty_simulate_sha256": "c63d8bff512594a7bd5412b8c201e8a706b2757abbfabd8a95436b9f343ee133",
+    "kitty_utils_quant_sha256": "6bb6df3bbfb702793cff79d712f908f7dee89ada66d3bffc399718b218bfc27a",
     "config_sha256": "f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30",
     "generation_config_sha256": "2325da0f15bb848e018c5ae071b7943332e9f871d6b60e2ed22ca97d4cb993d2",
     "model_index_sha256": "f9fdbcb91c23971c13ec5d5f2573d2349e8f61f2f049371ec699281748fdb1bc",
@@ -310,6 +312,7 @@ def _model_identity(model: Any, source_state: dict[str, Any]) -> dict[str, Any]:
     qwen_path = Path(modeling_qwen3.__file__).resolve()
     simulate_path = Path(kitty_simulate.__file__).resolve()
     expected_simulate_path = (KITTY_ROOT / "src" / "kitty_sim" / "kitty_simulate.py").resolve()
+    utils_quant_path = (KITTY_ROOT / "src" / "kitty_sim" / "utils_quant.py").resolve()
     metadata_hashes = {
         "config_sha256": file_sha256(model_path / "config.json"),
         "generation_config_sha256": file_sha256(model_path / "generation_config.json"),
@@ -335,6 +338,8 @@ def _model_identity(model: Any, source_state: dict[str, Any]) -> dict[str, Any]:
         "kitty_simulate_path": str(simulate_path),
         "kitty_simulate_blob": simulate_blob,
         "kitty_utils_quant_blob": utils_blob,
+        "kitty_simulate_sha256": file_sha256(simulate_path),
+        "kitty_utils_quant_sha256": file_sha256(utils_quant_path),
         "transformers_cache_utils_sha256": file_sha256(cache_utils_path),
         "transformers_qwen3_modeling_sha256": file_sha256(qwen_path),
         "runner_sha256": file_sha256(Path(__file__).resolve()),
@@ -350,6 +355,10 @@ def _model_identity(model: Any, source_state: dict[str, Any]) -> dict[str, Any]:
         "kitty_simulate_path": simulate_path == expected_simulate_path,
         "kitty_simulate_blob": simulate_blob == EXPECTED["kitty_simulate_blob"],
         "kitty_utils_quant_blob": utils_blob == EXPECTED["kitty_utils_quant_blob"],
+        "kitty_simulate_sha256": identity["kitty_simulate_sha256"]
+        == EXPECTED["kitty_simulate_sha256"],
+        "kitty_utils_quant_sha256": identity["kitty_utils_quant_sha256"]
+        == EXPECTED["kitty_utils_quant_sha256"],
         "cache_utils": identity["transformers_cache_utils_sha256"]
         == EXPECTED["transformers_cache_utils_sha256"],
         "qwen_modeling": identity["transformers_qwen3_modeling_sha256"]
