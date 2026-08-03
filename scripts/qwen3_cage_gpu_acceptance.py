@@ -53,6 +53,17 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt-length", type=int, default=320)
     parser.add_argument("--max-new-tokens", type=int, default=8)
     parser.add_argument("--residual-length", type=int, default=128)
+    parser.add_argument(
+        "--key-importance",
+        choices=("q2_var", "fixed_random", "fixed_uniform"),
+        default="q2_var",
+    )
+    parser.add_argument(
+        "--value-importance",
+        choices=("wo_var", "fixed_random", "fixed_uniform"),
+        default="wo_var",
+    )
+    parser.add_argument("--assignment-seed", type=int, default=1729)
     return parser.parse_args()
 
 
@@ -92,20 +103,23 @@ def _build_prompt(tokenizer, target_length: int) -> tuple[str, torch.Tensor, int
     raise ValueError(f"could not construct an exact {target_length}-token prompt")
 
 
-def _cage_config() -> CageConfig:
+def _cage_config(args: argparse.Namespace) -> CageConfig:
+    ablation = args.key_importance != "q2_var" or args.value_importance != "wo_var"
     return CageConfig(
         cage_enable=True,
         cage_mode="fake",
         cage_k_enable=True,
         cage_v_enable=True,
-        cage_k_importance="q2_var",
+        cage_k_importance=args.key_importance,
         cage_k_group_sizes=[32, 64, 128],
         cage_k_clip_percentiles=[0.999, 0.995, 0.99],
         cage_k_num_buckets=3,
-        cage_v_importance="wo_var",
+        cage_v_importance=args.value_importance,
         cage_v_group_sizes=[32, 64, 128],
         cage_v_clip_percentiles=[0.999, 0.995, 0.99],
         cage_v_num_buckets=3,
+        cage_ablation=ablation,
+        cage_assignment_seed=args.assignment_seed,
     )
 
 
@@ -172,7 +186,7 @@ def main() -> None:
     installed_attention_modules = install_qwen3_cage_attention(model)
     with torch.inference_mode():
         prefill_cache = Qwen3CageCache(
-            _cage_config(),
+            _cage_config(args),
             residual_length=args.residual_length,
         )
         candidate = model(
@@ -193,7 +207,7 @@ def main() -> None:
     torch.cuda.empty_cache()
 
     generation_cache = Qwen3CageCache(
-        _cage_config(),
+        _cage_config(args),
         residual_length=args.residual_length,
     )
     generation_started = time.perf_counter()
@@ -258,6 +272,30 @@ def main() -> None:
     )
     peak_allocated = torch.cuda.max_memory_allocated()
     peak_reserved = torch.cuda.max_memory_reserved()
+    uniform_expected = (
+        torch.arange(2, 128, 3, device="cuda:0"),
+        torch.arange(0, 128, 3, device="cuda:0"),
+        torch.arange(1, 128, 3, device="cuda:0"),
+    )
+
+    def fixed_uniform_indices_exact(side: str, policy_name: str) -> bool:
+        if policy_name != "fixed_uniform":
+            return True
+        attribute = f"{side}_bucket_indices"
+        return all(
+            all(
+                torch.equal(indices, expected.unsqueeze(0).expand_as(indices))
+                for indices, expected in zip(getattr(policy, attribute), uniform_expected)
+            )
+            for policy in generation_cache.layer_policies
+        )
+
+    key_fixed_uniform_indices_exact = fixed_uniform_indices_exact(
+        "key", args.key_importance
+    )
+    value_fixed_uniform_indices_exact = fixed_uniform_indices_exact(
+        "value", args.value_importance
+    )
 
     cache_utils_path = Path(transformers_cache_utils.__file__).resolve()
     qwen3_modeling_path = Path(modeling_qwen3.__file__).resolve()
@@ -310,6 +348,8 @@ def main() -> None:
         "key_bucket_shapes": key_bucket_shapes == [((8, 42), (8, 43), (8, 43))],
         "value_bucket_shapes": value_bucket_shapes == [((8, 42), (8, 43), (8, 43))],
         "index_dtypes": key_index_dtypes == ["torch.int64"] and value_index_dtypes == ["torch.int64"],
+        "key_fixed_uniform_indices_exact": key_fixed_uniform_indices_exact,
+        "value_fixed_uniform_indices_exact": value_fixed_uniform_indices_exact,
         "cache_tensor_dtype": cache_tensor_dtypes == ["torch.float16"],
         "cache_tensors_finite": cache_tensors_finite,
         "final_key_quantized_lengths": set(generation_cache.key_quantized_lengths)
@@ -350,6 +390,9 @@ def main() -> None:
         "thinking_tags_present": think_match is not None,
         "thinking_body_non_whitespace": bool(think_match and think_match.group(1).strip()),
         "residual_length": args.residual_length,
+        "key_importance": args.key_importance,
+        "value_importance": args.value_importance,
+        "assignment_seed": args.assignment_seed,
         "installed_attention_modules": installed_attention_modules,
         "prefill_logits_exact": prefill_logits_exact,
         "prefill_logits_max_abs_delta": prefill_logits_max_abs_delta,
@@ -371,6 +414,8 @@ def main() -> None:
         "value_bucket_shapes": [[list(shape) for shape in entry] for entry in value_bucket_shapes],
         "key_index_dtypes": key_index_dtypes,
         "value_index_dtypes": value_index_dtypes,
+        "key_fixed_uniform_indices_exact": key_fixed_uniform_indices_exact,
+        "value_fixed_uniform_indices_exact": value_fixed_uniform_indices_exact,
         "cache_tensor_dtypes": cache_tensor_dtypes,
         "cache_tensors_finite": cache_tensors_finite,
         "final_key_quantized_lengths": sorted(set(generation_cache.key_quantized_lengths)),

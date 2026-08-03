@@ -283,13 +283,13 @@ def _validate_cage(config: dict) -> None:
     ):
         raise ValueError("cage_assignment_seed must be a nonnegative integer")
     if config["cage_ablation"]:
-        if config["cage_k_importance"] not in {"q2_var", "fixed_random"}:
+        if config["cage_k_importance"] not in {"q2_var", "fixed_random", "fixed_uniform"}:
             raise ValueError(
-                "ablation cage_k_importance must be 'q2_var' or 'fixed_random'"
+                "ablation cage_k_importance must be 'q2_var', 'fixed_random', or 'fixed_uniform'"
             )
-        if config["cage_v_importance"] not in {"wo_var", "fixed_random"}:
+        if config["cage_v_importance"] not in {"wo_var", "fixed_random", "fixed_uniform"}:
             raise ValueError(
-                "ablation cage_v_importance must be 'wo_var' or 'fixed_random'"
+                "ablation cage_v_importance must be 'wo_var', 'fixed_random', or 'fixed_uniform'"
             )
     else:
         if config["cage_k_importance"] != "q2_var":

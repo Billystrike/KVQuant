@@ -76,6 +76,37 @@ class Qwen3CageTest(unittest.TestCase):
             self.assertEqual([tuple(x.shape) for x in policy.key_bucket_indices], [(2, 2), (2, 3), (2, 3)])
             self.assertEqual([tuple(x.shape) for x in policy.value_bucket_indices], [(2, 2), (2, 3), (2, 3)])
 
+    def test_fixed_uniform_ablation_preserves_bucket_shapes_and_is_strided(self):
+        install_qwen3_cage_attention(self.model)
+        config = CageConfig(
+            cage_enable=True,
+            cage_ablation=True,
+            cage_k_importance="fixed_uniform",
+            cage_v_importance="fixed_uniform",
+            cage_k_group_sizes=[2, 4, 8],
+            cage_k_clip_percentiles=[1.0, 1.0, 1.0],
+            cage_v_group_sizes=[2, 4, 8],
+            cage_v_clip_percentiles=[1.0, 1.0, 1.0],
+        )
+        cache = Qwen3CageCache(config, residual_length=4)
+        with torch.no_grad():
+            self.model(
+                input_ids=torch.tensor([[1, 2, 3, 4, 5]]),
+                past_key_values=cache,
+                use_cache=True,
+            )
+
+        expected = (
+            torch.tensor([[2, 5], [2, 5]]),
+            torch.tensor([[0, 3, 6], [0, 3, 6]]),
+            torch.tensor([[1, 4, 7], [1, 4, 7]]),
+        )
+        for policy in cache.layer_policies:
+            for observed, target in zip(policy.key_bucket_indices, expected):
+                self.assertTrue(torch.equal(observed.cpu(), target))
+            for observed, target in zip(policy.value_bucket_indices, expected):
+                self.assertTrue(torch.equal(observed.cpu(), target))
+
     def test_cache_continuation_flushes_without_requantizing_old_prefix(self):
         install_qwen3_cage_attention(self.model)
         cache = self._cache()

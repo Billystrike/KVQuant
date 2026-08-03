@@ -201,6 +201,46 @@ def fixed_random_importance_like(
     return scores.to(device=importance.device)
 
 
+def fixed_uniform_importance_like(
+    importance: torch.Tensor,
+    *,
+    num_buckets: int,
+) -> torch.Tensor:
+    """Return deterministic strided ranking scores with the same [H, D] shape.
+
+    This same-budget ablation removes data-dependent importance while spreading
+    every bucket across the complete channel axis.  The residue classes are
+    ordered by size so their lengths exactly match ``_bucket_sizes``; therefore
+    the downstream bucket shapes, group sizes, metadata, and packed-byte charge
+    are unchanged from full CAGE.
+    """
+
+    importance = _prepare_bucket_importance(importance)
+    if isinstance(num_buckets, bool):
+        raise ValueError(f"num_buckets must be a positive integer, got {num_buckets!r}")
+    _require_positive_int("num_buckets", num_buckets)
+    num_heads, head_dim = importance.shape
+    effective_num_buckets = min(num_buckets, head_dim)
+
+    residue_classes = [
+        torch.arange(offset, head_dim, effective_num_buckets, dtype=torch.long)
+        for offset in range(effective_num_buckets)
+    ]
+    residue_classes.sort(key=lambda indices: (indices.numel(), int(indices[0])))
+    permutation = torch.cat(residue_classes)
+    expected_sizes = _bucket_sizes(head_dim, effective_num_buckets)
+    observed_sizes = tuple(indices.numel() for indices in residue_classes)
+    if observed_sizes != expected_sizes:
+        raise RuntimeError(
+            "fixed-uniform residue sizes do not match CAGE bucket sizes: "
+            f"observed={observed_sizes}, expected={expected_sizes}"
+        )
+
+    scores = torch.empty((head_dim,), dtype=torch.float64, device="cpu")
+    scores[permutation] = torch.arange(head_dim, 0, -1, dtype=torch.float64)
+    return scores.unsqueeze(0).expand(num_heads, -1).to(device=importance.device)
+
+
 def _group_output_projection_norm(
     o_proj_weight: torch.Tensor,
     num_heads: int,
@@ -327,4 +367,5 @@ __all__ = [
     "compute_key_importance",
     "compute_value_importance",
     "fixed_random_importance_like",
+    "fixed_uniform_importance_like",
 ]

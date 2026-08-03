@@ -12,6 +12,7 @@ from models.cage_importance import (
     compute_key_importance,
     compute_value_importance,
     fixed_random_importance_like,
+    fixed_uniform_importance_like,
 )
 from models.cage_quant import (
     fake_quant_k_by_channel_buckets,
@@ -200,6 +201,7 @@ class Qwen3CageCache(DynamicCache):
                 key_importance,
                 policy=self.cage_config.cage_k_importance,
                 seed=self.cage_config.cage_assignment_seed + 2 * layer_idx,
+                num_buckets=self.cage_config.cage_k_num_buckets,
             )
             key_bucket_indices = tuple(
                 index.to(device=key_states.device)
@@ -221,6 +223,7 @@ class Qwen3CageCache(DynamicCache):
                 value_importance,
                 policy=self.cage_config.cage_v_importance,
                 seed=self.cage_config.cage_assignment_seed + 2 * layer_idx + 1,
+                num_buckets=self.cage_config.cage_v_num_buckets,
             )
             value_bucket_indices = tuple(
                 index.to(device=value_states.device)
@@ -249,11 +252,14 @@ class Qwen3CageCache(DynamicCache):
         *,
         policy: str,
         seed: int,
+        num_buckets: int,
     ) -> torch.Tensor:
         if policy in {"q2_var", "wo_var"}:
             return importance
         if policy == "fixed_random" and self.cage_config.cage_ablation:
             return fixed_random_importance_like(importance, seed=seed)
+        if policy == "fixed_uniform" and self.cage_config.cage_ablation:
+            return fixed_uniform_importance_like(importance, num_buckets=num_buckets)
         raise ValueError(
             f"unsupported Qwen3 CAGE assignment policy {policy!r} for "
             f"cage_ablation={self.cage_config.cage_ablation}"

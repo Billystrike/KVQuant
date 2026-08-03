@@ -47,6 +47,23 @@ class CageConfigTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cage_k_group_sizes must have 3 entries"):
             get_cage_config(config)
 
+    def test_fixed_uniform_requires_explicit_ablation_mode(self):
+        with self.assertRaisesRegex(ValueError, "alternate CAGE importance policies"):
+            get_cage_config(
+                SimpleNamespace(cage_enable=True, cage_k_importance="fixed_uniform")
+            )
+
+        config = get_cage_config(
+            SimpleNamespace(
+                cage_enable=True,
+                cage_ablation=True,
+                cage_k_importance="fixed_uniform",
+                cage_v_importance="fixed_uniform",
+            )
+        )
+        self.assertEqual(config.cage_k_importance, "fixed_uniform")
+        self.assertEqual(config.cage_v_importance, "fixed_uniform")
+
 
 if __name__ == "__main__":
     unittest.main()

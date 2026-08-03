@@ -271,6 +271,20 @@ class CageExperimentConfigTests(unittest.TestCase):
         self.assertEqual(config["cage_k_importance"], "fixed_random")
         self.assertEqual(config["cage_v_importance"], "fixed_random")
 
+    def test_ablation_flag_allows_fixed_uniform_assignment(self):
+        manifest = self._manifest()
+        manifest["methods"][2].update(
+            {
+                "cage_ablation": True,
+                "cage_k_importance": "fixed_uniform",
+                "cage_v_importance": "fixed_uniform",
+            }
+        )
+
+        config = self._load(manifest)["methods"][2]["method_config"]
+        self.assertEqual(config["cage_k_importance"], "fixed_uniform")
+        self.assertEqual(config["cage_v_importance"], "fixed_uniform")
+
     def test_rejects_fixed_random_assignment_without_ablation_flag(self):
         manifest = self._manifest()
         manifest["methods"][2]["cage_k_importance"] = "fixed_random"

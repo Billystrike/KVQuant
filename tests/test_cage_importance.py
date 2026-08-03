@@ -7,10 +7,34 @@ from models.cage_importance import (
     compute_key_importance,
     compute_value_importance,
     fixed_random_importance_like,
+    fixed_uniform_importance_like,
 )
 
 
 class CageImportanceTest(unittest.TestCase):
+    def test_fixed_uniform_control_is_strided_repeatable_and_same_shape(self):
+        importance = torch.ones(2, 8, dtype=torch.float16)
+        first = fixed_uniform_importance_like(importance, num_buckets=3)
+        second = fixed_uniform_importance_like(importance, num_buckets=3)
+        self.assertEqual(first.shape, importance.shape)
+        self.assertEqual(first.dtype, torch.float64)
+        self.assertTrue(torch.equal(first, second))
+
+        assignment = assign_channel_buckets(first, num_buckets=3)
+        expected = (
+            torch.tensor([[2, 5], [2, 5]]),
+            torch.tensor([[0, 3, 6], [0, 3, 6]]),
+            torch.tensor([[1, 4, 7], [1, 4, 7]]),
+        )
+        for observed, target in zip(assignment.bucket_indices, expected):
+            self.assertTrue(torch.equal(observed.cpu(), target))
+
+    def test_fixed_uniform_control_rejects_invalid_bucket_count(self):
+        importance = torch.ones(1, 4)
+        for count in (0, -1, True, 1.5):
+            with self.assertRaises(ValueError):
+                fixed_uniform_importance_like(importance, num_buckets=count)
+
     def test_fixed_random_control_is_seeded_and_shape_preserving(self):
         importance = torch.ones(2, 8, dtype=torch.float16)
         first = fixed_random_importance_like(importance, seed=17)

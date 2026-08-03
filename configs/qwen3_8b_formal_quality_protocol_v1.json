@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-kitty-formal-quality-v1",
+  "frozen_on": "2026-08-03",
+  "status": "frozen_before_formal_qwen3_quality_results",
+  "memory_protocol": {
+    "path": "configs/qwen3_8b_matched_memory_protocol_v1.json",
+    "protocol_id": "qwen3-8b-cage-kitty-matched-memory-v1",
+    "validation_json_sha256": "6301966720f690fe136c4dbe9e83546ac1923832811690504cdc9e2563453bee",
+    "validation_log_sha256": "89fdb838c895624110c19179909afca6405ac3047ee02b305ad42b3f9ac4a3cf"
+  },
+  "model": {
+    "reference": "/root/autodl-tmp/models/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "dtype": "float16",
+    "native_context": 40960,
+    "transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178"
+  },
+  "input": {
+    "corpus_snapshot": "/root/autodl-tmp/kitty_setup_audit/wikitext_2_raw_test_snapshot_a946885.json",
+    "corpus_snapshot_sha256": "f9943f0c88bea153f2eb8e1b04fee9b65fbda2753746eacaed36ecc07718000a",
+    "corpus_id": "Salesforce/wikitext",
+    "corpus_config": "wikitext-2-raw-v1",
+    "corpus_split": "test",
+    "corpus_revision": "00aa25585682d4957f9e86edc73f59be7419af99",
+    "join_separator": "\n\n",
+    "joined_text_sha256": "696cca6b65a171b0a358a4be6732cdfdf2dd6164a32e20fd70e3c13fc4dfae83",
+    "add_special_tokens": false,
+    "token_count": 299078,
+    "token_ids_sha256": "069de3e782d0f61736e593f6d995478fcb9ae8377327ecfa1d57dc10045b3a7c",
+    "selection_id": "interior-51sts-v1",
+    "anchor_count": 50,
+    "anchor_indices": [
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+      30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+      40, 41, 42, 43, 44, 45, 46, 47, 48, 49
+    ],
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "minimum_anchor_gap": 5783,
+    "token_audit_json_sha256": "d60df0c9d32ea77c826794a6f7b8ea7804344603024e1759599ec19f62784930",
+    "token_audit_log_sha256": "cc03723dff39dd001db086d9fa81e75e869257cdcdb26fe0c2312b77ea569507"
+  },
+  "scoring": {
+    "metric": "cache_conditioned_continuation_nll",
+    "target_count_per_case": 64,
+    "boundary_target": "score continuation token 0 from the final prompt-position logits",
+    "decode_targets": "teacher-force continuation tokens 0 through 62 one token at a time and score tokens 1 through 63",
+    "primary_case_value": "arithmetic mean of all 64 token NLL values",
+    "same_rule_for_all_methods": true,
+    "canonical_full_corpus_ppl_claim": false
+  },
+  "execution_partitions": {
+    "cage_qwen3_environment": {
+      "conda_prefix": "/root/autodl-tmp/conda-envs/cage-qwen3",
+      "methods": ["fp16", "cage", "kivi", "cage_ablation"]
+    },
+    "kitty_qwen3_environment": {
+      "conda_prefix": "/root/autodl-tmp/conda-envs/kitty-qwen3",
+      "methods": ["kitty-12.5pct", "kitty-pro-25pct"]
+    }
+  },
+  "base_method_length_points": [
+    {"method_id": "fp16", "method": "fp16", "prompt_lengths": [1024, 2048, 4032]},
+    {"method_id": "kitty-12.5pct", "method": "kitty", "boosted_channels": 16, "prompt_lengths": [1024, 2048, 4032]},
+    {"method_id": "kitty-pro-25pct", "method": "kitty", "boosted_channels": 32, "prompt_lengths": [1024, 2048, 4032]},
+    {"method_id": "cage-r224", "method": "cage", "residual_length": 224, "prompt_lengths": [1024, 2048]},
+    {"method_id": "cage-r288", "method": "cage", "residual_length": 288, "prompt_lengths": [2048]},
+    {"method_id": "cage-r32", "method": "cage", "residual_length": 32, "prompt_lengths": [4032]},
+    {"method_id": "cage-r96", "method": "cage", "residual_length": 96, "prompt_lengths": [4032]},
+    {"method_id": "kivi-g64-r320", "method": "kivi", "group_size": 64, "residual_length": 320, "prompt_lengths": [1024]},
+    {"method_id": "kivi-g32-r224", "method": "kivi", "group_size": 32, "residual_length": 224, "prompt_lengths": [2048]},
+    {"method_id": "kivi-g64-r128", "method": "kivi", "group_size": 64, "residual_length": 128, "prompt_lengths": [4032]},
+    {"method_id": "kivi-g128-r256", "method": "kivi", "group_size": 128, "residual_length": 256, "prompt_lengths": [4032]}
+  ],
+  "cage_defaults": {
+    "k_bits": 2,
+    "v_bits": 2,
+    "key_importance": "q2_var",
+    "value_importance": "wo_var",
+    "key_group_sizes": [32, 64, 128],
+    "value_group_sizes": [32, 64, 128],
+    "key_clip_percentiles": [0.999, 0.995, 0.99],
+    "value_clip_percentiles": [0.999, 0.995, 0.99],
+    "key_bucket_sizes": [42, 43, 43],
+    "value_bucket_sizes": [42, 43, 43]
+  },
+  "mechanism_points": [
+    {"prompt_length": 2048, "full_method_id": "cage-r288", "residual_length": 288},
+    {"prompt_length": 4032, "full_method_id": "cage-r96", "residual_length": 96}
+  ],
+  "mechanism_variants": [
+    {
+      "suffix": "fixed-random",
+      "key_importance": "fixed_random",
+      "value_importance": "fixed_random",
+      "assignment_seed": 1729
+    },
+    {
+      "suffix": "fixed-uniform",
+      "key_importance": "fixed_uniform",
+      "value_importance": "fixed_uniform"
+    },
+    {
+      "suffix": "key-adaptive-only",
+      "key_importance": "q2_var",
+      "value_importance": "fixed_uniform"
+    },
+    {
+      "suffix": "value-adaptive-only",
+      "key_importance": "fixed_uniform",
+      "value_importance": "wo_var"
+    }
+  ],
+  "mechanism_memory_invariant": {
+    "exact_same_packed_bytes_as_full_cage": true,
+    "preserved_fields": [
+      "residual_length",
+      "bucket_count",
+      "bucket_sizes",
+      "group_sizes",
+      "clip_percentiles",
+      "scale_and_zero_point_count",
+      "bucket_index_dtype_and_count"
+    ],
+    "only_changed_field": "data-dependent versus fixed channel ordering"
+  },
+  "case_counts": {
+    "base_method_length_points_per_anchor": 18,
+    "base_cases": 900,
+    "additional_mechanism_points_per_anchor": 8,
+    "additional_mechanism_cases": 400,
+    "total_unique_method_length_cases": 1300,
+    "nll_targets": 83200
+  },
+  "primary_matched_comparisons": [
+    {"prompt_length": 1024, "candidate": "cage-r224", "baseline": "kitty-12.5pct"},
+    {"prompt_length": 1024, "candidate": "cage-r224", "baseline": "kitty-pro-25pct"},
+    {"prompt_length": 1024, "candidate": "cage-r224", "baseline": "kivi-g64-r320"},
+    {"prompt_length": 2048, "candidate": "cage-r224", "baseline": "kitty-12.5pct"},
+    {"prompt_length": 2048, "candidate": "cage-r288", "baseline": "kitty-pro-25pct"},
+    {"prompt_length": 2048, "candidate": "cage-r288", "baseline": "kivi-g32-r224"},
+    {"prompt_length": 4032, "candidate": "cage-r32", "baseline": "kitty-12.5pct"},
+    {"prompt_length": 4032, "candidate": "cage-r32", "baseline": "kivi-g64-r128"},
+    {"prompt_length": 4032, "candidate": "cage-r96", "baseline": "kitty-pro-25pct"},
+    {"prompt_length": 4032, "candidate": "cage-r96", "baseline": "kivi-g128-r256"}
+  ],
+  "statistics": {
+    "paired_unit": "anchor",
+    "delta": "candidate_mean_nll_minus_baseline_mean_nll",
+    "negative_delta_favors_cage": true,
+    "report": [
+      "mean",
+      "median",
+      "population_standard_deviation",
+      "minimum",
+      "maximum",
+      "favor_tie_oppose_counts",
+      "exp_of_mean_delta",
+      "percentile_bootstrap_95_interval"
+    ],
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260803,
+    "inference_scope": "descriptive stability over a deterministic corpus grid, not population significance"
+  },
+  "resume_and_integrity": {
+    "append_only_case_records": true,
+    "unique_key": ["method_id", "prompt_length", "anchor_index"],
+    "resume_requires_exact_protocol_and_source_identity": true,
+    "reject_duplicate_conflicts": true,
+    "require_finite_numeric_outputs": true,
+    "require_complete_token_and_input_hash_match": true,
+    "repeat_acceptance_before_full_run": true
+  },
+  "claim_boundary": {
+    "passkey": "saturation diagnostic only",
+    "memory": "packed paper estimate only for CAGE and accuracy-simulation paths",
+    "unsupported": [
+      "CAGE fused-kernel latency",
+      "CAGE throughput",
+      "CAGE realized CUDA memory reduction",
+      "canonical full-corpus WikiText-2 perplexity"
+    ],
+    "report_unfavorable_primary_results": true
+  }
+}
