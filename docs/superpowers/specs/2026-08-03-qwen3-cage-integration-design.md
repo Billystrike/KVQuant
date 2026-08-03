@@ -102,3 +102,13 @@ verify:
 Only after this CPU gate passes will the local Qwen3-8B GPU acceptance script
 be enabled. KIVI and the unified formal runner are implemented after CAGE cache
 semantics pass this gate, so a baseline cannot mask an integration failure.
+
+## CPU acceptance result
+
+The server CPU gate passed on commit
+`6c8e0e793a599b24b5973565efec4ef22d8eac45` in the isolated
+`cage-qwen3` environment. All five Qwen3 tests passed; prefill logits were
+bit-identical to `DynamicCache`; GQA assignments, Key flushing, Value residual
+rolling, and cache continuation matched their expected shapes and lengths.
+The complete acceptance log SHA-256 is
+`9de73e66d4ea9b8cf1df02dbf7337bf88a1cd4e822a8b64c46ef0e63c5d53bd2`.
