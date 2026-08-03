@@ -34,3 +34,27 @@ and verify its complete SHA-256, protocol identity, clean source commit,
 overall token-stream identity, case order, token counts, and per-case hashes.
 The manifest is an input artifact and contains no model output or quality
 measurement.
+
+The neutral manifest gate passed on source commit
+`f6a182a890eb4dc36f5de8e2a2d118a22c744ad1`. It produced exactly 150 ordered
+inputs from `qwen3-a00-l1024` through `qwen3-a49-l4032`; its SHA-256 is
+`911728ebd24683520c1378520ef02a0669aecfddf03fb4a458c0b73e280e07c5`.
+Both isolated Conda environments independently validated that same file. The
+complete gate log SHA-256 is
+`527d5c12c579b4f980d4be6e65f1604246b87a5764fb32daa8ae038494510f95`.
+
+## Execution gate
+
+The separate formal execution config freezes 20 CAGE-partition method-length
+points (1,000 full cases) and six Kitty-partition points (300 full cases). Its
+acceptance subset contains 11 CAGE-partition cases and three Kitty-partition
+cases, all at anchor zero. Each partition must be executed twice into fresh
+output directories and its scientific fields must be bitwise identical. The
+execution-config SHA-256 is
+`c7a1634613cfeeecd604d2f056ea77a0f9371d42a1a0fc6fc199c27dffa26f5c`.
+
+The initial CAGE-partition runner is deliberately locked against `full` stage
+execution. It can create only acceptance outputs until both repeated
+partition gates have passed and their hashes have been recorded. Progress and
+completion summaries omit NLL values so the acceptance run cannot be used to
+modify the frozen samples, methods, budgets, or analysis.

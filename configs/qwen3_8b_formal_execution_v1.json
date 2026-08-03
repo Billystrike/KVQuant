@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "execution_id": "qwen3-8b-cage-kitty-formal-execution-v1",
+  "frozen_on": "2026-08-03",
+  "status": "frozen_before_formal_qwen3_quality_execution",
+  "protocol": {
+    "path": "configs/qwen3_8b_formal_quality_protocol_v1.json",
+    "protocol_id": "qwen3-8b-cage-kitty-formal-quality-v1",
+    "sha256": "78f33126ace6822649c623b6a2535abc23262728e51818d74b0d14b92fe10e92"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_formal_input_manifest_f6a182a.json",
+    "sha256": "911728ebd24683520c1378520ef02a0669aecfddf03fb4a458c0b73e280e07c5",
+    "source_commit": "f6a182a890eb4dc36f5de8e2a2d118a22c744ad1",
+    "input_case_count": 150
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "conda_prefix": "/root/autodl-tmp/conda-envs/cage-qwen3",
+      "method_families": ["fp16", "cage", "kivi", "cage_ablation"],
+      "full_method_length_points": 20,
+      "full_cases": 1000,
+      "acceptance_points": [
+        {"method_id": "fp16", "prompt_length": 1024},
+        {"method_id": "cage-r224", "prompt_length": 1024},
+        {"method_id": "kivi-g64-r320", "prompt_length": 1024},
+        {"method_id": "cage-r288", "prompt_length": 2048},
+        {"method_id": "kivi-g32-r224", "prompt_length": 2048},
+        {"method_id": "cage-r288-fixed-random", "prompt_length": 2048},
+        {"method_id": "cage-r288-fixed-uniform", "prompt_length": 2048},
+        {"method_id": "cage-r288-key-adaptive-only", "prompt_length": 2048},
+        {"method_id": "cage-r288-value-adaptive-only", "prompt_length": 2048},
+        {"method_id": "cage-r96", "prompt_length": 4032},
+        {"method_id": "kivi-g128-r256", "prompt_length": 4032}
+      ],
+      "acceptance_anchor_indices": [0],
+      "acceptance_cases": 11
+    },
+    "kitty_qwen3": {
+      "conda_prefix": "/root/autodl-tmp/conda-envs/kitty-qwen3",
+      "method_families": ["kitty-12.5pct", "kitty-pro-25pct"],
+      "full_method_length_points": 6,
+      "full_cases": 300,
+      "acceptance_points": [
+        {"method_id": "kitty-12.5pct", "prompt_length": 1024},
+        {"method_id": "kitty-pro-25pct", "prompt_length": 2048},
+        {"method_id": "kitty-pro-25pct", "prompt_length": 4032}
+      ],
+      "acceptance_anchor_indices": [0],
+      "acceptance_cases": 3
+    }
+  },
+  "acceptance_policy": {
+    "fresh_output_repeats": 2,
+    "compare_fields": [
+      "case_id",
+      "method",
+      "input",
+      "scoring.token_nlls",
+      "scoring.nll_sum",
+      "scoring.mean_nll"
+    ],
+    "required_numeric_consistency": "bitwise_equal",
+    "quality_interpretation_before_full_run": false,
+    "full_run_requires_both_partition_acceptances": true
+  },
+  "output_policy": {
+    "one_atomic_json_per_case": true,
+    "resume_only_exact_valid_completed_cases": true,
+    "invalid_existing_case": "fail_closed_without_overwrite",
+    "summary_is_derived_and_replaceable": true,
+    "failure_records_are_separate": true
+  },
+  "formal_quality_results_seen_before_freeze": false
+}
