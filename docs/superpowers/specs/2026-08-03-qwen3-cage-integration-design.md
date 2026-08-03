@@ -136,3 +136,24 @@ prefill logits remained exact, continuation preserved the expected lengths,
 and the implementation stored no persistent bucket indices. The complete log
 SHA-256 is
 `282bd9a8ab8ca51c47087c4d857d245f7e519c6c2f55253f3a45c183f7f32cc7`.
+
+## KIVI GPU acceptance result
+
+The full Qwen3-8B KIVI GPU gate passed on commit
+`d8a905647db392374c8c96ae6d72f2286bd295a8`. The frozen FP16,
+Transformers, model, tokenizer, and source identities all matched. Prefill
+logits were bit-identical to `DynamicCache`; persistent Key and Value storage
+changed in all 36 layers; eight-token generation and a one-token resume were
+finite and preserved the expected cache lengths of 327 and 328. At the final
+length, the Key and Value quantized histories were 256 and 200 tokens,
+respectively, and no CAGE bucket indices were present. The acceptance JSON
+SHA-256 is
+`ebf5d4dffb7ab87ed5b837ac138e26a163c936f22fc6a5b8e6815d0775db3569`
+and the complete log SHA-256 is
+`c076a912fdb17fe01a9dd243d24e8159aa20bcfa1ecbaaf672884e3bcb7313c7`.
+
+The forced eight-token sample began with the correct digit but then emitted
+repeated closing thinking tags. This gate therefore establishes first-token
+semantic correctness and cache continuation only; the generated string is not
+a task-quality result. CUDA peaks likewise remain fake-quant acceptance
+diagnostics rather than packed-memory evidence.
