@@ -47,6 +47,16 @@ allocation remain separate quantities. The frozen Kitty packed-memory audit is
 SHA-256
 `91275559aabceea6d460ccbfa8b478da4b6273f53af6d8cdeba4cc804ba477a2`.
 
+The independent formula implementation is derived from the frozen Kitty
+runtime source snapshot whose SHA-256 is
+`4d2b919c9f9e455a2bfd34f896dfda8cd6955c2f4e00885a43d855881494d8db`.
+It accounts separately for the low Key bits, promoted high Key bits, per-page
+channel indices, Key and Value scale/zero-point tensors, Value payload, used
+page-table entries, and occupied sink, Key Q-buffer, Value Q-buffer, and Value
+local-window tokens. The validator must reproduce the frozen Kitty audit hash,
+all six target byte totals, and every selected CAGE/KIVI point before formal
+quality runs begin.
+
 ## Deterministic matching rule
 
 CAGE candidates use residual lengths 32 through 512 in increments of 32 and
