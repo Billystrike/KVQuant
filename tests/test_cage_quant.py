@@ -4,7 +4,9 @@ import torch
 
 from models.cage_quant import (
     fake_quant_k_by_channel_buckets,
+    fake_quant_k_uniform,
     fake_quant_v_by_channel_buckets,
+    fake_quant_v_uniform,
 )
 
 
@@ -77,6 +79,17 @@ class CageQuantTest(unittest.TestCase):
                 group_sizes=(2,),
                 clip_percentiles=(1.0,),
             )
+
+    def test_uniform_kivi_fake_quant_uses_key_and_value_axes(self):
+        key_states = torch.tensor([[[[0.0, 10.0], [1.4, 11.4], [2.7, 12.7], [4.0, 14.0]]]])
+        value_states = key_states.transpose(2, 3).contiguous()
+
+        quantized_key = fake_quant_k_uniform(key_states, group_size=4)
+        quantized_value = fake_quant_v_uniform(value_states, group_size=4)
+
+        expected = torch.tensor([0.0, 4.0 / 3.0, 8.0 / 3.0, 4.0])
+        self.assertTrue(torch.allclose(quantized_key[0, 0, :, 0], expected))
+        self.assertTrue(torch.allclose(quantized_value[0, 0, 0, :], expected))
 
 
 if __name__ == "__main__":

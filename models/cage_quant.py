@@ -56,6 +56,48 @@ def fake_quant_v_by_channel_buckets(
     )
 
 
+def fake_quant_k_uniform(
+    key_states: torch.Tensor,
+    *,
+    group_size: int,
+    bits: int = 2,
+) -> torch.Tensor:
+    """Uniform KIVI-style Key fake quantization along the token dimension."""
+    _require_4d("key_states", key_states)
+    _require_floating_tensor("key_states", key_states)
+    _require_finite_tensor("key_states", key_states)
+    output = _asymmetric_fake_quant_grouped(
+        key_states,
+        quantize_dim=2,
+        group_size=group_size,
+        clip_percentile=1.0,
+        bits=bits,
+    )
+    _require_finite_tensor("fake-quantized Key states", output)
+    return output
+
+
+def fake_quant_v_uniform(
+    value_states: torch.Tensor,
+    *,
+    group_size: int,
+    bits: int = 2,
+) -> torch.Tensor:
+    """Uniform KIVI-style Value fake quantization along the channel dimension."""
+    _require_4d("value_states", value_states)
+    _require_floating_tensor("value_states", value_states)
+    _require_finite_tensor("value_states", value_states)
+    output = _asymmetric_fake_quant_grouped(
+        value_states,
+        quantize_dim=3,
+        group_size=group_size,
+        clip_percentile=1.0,
+        bits=bits,
+    )
+    _require_finite_tensor("fake-quantized Value states", output)
+    return output
+
+
 def _fake_quant_by_channel_buckets(
     states: torch.Tensor,
     bucket_indices: Sequence[torch.Tensor],
@@ -240,5 +282,7 @@ def _require_clip_percentile(value: float | None) -> None:
 
 __all__ = [
     "fake_quant_k_by_channel_buckets",
+    "fake_quant_k_uniform",
     "fake_quant_v_by_channel_buckets",
+    "fake_quant_v_uniform",
 ]

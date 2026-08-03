@@ -112,3 +112,17 @@ bit-identical to `DynamicCache`; GQA assignments, Key flushing, Value residual
 rolling, and cache continuation matched their expected shapes and lengths.
 The complete acceptance log SHA-256 is
 `9de73e66d4ea9b8cf1df02dbf7337bf88a1cd4e822a8b64c46ef0e63c5d53bd2`.
+
+## GPU acceptance result
+
+The full Qwen3-8B GPU gate passed on commit
+`475f6544528bb40b4090653cee20056dca8bef2d`. All 36 standard Qwen3 attention
+modules were adapted; FP16 and CAGE prefill logits were bit-identical; the
+three GQA bucket shapes were `[8, 42]`, `[8, 43]`, and `[8, 43]`; eight-token
+generation and one-token cache continuation were finite and preserved the
+expected lengths. The acceptance JSON SHA-256 is
+`bbe995e3c2490dd96d12f8d17e703c7b83fd147e323fa0bf19304fa488a3b11d`
+and the complete log SHA-256 is
+`f27510a218111104c6f6854fd2dcb131bb841879329bca7010e11c3c220b4999`.
+CUDA peaks remain acceptance diagnostics for the fake-quant implementation,
+not realized packed-memory evidence.
