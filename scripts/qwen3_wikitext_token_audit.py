@@ -53,6 +53,7 @@ def _parse_args() -> argparse.Namespace:
         description="Audit frozen Qwen3 tokenizer identity and WikiText anchor inputs"
     )
     parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--corpus-snapshot", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -72,6 +73,23 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     os.replace(temporary, path)
+
+
+def _read_corpus_snapshot(path: Path) -> tuple[dict[str, Any], list[str]]:
+    with path.open("r", encoding="utf-8") as handle:
+        snapshot = json.load(handle)
+    if not isinstance(snapshot, dict) or set(snapshot) != {
+        "schema_version",
+        "corpus",
+        "texts",
+    }:
+        raise ValueError("corpus snapshot has an invalid top-level schema")
+    if snapshot["schema_version"] != 1 or not isinstance(snapshot["corpus"], dict):
+        raise ValueError("corpus snapshot schema version or corpus record is invalid")
+    texts = snapshot["texts"]
+    if not isinstance(texts, list) or any(not isinstance(text, str) for text in texts):
+        raise ValueError("corpus snapshot texts must be a list of strings")
+    return snapshot["corpus"], texts
 
 
 def _source_state_identity() -> dict[str, Any]:
@@ -97,15 +115,16 @@ def _source_state_identity() -> dict[str, Any]:
 def main() -> None:
     args = _parse_args()
     model_path = args.model.resolve()
+    corpus_snapshot_path = args.corpus_snapshot.resolve()
     output_path = args.output.resolve()
     if not model_path.is_dir():
         raise FileNotFoundError(model_path)
+    if not corpus_snapshot_path.is_file():
+        raise FileNotFoundError(corpus_snapshot_path)
     source_state = _source_state_identity()
 
     try:
-        import datasets
         import transformers
-        from datasets import load_dataset
         from transformers import AutoConfig, AutoTokenizer
     except Exception as error:
         raise RuntimeError(f"cannot import tokenizer audit dependencies: {error}") from error
@@ -121,13 +140,7 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, local_files_only=True, use_fast=True
     )
-    dataset = load_dataset(
-        EXPECTED["corpus_id"],
-        EXPECTED["corpus_config"],
-        split=EXPECTED["corpus_split"],
-        revision=EXPECTED["corpus_revision"],
-    )
-    texts = list(dataset["text"])
+    snapshot_corpus, texts = _read_corpus_snapshot(corpus_snapshot_path)
     joined = EXPECTED["join_separator"].join(texts)
     joined_bytes = joined.encode("utf-8")
     encoded = tokenizer(joined, add_special_tokens=False)
@@ -150,6 +163,13 @@ def main() -> None:
             "joined_text_sha256",
         )
     }
+    expected_snapshot_corpus = {
+        "id": EXPECTED["corpus_id"],
+        "config": EXPECTED["corpus_config"],
+        "split": EXPECTED["corpus_split"],
+        "revision": EXPECTED["corpus_revision"],
+        "join_separator": EXPECTED["join_separator"],
+    }
     checks = {
         "metadata_hashes": all(
             metadata_hashes[name] == EXPECTED[name] for name in metadata_hashes
@@ -161,6 +181,13 @@ def main() -> None:
         == EXPECTED["model_max_position_embeddings"],
         "tokenizer_model_max_length": tokenizer.model_max_length
         == EXPECTED["tokenizer_model_max_length"],
+        "snapshot_corpus_identity": all(
+            snapshot_corpus.get(name) == value
+            for name, value in expected_snapshot_corpus.items()
+        ),
+        "snapshot_declared_raw_identity": all(
+            snapshot_corpus.get(name) == value for name, value in raw_corpus.items()
+        ),
         "raw_corpus_identity": raw_corpus == expected_raw,
         "token_ids_nonempty": len(token_ids) > max(QWEN3_PROMPT_LENGTHS),
         "anchor_count": len(anchors) == QWEN3_ANCHOR_COUNT,
@@ -180,8 +207,10 @@ def main() -> None:
             "token_audit_script_sha256": _sha256(Path(__file__).resolve()),
         },
         "python": platform.python_version(),
-        "datasets": datasets.__version__,
+        "datasets": snapshot_corpus.get("datasets_version"),
         "transformers": transformers.__version__,
+        "corpus_snapshot_path": str(corpus_snapshot_path),
+        "corpus_snapshot_sha256": _sha256(corpus_snapshot_path),
         "model_path": str(model_path),
         "model_revision": EXPECTED["model_revision"],
         "model_type": getattr(config, "model_type", None),
@@ -204,7 +233,8 @@ def main() -> None:
             "split": EXPECTED["corpus_split"],
             "revision": EXPECTED["corpus_revision"],
             "join_separator": EXPECTED["join_separator"],
-            "dataset_fingerprint": getattr(dataset, "_fingerprint", None),
+            "dataset_fingerprint": snapshot_corpus.get("dataset_fingerprint"),
+            "datasets_version": snapshot_corpus.get("datasets_version"),
             **raw_corpus,
             "token_count": len(token_ids),
             "token_ids_sha256": token_ids_sha256(token_ids),
