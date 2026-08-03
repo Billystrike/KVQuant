@@ -74,6 +74,20 @@ candidate misses the gate, and the comparison remains absent.
 The exact selected method IDs, bytes, and signed differences are frozen in the
 JSON rather than repeated manually here.
 
+## Independent validation result
+
+The complete CPU-only recalculation passed on commit
+`ecf265f9c5dec36e775b024e2331ce0b982cebd7`. Six unit tests reproduced the
+Kitty and Kitty-Pro page layouts, the 320-token probe, all six target totals,
+the selected CAGE/KIVI totals, and the deterministic byte-only selection rule.
+The validator matched the frozen Kitty audit SHA-256, confirmed the
+589,824-byte model-wide CAGE index charge, and correctly rejected the closest
+KIVI candidate for the 2048-token Kitty target at a 3.4322% relative excess.
+All checks passed with no failures. The validation JSON SHA-256 is
+`6301966720f690fe136c4dbe9e83546ac1923832811690504cdc9e2563453bee`
+and the complete log SHA-256 is
+`89fdb838c895624110c19179909afca6405ac3047ee02b305ad42b3f9ac4a3cf`.
+
 ## CAGE-centered hypotheses
 
 The primary scientific claim under test is not that every CAGE configuration
