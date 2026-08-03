@@ -58,3 +58,29 @@ execution. It can create only acceptance outputs until both repeated
 partition gates have passed and their hashes have been recorded. Progress and
 completion summaries omit NLL values so the acceptance run cannot be used to
 modify the frozen samples, methods, budgets, or analysis.
+
+## CAGE-partition repeated acceptance result
+
+Both fresh 11-case CAGE-partition acceptance runs completed with no failures
+on commit `efffe38bf9ea2eeac15d36a13edb51d351ad7ed4`. Their run-identity SHA-256
+was identical:
+`01e152b627ab59f1067bba9c27bcedc4c4fc76d2d2b4370f058079e5282aab05`.
+The A and B archive SHA-256 values are, respectively,
+`ce758b423a3085028a213b1541e94dae79dbf1b30c40abfb300349fd903a8a02`
+and
+`6546e1972cb0e1aa484b785da911e761e68bce36c26c674ea147622d27bc4ace`.
+
+All 11 scientific payloads, including method/input identity, all 64 token NLL
+values, aggregate scoring, and cache diagnostics, were bitwise equal. The
+shared scientific-payload SHA-256 is
+`f4e809d154a120e1375b7ab32b393d86950194595e398a9331fa3d1b93fc7d86`;
+the comparison-report SHA-256 is
+`7ba35a4cf603545fe65ced2d78bdc67521bdd415d6f8c3fd0b8dee9c56921857`.
+The A log SHA-256 is
+`ced5656a04620c429045adebce01abc797ec3bc4b6b5faf10cebe99896ef1089`;
+the B-and-comparison log SHA-256 is
+`379e179b4a3baeb253ef22f82d923075c9756f23890a27d14c8a832a568ec0f6`.
+
+This closes the CAGE-partition acceptance gate but does not unlock either full
+partition. Kitty must independently pass its two fresh acceptance runs before
+the full-stage lock can be reconsidered.
