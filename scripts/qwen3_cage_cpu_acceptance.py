@@ -4,7 +4,12 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import sys
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 import torch
 import transformers
@@ -91,7 +96,7 @@ def main() -> None:
         "transformers_cache_utils_sha256": cache_utils_sha256,
         "transformers_qwen3_modeling_path": str(qwen3_modeling_path),
         "transformers_qwen3_modeling_sha256": qwen3_modeling_sha256,
-        "qwen3_cage_source_sha256": _sha256(Path(__file__).resolve().parents[1] / "models" / "qwen3_cage.py"),
+        "qwen3_cage_source_sha256": _sha256(REPO_ROOT / "models" / "qwen3_cage.py"),
         "device": "cpu",
         "installed_attention_modules": installed,
         "prefill_logits_exact": bool(torch.equal(candidate.logits, reference.logits)),
