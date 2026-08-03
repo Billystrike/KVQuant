@@ -126,3 +126,13 @@ and the complete log SHA-256 is
 `f27510a218111104c6f6854fd2dcb131bb841879329bca7010e11c3c220b4999`.
 CUDA peaks remain acceptance diagnostics for the fake-quant implementation,
 not realized packed-memory evidence.
+
+## KIVI CPU acceptance result
+
+The Qwen3 KIVI CPU gate passed on commit
+`9d4184243c9feb6f6f0141f5abc137757dda9cac`. Nine quantization and Cache tests
+passed. The persistent Key and Value histories changed under quantization while
+prefill logits remained exact, continuation preserved the expected lengths,
+and the implementation stored no persistent bucket indices. The complete log
+SHA-256 is
+`282bd9a8ab8ca51c47087c4d857d245f7e519c6c2f55253f3a45c183f7f32cc7`.
