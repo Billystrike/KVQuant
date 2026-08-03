@@ -106,3 +106,39 @@ The already-correct `utils_quant.py` blob and SHA-256 are
 The corrected runner verifies both Git blob identity and SHA-256 identity for
 both files. A new acceptance A must use a fresh output directory keyed by the
 correcting CAGE commit; the failed directory is retained as audit evidence.
+
+## Kitty-partition repeated acceptance result
+
+Both fresh three-case Kitty-partition acceptance runs completed with no
+failures on CAGE commit `40dcc8a9b19d64c719a08735ee2e32c1f221c93e`,
+Kitty commit `dfd2c07b407d6b407179359207c612ab631f3ed1`, and Transformers
+commit `37f8b0b53512e6aae0cfd15746c133c101783178`. Their common run-identity
+SHA-256 is
+`4bc505acbaf34f32072a6342397c632ce74ec11daa5fa8b1daeabfaaa12dfd85`.
+
+All three scientific payloads were bitwise equal. Their shared payload SHA-256
+is `96617030ab09193ad4381b8b41439b5fec4433fd1e1ab269a9a241c2671b83a3`,
+and the comparison-report SHA-256 is
+`7ec8f021cff7fa3e1e34cc521e2d9517877cf5f3bc73e0f8abb058d5d8baa7f8`.
+The A and B archive SHA-256 values are
+`b5fb13b19b047774818d954846d5ce56a1cc59b8dc9d0009bdd57e3413cb519d`
+and `48407f4454f0f1269ac4fa759120f5a779badc198e1d690bb12a83dbf2b862ab`;
+the corresponding log SHA-256 values are
+`8a462312ee24b19bcb137b7959041bca64116b183e15a86103796f1fae18cebc`
+and `565329fee449199c9fb91e08351d5deeed2776823340d5d62d684d4530d04cf9`.
+
+Both runs observed the exact official accuracy-simulation mechanics: 288,
+576, and 1116 Key fake-quant calls at prompt lengths 1024, 2048, and 4032;
+2304 Value fake-quant calls per case; and respectively 16, 32, and 32 promoted
+channels per head. All cache diagnostic checks passed.
+
+## Full-execution gate
+
+The CAGE and Kitty repeated-acceptance evidence closes both partition gates.
+`configs/qwen3_8b_formal_acceptance_gate_v1.json` records the immutable
+artifact paths and hashes. Full runners require this gate explicitly and
+re-hash both run locks, both summaries, both archives, both logs, both
+comparison reports, and the retained zero-case failed-attempt evidence before
+expanding a full matrix. The gate SHA-256 is embedded into every full run and
+case identity. The pre-result protocol, execution config, and input manifest
+remain unchanged.

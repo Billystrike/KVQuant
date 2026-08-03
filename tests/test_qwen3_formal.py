@@ -1,15 +1,19 @@
 import copy
 import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from utils.qwen3_formal import (
     Qwen3FormalError,
+    atomic_write_json,
     build_input_manifest,
     expand_partition_cases,
     formal_method_length_points,
     formal_scoring,
     load_execution_config,
+    load_acceptance_gate,
     load_formal_protocol,
     validate_input_manifest,
     validate_completed_result,
@@ -19,6 +23,7 @@ from utils.qwen3_formal import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = REPO_ROOT / "configs" / "qwen3_8b_formal_quality_protocol_v1.json"
 EXECUTION_PATH = REPO_ROOT / "configs" / "qwen3_8b_formal_execution_v1.json"
+ACCEPTANCE_GATE_PATH = REPO_ROOT / "configs" / "qwen3_8b_formal_acceptance_gate_v1.json"
 
 
 class Qwen3FormalTest(unittest.TestCase):
@@ -201,6 +206,19 @@ class Qwen3FormalTest(unittest.TestCase):
             input_manifest_sha256=self.execution["input_manifest"]["sha256"],
             source_state=source_state,
         )
+        gated_record = copy.deepcopy(record)
+        gated_record["identity"]["acceptance_gate_sha256"] = "c" * 64
+        validate_completed_result(
+            gated_record,
+            expected_case=case,
+            execution_id=self.execution["execution_id"],
+            execution_sha256=self.execution_sha256,
+            protocol_id=self.synthetic_protocol["protocol_id"],
+            protocol_sha256=self.protocol_sha256,
+            input_manifest_sha256=self.execution["input_manifest"]["sha256"],
+            source_state=source_state,
+            acceptance_gate_sha256="c" * 64,
+        )
         record["scoring"]["mean_nll"] += 0.01
         with self.assertRaisesRegex(Qwen3FormalError, "mean_nll"):
             validate_completed_result(
@@ -219,6 +237,37 @@ class Qwen3FormalTest(unittest.TestCase):
             formal_scoring([1.0] * 63)
         with self.assertRaises(Qwen3FormalError):
             formal_scoring([1.0] * 63 + [float("nan")])
+
+    def test_checked_in_acceptance_gate_identity_and_schema(self):
+        with patch("utils.qwen3_formal._verify_acceptance_gate_artifacts") as verify:
+            gate, gate_sha256 = load_acceptance_gate(
+                ACCEPTANCE_GATE_PATH,
+                protocol=self.protocol,
+                protocol_sha256=self.protocol_sha256,
+                execution=self.execution,
+                execution_sha256=self.execution_sha256,
+                input_manifest_sha256=self.execution["input_manifest"]["sha256"],
+            )
+        verify.assert_called_once_with(gate)
+        self.assertEqual(gate["status"], "passed")
+        self.assertEqual(len(gate_sha256), 64)
+        self.assertEqual(gate["partitions"]["cage_qwen3"]["expected_cases"], 11)
+        self.assertEqual(gate["partitions"]["kitty_qwen3"]["expected_cases"], 3)
+
+        invalid = copy.deepcopy(gate)
+        invalid["status"] = "pending"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "invalid_gate.json"
+            atomic_write_json(path, invalid)
+            with self.assertRaisesRegex(Qwen3FormalError, "not passed"):
+                load_acceptance_gate(
+                    path,
+                    protocol=self.protocol,
+                    protocol_sha256=self.protocol_sha256,
+                    execution=self.execution,
+                    execution_sha256=self.execution_sha256,
+                    input_manifest_sha256=self.execution["input_manifest"]["sha256"],
+                )
 
 
 if __name__ == "__main__":

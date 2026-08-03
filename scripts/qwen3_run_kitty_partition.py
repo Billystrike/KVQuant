@@ -35,6 +35,7 @@ from utils.qwen3_formal import (
     expand_partition_cases,
     file_sha256,
     formal_scoring,
+    load_acceptance_gate,
     load_execution_config,
     load_formal_protocol,
     validate_completed_result,
@@ -72,6 +73,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--input-manifest", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--stage", choices=("acceptance", "full"), required=True)
+    parser.add_argument("--acceptance-gate", type=Path)
     return parser.parse_args()
 
 
@@ -380,8 +382,6 @@ def _model_identity(model: Any, source_state: dict[str, Any]) -> dict[str, Any]:
 
 def main() -> None:
     args = _parse_args()
-    if args.stage == "full":
-        raise Qwen3FormalError("formal full execution is locked until both repeated partition gates pass")
     if not torch.cuda.is_available():
         raise Qwen3FormalError("formal Kitty partition requires CUDA")
     protocol, protocol_sha256 = load_formal_protocol(args.protocol.resolve())
@@ -397,6 +397,18 @@ def main() -> None:
     source_state = _source_state()
     if source_state["dirty"] or source_state["kitty_dirty"]:
         raise Qwen3FormalError("formal Kitty execution requires both source trees to be clean")
+    acceptance_gate_sha256 = None
+    if args.stage == "full":
+        if args.acceptance_gate is None:
+            raise Qwen3FormalError("formal full execution requires --acceptance-gate")
+        _, acceptance_gate_sha256 = load_acceptance_gate(
+            args.acceptance_gate.resolve(),
+            protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            execution=execution,
+            execution_sha256=execution_sha256,
+            input_manifest_sha256=input_manifest_sha256,
+        )
     cases = expand_partition_cases(
         protocol=protocol,
         execution=execution,
@@ -418,6 +430,8 @@ def main() -> None:
         "source_state": source_state,
         "expected_case_ids": [case["case_id"] for case in cases],
     }
+    if acceptance_gate_sha256 is not None:
+        run_identity["acceptance_gate_sha256"] = acceptance_gate_sha256
     lock_path = output_dir / "run_identity.json"
     if lock_path.exists():
         if _load_json(lock_path) != run_identity:
@@ -451,6 +465,8 @@ def main() -> None:
         "input_manifest_sha256": input_manifest_sha256,
         "source_state": source_state,
     }
+    if acceptance_gate_sha256 is not None:
+        identity_fields["acceptance_gate_sha256"] = acceptance_gate_sha256
 
     completed = resumed = 0
     for index, case in enumerate(cases, 1):

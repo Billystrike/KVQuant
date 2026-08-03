@@ -5,7 +5,7 @@ import json
 import copy
 import math
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Sequence
 
 from utils.qwen3_cases import (
@@ -20,6 +20,7 @@ from utils.qwen3_cases import (
 
 FORMAL_PROTOCOL_ID = "qwen3-8b-cage-kitty-formal-quality-v1"
 FORMAL_EXECUTION_ID = "qwen3-8b-cage-kitty-formal-execution-v1"
+FORMAL_ACCEPTANCE_GATE_ID = "qwen3-8b-cage-kitty-formal-acceptance-gate-v1"
 INPUT_MANIFEST_SCHEMA_VERSION = 1
 
 
@@ -66,6 +67,29 @@ def load_execution_config(
         protocol_sha256=protocol_sha256,
     )
     return execution, file_sha256(source)
+
+
+def load_acceptance_gate(
+    path: str | Path,
+    *,
+    protocol: dict[str, Any],
+    protocol_sha256: str,
+    execution: dict[str, Any],
+    execution_sha256: str,
+    input_manifest_sha256: str,
+) -> tuple[dict[str, Any], str]:
+    source = Path(path)
+    gate = _load_json_object(source, "formal acceptance gate")
+    _validate_acceptance_gate(
+        gate,
+        protocol=protocol,
+        protocol_sha256=protocol_sha256,
+        execution=execution,
+        execution_sha256=execution_sha256,
+        input_manifest_sha256=input_manifest_sha256,
+    )
+    _verify_acceptance_gate_artifacts(gate)
+    return gate, file_sha256(source)
 
 
 def read_corpus_snapshot(path: str | Path) -> tuple[dict[str, Any], list[str]]:
@@ -468,6 +492,7 @@ def validate_completed_result(
     protocol_sha256: str,
     input_manifest_sha256: str,
     source_state: dict[str, Any],
+    acceptance_gate_sha256: str | None = None,
 ) -> None:
     if not isinstance(record, dict) or record.get("schema_version") != 1:
         raise Qwen3FormalError("completed result schema mismatch")
@@ -489,6 +514,9 @@ def validate_completed_result(
         "input_manifest_sha256": input_manifest_sha256,
         "source_state": source_state,
     }
+    if acceptance_gate_sha256 is not None:
+        _require_sha256("acceptance_gate_sha256", acceptance_gate_sha256)
+        expected_identity["acceptance_gate_sha256"] = acceptance_gate_sha256
     if record.get("identity") != expected_identity:
         raise Qwen3FormalError("completed result execution identity mismatch")
     scoring = record.get("scoring")
@@ -530,6 +558,279 @@ def atomic_write_json(path: str | Path, payload: dict[str, Any]) -> None:
         encoding="utf-8",
     )
     os.replace(temporary, destination)
+
+
+def _load_json_object(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise Qwen3FormalError(f"cannot load {label} {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise Qwen3FormalError(f"{label} must be a JSON object: {path}")
+    return value
+
+
+def _validate_acceptance_gate(
+    gate: dict[str, Any],
+    *,
+    protocol: dict[str, Any],
+    protocol_sha256: str,
+    execution: dict[str, Any],
+    execution_sha256: str,
+    input_manifest_sha256: str,
+) -> None:
+    required = {
+        "schema_version",
+        "gate_id",
+        "status",
+        "closed_at_utc",
+        "protocol",
+        "execution",
+        "input_manifest",
+        "partitions",
+        "failed_pre_case_attempts",
+    }
+    if set(gate) != required:
+        raise Qwen3FormalError("formal acceptance gate top-level schema mismatch")
+    if gate["schema_version"] != 1 or gate["gate_id"] != FORMAL_ACCEPTANCE_GATE_ID:
+        raise Qwen3FormalError("formal acceptance gate identity mismatch")
+    if gate["status"] != "passed":
+        raise Qwen3FormalError("formal acceptance gate is not passed")
+    if not isinstance(gate["closed_at_utc"], str) or not gate["closed_at_utc"]:
+        raise Qwen3FormalError("formal acceptance gate close time is invalid")
+    if gate["protocol"] != {
+        "protocol_id": protocol["protocol_id"],
+        "sha256": protocol_sha256,
+    }:
+        raise Qwen3FormalError("formal acceptance gate protocol identity mismatch")
+    if gate["execution"] != {
+        "execution_id": execution["execution_id"],
+        "sha256": execution_sha256,
+    }:
+        raise Qwen3FormalError("formal acceptance gate execution identity mismatch")
+    if gate["input_manifest"] != {"sha256": input_manifest_sha256}:
+        raise Qwen3FormalError("formal acceptance gate input manifest mismatch")
+
+    partitions = gate["partitions"]
+    if not isinstance(partitions, dict) or set(partitions) != {
+        "cage_qwen3",
+        "kitty_qwen3",
+    }:
+        raise Qwen3FormalError("formal acceptance gate partitions mismatch")
+    for partition, expected_cases in (("cage_qwen3", 11), ("kitty_qwen3", 3)):
+        record = partitions[partition]
+        if not isinstance(record, dict) or set(record) != {
+            "expected_cases",
+            "source_state",
+            "runs",
+            "comparison",
+        }:
+            raise Qwen3FormalError(f"{partition} acceptance gate schema mismatch")
+        if record["expected_cases"] != expected_cases:
+            raise Qwen3FormalError(f"{partition} acceptance gate case count mismatch")
+        source_state = record["source_state"]
+        _validate_source_state(source_state)
+        expected_source_fields = (
+            {"git_commit", "dirty"}
+            if partition == "cage_qwen3"
+            else {
+                "git_commit",
+                "dirty",
+                "kitty_commit",
+                "kitty_dirty",
+                "transformers_commit",
+            }
+        )
+        if set(source_state) != expected_source_fields:
+            raise Qwen3FormalError(f"{partition} acceptance source-state schema mismatch")
+        if partition == "kitty_qwen3":
+            for name in ("kitty_commit", "transformers_commit"):
+                value = source_state[name]
+                if not isinstance(value, str) or len(value) != 40:
+                    raise Qwen3FormalError(f"Kitty acceptance {name} is invalid")
+            if source_state["kitty_dirty"] is not False:
+                raise Qwen3FormalError("Kitty acceptance source tree must be clean")
+
+        runs = record["runs"]
+        if not isinstance(runs, dict) or set(runs) != {"a", "b"}:
+            raise Qwen3FormalError(f"{partition} acceptance runs mismatch")
+        for label, run in runs.items():
+            if not isinstance(run, dict) or set(run) != {
+                "directory",
+                "run_identity_sha256",
+                "summary_sha256",
+                "archive_path",
+                "archive_sha256",
+                "log_path",
+                "log_sha256",
+            }:
+                raise Qwen3FormalError(f"{partition} acceptance run {label} schema mismatch")
+            for name in ("directory", "archive_path", "log_path"):
+                _require_absolute_path(f"{partition}.{label}.{name}", run[name])
+            for name in (
+                "run_identity_sha256",
+                "summary_sha256",
+                "archive_sha256",
+                "log_sha256",
+            ):
+                _require_sha256(f"{partition}.{label}.{name}", run[name])
+
+        comparison = record["comparison"]
+        if not isinstance(comparison, dict) or set(comparison) != {
+            "path",
+            "sha256",
+            "scientific_payload_sha256",
+            "case_count",
+        }:
+            raise Qwen3FormalError(f"{partition} acceptance comparison schema mismatch")
+        _require_absolute_path(f"{partition}.comparison.path", comparison["path"])
+        _require_sha256(f"{partition}.comparison.sha256", comparison["sha256"])
+        _require_sha256(
+            f"{partition}.comparison.scientific_payload_sha256",
+            comparison["scientific_payload_sha256"],
+        )
+        if comparison["case_count"] != expected_cases:
+            raise Qwen3FormalError(f"{partition} acceptance comparison count mismatch")
+
+    failures = gate["failed_pre_case_attempts"]
+    if not isinstance(failures, list):
+        raise Qwen3FormalError("failed pre-case attempts must be a list")
+    for record in failures:
+        if not isinstance(record, dict) or set(record) != {
+            "label",
+            "source_state",
+            "output_directory",
+            "run_identity_sha256",
+            "log_path",
+            "log_sha256",
+            "cases_executed",
+        }:
+            raise Qwen3FormalError("failed pre-case attempt schema mismatch")
+        if not isinstance(record["label"], str) or not record["label"]:
+            raise Qwen3FormalError("failed pre-case attempt label is invalid")
+        _validate_source_state(record["source_state"])
+        _require_absolute_path("failed output_directory", record["output_directory"])
+        _require_absolute_path("failed log_path", record["log_path"])
+        _require_sha256("failed run_identity_sha256", record["run_identity_sha256"])
+        _require_sha256("failed log_sha256", record["log_sha256"])
+        if record["cases_executed"] != 0:
+            raise Qwen3FormalError("recorded pre-case failure must have zero executed cases")
+
+
+def _verify_acceptance_gate_artifacts(gate: dict[str, Any]) -> None:
+    protocol = gate["protocol"]
+    execution = gate["execution"]
+    input_manifest_sha256 = gate["input_manifest"]["sha256"]
+    for partition, record in gate["partitions"].items():
+        expected_cases = record["expected_cases"]
+        expected_identity = {
+            "execution_id": execution["execution_id"],
+            "execution_sha256": execution["sha256"],
+            "protocol_id": protocol["protocol_id"],
+            "protocol_sha256": protocol["sha256"],
+            "input_manifest_sha256": input_manifest_sha256,
+            "source_state": record["source_state"],
+        }
+        locks: dict[str, dict[str, Any]] = {}
+        summaries: dict[str, dict[str, Any]] = {}
+        for label, run in record["runs"].items():
+            directory = Path(run["directory"])
+            lock_path = directory / "run_identity.json"
+            summary_path = directory / "summary.json"
+            _verify_file_sha256(lock_path, run["run_identity_sha256"])
+            _verify_file_sha256(summary_path, run["summary_sha256"])
+            _verify_file_sha256(Path(run["archive_path"]), run["archive_sha256"])
+            _verify_file_sha256(Path(run["log_path"]), run["log_sha256"])
+            lock = _load_json_object(lock_path, f"{partition} acceptance run lock")
+            summary = _load_json_object(summary_path, f"{partition} acceptance summary")
+            case_ids = lock.get("expected_case_ids")
+            if (
+                lock.get("schema_version") != 1
+                or lock.get("partition") != partition
+                or lock.get("stage") != "acceptance"
+                or lock.get("execution_id") != execution["execution_id"]
+                or lock.get("execution_sha256") != execution["sha256"]
+                or lock.get("protocol_id") != protocol["protocol_id"]
+                or lock.get("protocol_sha256") != protocol["sha256"]
+                or lock.get("input_manifest_sha256") != input_manifest_sha256
+                or lock.get("source_state") != record["source_state"]
+                or not isinstance(case_ids, list)
+                or len(case_ids) != expected_cases
+                or len(case_ids) != len(set(case_ids))
+            ):
+                raise Qwen3FormalError(f"{partition} acceptance run {label} lock failed")
+            if (
+                summary.get("schema_version") != 1
+                or summary.get("status") != "pass"
+                or summary.get("partition") != partition
+                or summary.get("stage") != "acceptance"
+                or summary.get("expected_cases") != expected_cases
+                or summary.get("completed_cases") != expected_cases
+                or summary.get("new_cases") != expected_cases
+                or summary.get("resumed_cases") != 0
+                or summary.get("failure_records") != 0
+                or summary.get("identity") != expected_identity
+            ):
+                raise Qwen3FormalError(f"{partition} acceptance run {label} summary failed")
+            locks[label] = lock
+            summaries[label] = summary
+        if locks["a"] != locks["b"]:
+            raise Qwen3FormalError(f"{partition} acceptance run identities differ")
+
+        comparison_record = record["comparison"]
+        comparison_path = Path(comparison_record["path"])
+        _verify_file_sha256(comparison_path, comparison_record["sha256"])
+        comparison = _load_json_object(
+            comparison_path, f"{partition} acceptance comparison"
+        )
+        if (
+            comparison.get("schema_version") != 1
+            or comparison.get("status") != "pass"
+            or comparison.get("partition") != partition
+            or comparison.get("stage") != "acceptance_repeat_comparison"
+            or comparison.get("case_count") != expected_cases
+            or comparison.get("bitwise_equal_scientific_cases") != expected_cases
+            or comparison.get("mismatch_count") != 0
+            or comparison.get("mismatches") != []
+            or comparison.get("scientific_payload_sha256")
+            != comparison_record["scientific_payload_sha256"]
+            or comparison.get("execution_identity") != expected_identity
+            or comparison.get("left") != record["runs"]["a"]["directory"]
+            or comparison.get("right") != record["runs"]["b"]["directory"]
+            or comparison.get("left_summary_sha256")
+            != record["runs"]["a"]["summary_sha256"]
+            or comparison.get("right_summary_sha256")
+            != record["runs"]["b"]["summary_sha256"]
+        ):
+            raise Qwen3FormalError(f"{partition} acceptance comparison failed")
+
+    for record in gate["failed_pre_case_attempts"]:
+        output_directory = Path(record["output_directory"])
+        _verify_file_sha256(
+            output_directory / "run_identity.json", record["run_identity_sha256"]
+        )
+        _verify_file_sha256(Path(record["log_path"]), record["log_sha256"])
+        cases_path = output_directory / "cases"
+        if cases_path.exists() and any(cases_path.glob("*.json")):
+            raise Qwen3FormalError("pre-case failure unexpectedly contains case results")
+
+
+def _verify_file_sha256(path: Path, expected_sha256: str) -> None:
+    try:
+        actual = file_sha256(path)
+    except OSError as error:
+        raise Qwen3FormalError(f"cannot hash acceptance artifact {path}: {error}") from error
+    if actual != expected_sha256:
+        raise Qwen3FormalError(f"acceptance artifact SHA-256 mismatch: {path}")
+
+
+def _require_absolute_path(name: str, value: Any) -> Path:
+    if not isinstance(value, str) or not value:
+        raise Qwen3FormalError(f"{name} must be a nonempty path")
+    path = Path(value)
+    if not path.is_absolute() and not PurePosixPath(value).is_absolute():
+        raise Qwen3FormalError(f"{name} must be an absolute path")
+    return path
 
 
 def _resolved_cage_method_config(
@@ -674,6 +975,7 @@ def _require_sha256(name: str, value: Any) -> None:
 __all__ = [
     "FORMAL_PROTOCOL_ID",
     "FORMAL_EXECUTION_ID",
+    "FORMAL_ACCEPTANCE_GATE_ID",
     "INPUT_MANIFEST_SCHEMA_VERSION",
     "Qwen3FormalError",
     "build_input_manifest",
@@ -682,6 +984,7 @@ __all__ = [
     "file_sha256",
     "load_formal_protocol",
     "load_execution_config",
+    "load_acceptance_gate",
     "formal_method_length_points",
     "formal_scoring",
     "read_corpus_snapshot",
