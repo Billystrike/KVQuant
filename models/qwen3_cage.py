@@ -368,6 +368,12 @@ def _qwen3_cage_attention_forward(
         sin,
     )
 
+    # Optional read-only instrumentation used by the separately frozen
+    # memory--perturbation experiment.  Keep the current-token tensors before
+    # cache.update() replaces K/V with the complete history.
+    current_key_states = key_states
+    current_value_states = value_states
+
     if past_key_value is not None:
         cache_kwargs: dict[str, Any] = {
             "sin": sin,
@@ -384,6 +390,19 @@ def _qwen3_cage_attention_forward(
             value_states,
             self.layer_idx,
             cache_kwargs,
+        )
+
+    perturbation_callback = getattr(self, "_qwen3_perturbation_callback", None)
+    if perturbation_callback is not None:
+        perturbation_callback(
+            attention_module=self,
+            query_states=query_states,
+            current_key_states=current_key_states,
+            current_value_states=current_value_states,
+            attention_key_states=key_states,
+            attention_value_states=value_states,
+            attention_mask=attention_mask,
+            past_key_value=past_key_value,
         )
 
     attention_interface = modeling_qwen3.eager_attention_forward

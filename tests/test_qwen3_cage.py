@@ -76,6 +76,42 @@ class Qwen3CageTest(unittest.TestCase):
             self.assertEqual([tuple(x.shape) for x in policy.key_bucket_indices], [(2, 2), (2, 3), (2, 3)])
             self.assertEqual([tuple(x.shape) for x in policy.value_bucket_indices], [(2, 2), (2, 3), (2, 3)])
 
+    def test_read_only_perturbation_callback_observes_current_and_attention_history(self):
+        install_qwen3_cage_attention(self.model)
+        observed = []
+
+        def callback(**kwargs):
+            observed.append(
+                (
+                    kwargs["attention_module"].layer_idx,
+                    kwargs["query_states"].shape[2],
+                    kwargs["current_key_states"].shape[2],
+                    kwargs["attention_key_states"].shape[2],
+                )
+            )
+
+        for module in self.model.modules():
+            if hasattr(module, "_qwen3_cage_original_forward"):
+                module._qwen3_perturbation_callback = callback
+
+        cache = DynamicCache()
+        with torch.no_grad():
+            first = self.model(
+                input_ids=torch.tensor([[1, 2, 3, 4, 5]]),
+                past_key_values=cache,
+                use_cache=True,
+            )
+            self.model(
+                input_ids=torch.tensor([[6]]),
+                past_key_values=first.past_key_values,
+                use_cache=True,
+            )
+
+        self.assertEqual(
+            observed,
+            [(0, 5, 5, 5), (1, 5, 5, 5), (0, 1, 1, 6), (1, 1, 1, 6)],
+        )
+
     def test_fixed_uniform_ablation_preserves_bucket_shapes_and_is_strided(self):
         install_qwen3_cage_attention(self.model)
         config = CageConfig(

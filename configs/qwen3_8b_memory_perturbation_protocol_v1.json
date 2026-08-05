@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-kitty-memory-perturbation-v1",
+  "frozen_on": "2026-08-05",
+  "status": "frozen_after_formal_quality_analysis_before_perturbation_execution",
+  "post_quality_design": true,
+  "inherited_quality_protocol": {
+    "path": "configs/qwen3_8b_formal_quality_protocol_v1.json",
+    "protocol_id": "qwen3-8b-cage-kitty-formal-quality-v1",
+    "sha256": "78f33126ace6822649c623b6a2535abc23262728e51818d74b0d14b92fe10e92"
+  },
+  "inherited_execution": {
+    "path": "configs/qwen3_8b_formal_execution_v1.json",
+    "execution_id": "qwen3-8b-cage-kitty-formal-execution-v1",
+    "sha256": "c7a1634613cfeeecd604d2f056ea77a0f9371d42a1a0fc6fc199c27dffa26f5c"
+  },
+  "inherited_input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_formal_input_manifest_f6a182a.json",
+    "sha256": "911728ebd24683520c1378520ef02a0669aecfddf03fb4a458c0b73e280e07c5",
+    "input_case_count": 150
+  },
+  "quality_results_seen_before_freeze": true,
+  "quality_results_receipt": {
+    "path": "configs/qwen3_8b_formal_results_receipt_v1.json",
+    "sha256": "5fa498257d5a986c2555202d165ff0c87a19bf85669f2755c94656a78150b73e",
+    "case_count": 1300,
+    "target_count": 83200
+  },
+  "grid": {
+    "selection_rule": "inherit_every_executable_method-length point and every anchor from the frozen formal quality experiment",
+    "quality_selected_subset": false,
+    "prompt_lengths": [1024, 2048, 4032],
+    "anchor_count": 50,
+    "cage_qwen3_method_length_points": 20,
+    "kitty_qwen3_method_length_points": 6,
+    "case_count": 1300,
+    "layer_count_per_case": 36,
+    "layer_record_count": 46800
+  },
+  "measurement": {
+    "phase": "first_teacher_forced_decode_after_prompt_prefill",
+    "continuation_token_index_used_as_decode_input": 0,
+    "attention_history_length": "prompt_length + 1",
+    "memory_estimate_length": "prompt_length",
+    "query_source": "final-position query from an FP16 no-cache pass over prompt plus continuation token 0",
+    "exact_history_source": "unquantized candidate prefill K/V plus the candidate decode step's current-token K/V",
+    "perturbed_history_source": "method cache returned for the same candidate decode attention",
+    "candidate_query_excluded_from_primary_metrics": true,
+    "attention_mask": "all history positions are visible to the single final-position query",
+    "top_k": 10
+  },
+  "metrics": {
+    "primary": "joint_post_o_proj_mse",
+    "layer_metrics": [
+      "relative_k_reconstruction_error",
+      "attention_logit_mse",
+      "attention_score_kl",
+      "topk_attention_overlap",
+      "weighted_key_error",
+      "relative_v_reconstruction_error",
+      "attention_output_mse",
+      "post_o_proj_mse",
+      "weighted_value_error",
+      "joint_attention_output_mse",
+      "joint_post_o_proj_mse",
+      "joint_attention_output_relative_error"
+    ],
+    "run_aggregates": ["mean", "median", "maximum"],
+    "fp16_expected_identity": {
+      "zero_metrics": [
+        "relative_k_reconstruction_error",
+        "attention_logit_mse",
+        "attention_score_kl",
+        "weighted_key_error",
+        "relative_v_reconstruction_error",
+        "attention_output_mse",
+        "post_o_proj_mse",
+        "weighted_value_error",
+        "joint_attention_output_mse",
+        "joint_post_o_proj_mse",
+        "joint_attention_output_relative_error"
+      ],
+      "unit_metrics": ["topk_attention_overlap"]
+    }
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "conda_prefix": "/root/autodl-tmp/conda-envs/cage-qwen3",
+      "full_cases": 1000,
+      "acceptance_cases": 11
+    },
+    "kitty_qwen3": {
+      "conda_prefix": "/root/autodl-tmp/conda-envs/kitty-qwen3",
+      "full_cases": 300,
+      "acceptance_cases": 3
+    }
+  },
+  "acceptance_policy": {
+    "reuse_formal_quality_acceptance_points": true,
+    "fresh_output_repeats": 2,
+    "required_numeric_consistency": "bitwise_equal",
+    "compare_payload": ["case_id", "method", "input", "memory", "layer_metrics", "aggregates"],
+    "full_run_requires_frozen_acceptance_gate": true
+  },
+  "memory_protocol": {
+    "path": "configs/qwen3_8b_matched_memory_protocol_v1.json",
+    "report_at_prompt_length": true,
+    "selection_is_already_frozen": true,
+    "representation": "packed paper estimate",
+    "do_not_compare_by_nominal_bit_width": true
+  },
+  "resume_and_integrity": {
+    "one_atomic_json_per_case": true,
+    "one_layer_record_per_decoder_layer": true,
+    "resume_only_exact_valid_completed_cases": true,
+    "invalid_existing_case": "fail_closed_without_overwrite",
+    "require_clean_cage_and_kitty_sources": true,
+    "require_finite_numeric_outputs": true
+  },
+  "claim_boundary": {
+    "role": "post-quality local mechanism validation",
+    "not_a_quality_selection_input": true,
+    "not_end_to_end_quality": true,
+    "not_population_inference": true,
+    "memory": "packed paper estimate only",
+    "unsupported": [
+      "CAGE fused-kernel latency",
+      "CAGE throughput",
+      "CAGE realized CUDA memory reduction",
+      "replacement of the frozen paired quality results"
+    ]
+  }
+}
