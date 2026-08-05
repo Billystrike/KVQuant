@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-kitty-formal-results-receipt-v1",
+  "frozen_on": "2026-08-05",
+  "status": "frozen_after_complete_execution_before_quality_interpretation",
+  "source_commit": "f0fbcb7efc19f6b87d6afa6ac5e79749b30204db",
+  "protocol": {
+    "path": "configs/qwen3_8b_formal_quality_protocol_v1.json",
+    "sha256": "78f33126ace6822649c623b6a2535abc23262728e51818d74b0d14b92fe10e92"
+  },
+  "memory_protocol": {
+    "path": "configs/qwen3_8b_matched_memory_protocol_v1.json",
+    "sha256": "f8ca2f107126f926395f4db96fb3d827860ebae4a9801f83f8d622636e489c80"
+  },
+  "execution": {
+    "path": "configs/qwen3_8b_formal_execution_v1.json",
+    "sha256": "c7a1634613cfeeecd604d2f056ea77a0f9371d42a1a0fc6fc199c27dffa26f5c"
+  },
+  "acceptance_gate": {
+    "path": "configs/qwen3_8b_formal_acceptance_gate_v1.json",
+    "sha256": "e4c2b28cbf1bf905dfcfb2e546fa6f134fa1b1399db5f91411e051106786ddab"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_formal_input_manifest_f6a182a.json",
+    "sha256": "911728ebd24683520c1378520ef02a0669aecfddf03fb4a458c0b73e280e07c5"
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_formal/cage_full_f0fbcb7",
+      "case_count": 1000,
+      "case_ids_sha256": "86c65112e7e8f1dce1c3f2d2105c726d785125fc12276bac631575f7b9d39837",
+      "source_state": {
+        "git_commit": "f0fbcb7efc19f6b87d6afa6ac5e79749b30204db",
+        "dirty": false
+      },
+      "run_identity_sha256": "a5c4122e6d8266bcd63b7b5052315fe13d1329207c804006449fd097145c52ed",
+      "summary_sha256": "25f52dc87cd4740958529203fa27396a04c2d905176e6a588b37d12733fae530",
+      "archive_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_full_f0fbcb7.tar.gz",
+      "archive_sha256": "aa963d7721cfc4ce25267deb8bcb991b951c4b6f18ad5192e6bd5223175fc131",
+      "execution_log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_full_f0fbcb7.log",
+      "execution_log_sha256": "c18026b6b69259da0e33f867c77cfaed3849925b4ef9509adb3ab2d3291a4870",
+      "postrun_audit_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_full_postrun_audit_f0fbcb7.json",
+      "postrun_audit_sha256": "de96d5d7dffbc6d4a108e11b4c41415e770f186cba124b31e96075f43d2cc41f",
+      "postrun_audit_log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_full_postrun_audit_f0fbcb7.log",
+      "postrun_audit_log_sha256": "98b1bd29953a9d61afd967480162f9e31d90ce033f1f3093f9aaeba4be5db6ef",
+      "scientific_payload_sha256": "612a3757e49e6b4a7bd5eff96eeff7087934b0bdac1455b7c91cf8cd97cc2332",
+      "case_file_hash_manifest_sha256": "d986b8d4bfbc498353bfef505a1789f27822021044da3d735d750b6a312e1e34"
+    },
+    "kitty_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_formal/kitty_full_f0fbcb7",
+      "case_count": 300,
+      "case_ids_sha256": "9754624e2aa71c3bf1cb518287b686c9c6d6205fe7f8b8439a48ff113545d12e",
+      "source_state": {
+        "git_commit": "f0fbcb7efc19f6b87d6afa6ac5e79749b30204db",
+        "dirty": false,
+        "kitty_commit": "dfd2c07b407d6b407179359207c612ab631f3ed1",
+        "kitty_dirty": false,
+        "transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178"
+      },
+      "run_identity_sha256": "1d3a8ff7dd59f4202200071ad55818132a2c37ccec69fb99e1fa24ca08472261",
+      "summary_sha256": "c1e8b26a12d39f1a797d0a7773dea3fcc2e0013e89c7d118c4ff75f91b9bfb4b",
+      "archive_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_kitty_full_f0fbcb7.tar.gz",
+      "archive_sha256": "14efbef0046e72428bdd6e954f5186ae46349ee6170de9e062fd9a3e122c43cb",
+      "execution_log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_kitty_full_f0fbcb7.log",
+      "execution_log_sha256": "373a08edef8ab1a38855ec765c46c866a4804b6dbb40d6d4cbbb99f4c9abfd20",
+      "postrun_audit_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_kitty_full_postrun_audit_f0fbcb7.json",
+      "postrun_audit_sha256": "9534d3c3d2f72820f4bdc7eb010f0048e999fce994ed86b0589c2a0e8f7f3b65",
+      "postrun_audit_log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_kitty_full_postrun_audit_f0fbcb7.log",
+      "postrun_audit_log_sha256": "36c1e445b24e6028f4ff22fdf5942c147990d044c1a13ce827b3350441483579",
+      "scientific_payload_sha256": "5784d37b15934e9e95923460157cc17dee00f5aacd0017dd4177ab372d24f157"
+    }
+  },
+  "analysis_freeze": {
+    "paired_unit": "anchor",
+    "delta": "candidate_mean_nll_minus_baseline_mean_nll",
+    "negative_delta_favors_candidate": true,
+    "tie_rule": "exact_zero",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260803,
+    "bootstrap_rng": "python_random.Random_reinitialized_per_contrast",
+    "bootstrap_sampling": "sample_50_paired_anchor_deltas_with_replacement",
+    "bootstrap_interval": "two_sided_95_percentile_type7_linear",
+    "pareto_objectives": [
+      "minimize_complete_active_packed_bytes",
+      "minimize_token_weighted_mean_nll"
+    ],
+    "interpretation_scope": "descriptive_stability_over_deterministic_corpus_grid"
+  }
+}
