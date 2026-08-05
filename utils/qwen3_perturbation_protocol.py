@@ -9,6 +9,21 @@ from typing import Any, Mapping, Sequence
 
 
 PERTURBATION_PROTOCOL_ID = "qwen3-8b-cage-kitty-memory-perturbation-v1"
+PERTURBATION_ACCEPTANCE_GATE_ID = (
+    "qwen3-8b-cage-kitty-memory-perturbation-acceptance-gate-v1"
+)
+SCIENTIFIC_PAYLOAD_FIELDS = (
+    "case_id",
+    "base_quality_case_id",
+    "partition",
+    "stage",
+    "method",
+    "input",
+    "memory",
+    "measurement",
+    "layer_metrics",
+    "aggregates",
+)
 LAYER_METRICS = (
     "relative_k_reconstruction_error",
     "attention_logit_mse",
@@ -82,6 +97,173 @@ def validate_perturbation_protocol(protocol: dict[str, Any]) -> None:
         raise Qwen3PerturbationError("CAGE partition case count mismatch")
     if partitions["kitty_qwen3"].get("full_cases") != 300:
         raise Qwen3PerturbationError("Kitty partition case count mismatch")
+
+
+def load_perturbation_acceptance_gate(
+    path: str | Path,
+    *,
+    perturbation_protocol_sha256: str,
+    verify_artifacts: bool = False,
+) -> tuple[dict[str, Any], str]:
+    source = Path(path)
+    try:
+        gate = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise Qwen3PerturbationError(f"cannot load perturbation acceptance gate {source}: {error}") from error
+    validate_perturbation_acceptance_gate(
+        gate,
+        perturbation_protocol_sha256=perturbation_protocol_sha256,
+    )
+    if verify_artifacts:
+        verify_perturbation_acceptance_artifacts(gate)
+    return gate, file_sha256(source)
+
+
+def validate_perturbation_acceptance_gate(
+    gate: dict[str, Any], *, perturbation_protocol_sha256: str
+) -> None:
+    _require_sha256("perturbation_protocol_sha256", perturbation_protocol_sha256)
+    if not isinstance(gate, dict) or gate.get("schema_version") != 1:
+        raise Qwen3PerturbationError("perturbation acceptance gate schema mismatch")
+    if gate.get("gate_id") != PERTURBATION_ACCEPTANCE_GATE_ID or gate.get("status") != "pass":
+        raise Qwen3PerturbationError("perturbation acceptance gate identity/status mismatch")
+    protocol = gate.get("perturbation_protocol", {})
+    if protocol.get("protocol_id") != PERTURBATION_PROTOCOL_ID:
+        raise Qwen3PerturbationError("acceptance gate protocol ID mismatch")
+    if protocol.get("sha256") != perturbation_protocol_sha256:
+        raise Qwen3PerturbationError("acceptance gate protocol hash mismatch")
+    source = gate.get("acceptance_source", {})
+    for name in (
+        "runner_sha256",
+        "recorder_sha256",
+        "qwen3_cage_sha256",
+    ):
+        _require_sha256(f"acceptance_source.{name}", source.get(name))
+    if source.get("kitty_commit") != "dfd2c07b407d6b407179359207c612ab631f3ed1":
+        raise Qwen3PerturbationError("acceptance gate Kitty commit mismatch")
+    if source.get("transformers_commit") != "37f8b0b53512e6aae0cfd15746c133c101783178":
+        raise Qwen3PerturbationError("acceptance gate Transformers commit mismatch")
+    if source.get("omp_num_threads_observed") != "0":
+        raise Qwen3PerturbationError("acceptance gate OMP observation mismatch")
+
+    partitions = gate.get("partitions", {})
+    if set(partitions) != {"cage_qwen3", "kitty_qwen3"}:
+        raise Qwen3PerturbationError("acceptance gate partition schema mismatch")
+    for partition, expected_count in (("cage_qwen3", 11), ("kitty_qwen3", 3)):
+        record = partitions[partition]
+        if record.get("case_count_per_repeat") != expected_count:
+            raise Qwen3PerturbationError(f"{partition} acceptance case count mismatch")
+        _require_sha256(f"{partition}.case_ids_sha256", record.get("case_ids_sha256"))
+        _require_sha256(
+            f"{partition}.scientific_payload_sha256",
+            record.get("scientific_payload_sha256"),
+        )
+        for repeat in ("repeat_a", "repeat_b"):
+            artifact = record.get(repeat, {})
+            if not isinstance(artifact.get("output_dir"), str) or not isinstance(
+                artifact.get("execution_log"), str
+            ):
+                raise Qwen3PerturbationError(f"{partition}.{repeat} paths are invalid")
+            for name in (
+                "run_identity_sha256",
+                "summary_sha256",
+                "execution_log_sha256",
+            ):
+                _require_sha256(
+                    f"{partition}.{repeat}.{name}", artifact.get(name)
+                )
+    comparison = gate.get("comparison", {})
+    if tuple(comparison.get("fields", ())) != SCIENTIFIC_PAYLOAD_FIELDS:
+        raise Qwen3PerturbationError("acceptance scientific payload fields mismatch")
+    if comparison.get("required") != "bitwise_equal_canonical_json":
+        raise Qwen3PerturbationError("acceptance comparison rule mismatch")
+    if comparison.get("cage_qwen3_pass") is not True or comparison.get("kitty_qwen3_pass") is not True:
+        raise Qwen3PerturbationError("both acceptance partitions must pass")
+    authorization = gate.get("full_run_authorization", {})
+    if authorization.get("total_cases") != 1300 or authorization.get("layer_records") != 46800:
+        raise Qwen3PerturbationError("full-run gate counts mismatch")
+    if authorization.get("quality_grid_mutation_allowed") is not False:
+        raise Qwen3PerturbationError("full-run gate must forbid quality-grid mutation")
+
+
+def scientific_payload_sha256(
+    output_dir: str | Path, *, expected_case_count: int
+) -> tuple[str, list[dict[str, Any]]]:
+    root = Path(output_dir)
+    paths = sorted((root / "cases").glob("*.json"))
+    if len(paths) != expected_case_count:
+        raise Qwen3PerturbationError(
+            f"{root} contains {len(paths)} case files, expected {expected_case_count}"
+        )
+    payload: list[dict[str, Any]] = []
+    for path in paths:
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise Qwen3PerturbationError(f"cannot read acceptance case {path}: {error}") from error
+        if not isinstance(record, dict):
+            raise Qwen3PerturbationError(f"acceptance case is not an object: {path}")
+        try:
+            payload.append({name: record[name] for name in SCIENTIFIC_PAYLOAD_FIELDS})
+        except KeyError as error:
+            raise Qwen3PerturbationError(
+                f"acceptance case {path} lacks scientific field {error.args[0]!r}"
+            ) from error
+    blob = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest(), payload
+
+
+def verify_perturbation_acceptance_artifacts(gate: dict[str, Any]) -> None:
+    for partition, record in gate["partitions"].items():
+        expected_count = record["case_count_per_repeat"]
+        repeat_payloads = []
+        for repeat in ("repeat_a", "repeat_b"):
+            artifact = record[repeat]
+            root = Path(artifact["output_dir"])
+            identity_path = root / "run_identity.json"
+            summary_path = root / "summary.json"
+            log_path = Path(artifact["execution_log"])
+            for label, path, expected_sha in (
+                ("run identity", identity_path, artifact["run_identity_sha256"]),
+                ("summary", summary_path, artifact["summary_sha256"]),
+                ("execution log", log_path, artifact["execution_log_sha256"]),
+            ):
+                if not path.is_file() or file_sha256(path) != expected_sha:
+                    raise Qwen3PerturbationError(
+                        f"{partition} {repeat} {label} artifact mismatch"
+                    )
+            try:
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                raise Qwen3PerturbationError(
+                    f"cannot read {partition} {repeat} summary: {error}"
+                ) from error
+            if (
+                summary.get("status") != "pass"
+                or summary.get("completed_cases") != expected_count
+                or summary.get("failure_records") != 0
+                or summary.get("case_ids_sha256") != record["case_ids_sha256"]
+            ):
+                raise Qwen3PerturbationError(
+                    f"{partition} {repeat} summary content mismatch"
+                )
+            payload_sha, payload = scientific_payload_sha256(
+                root, expected_case_count=expected_count
+            )
+            if payload_sha != record["scientific_payload_sha256"]:
+                raise Qwen3PerturbationError(
+                    f"{partition} {repeat} scientific payload hash mismatch"
+                )
+            repeat_payloads.append(payload)
+        if repeat_payloads[0] != repeat_payloads[1]:
+            raise Qwen3PerturbationError(
+                f"{partition} acceptance repeats are not bitwise equal"
+            )
 
 
 def perturbation_case_id(
@@ -171,13 +353,19 @@ def _require_sha256(name: str, value: Any) -> None:
 
 __all__ = [
     "LAYER_METRICS",
+    "PERTURBATION_ACCEPTANCE_GATE_ID",
     "PERTURBATION_PROTOCOL_ID",
     "Qwen3PerturbationError",
+    "SCIENTIFIC_PAYLOAD_FIELDS",
     "aggregate_layer_metrics",
     "file_sha256",
+    "load_perturbation_acceptance_gate",
     "load_perturbation_protocol",
     "perturbation_case_id",
+    "scientific_payload_sha256",
     "validate_aggregates",
     "validate_layer_records",
+    "validate_perturbation_acceptance_gate",
     "validate_perturbation_protocol",
+    "verify_perturbation_acceptance_artifacts",
 ]

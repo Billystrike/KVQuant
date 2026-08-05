@@ -8,6 +8,7 @@ from utils.qwen3_perturbation_protocol import (
     LAYER_METRICS,
     Qwen3PerturbationError,
     aggregate_layer_metrics,
+    load_perturbation_acceptance_gate,
     load_perturbation_protocol,
     perturbation_case_id,
     validate_aggregates,
@@ -18,6 +19,7 @@ from utils.qwen3_perturbation_protocol import (
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = REPO_ROOT / "configs" / "qwen3_8b_memory_perturbation_protocol_v1.json"
+GATE_PATH = REPO_ROOT / "configs" / "qwen3_8b_memory_perturbation_acceptance_gate_v1.json"
 
 
 def _layer_records():
@@ -41,6 +43,10 @@ class Qwen3PerturbationProtocolTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.protocol, cls.protocol_sha256 = load_perturbation_protocol(PROTOCOL_PATH)
+        cls.gate, cls.gate_sha256 = load_perturbation_acceptance_gate(
+            GATE_PATH,
+            perturbation_protocol_sha256=cls.protocol_sha256,
+        )
 
     def test_protocol_inherits_the_complete_quality_grid(self):
         grid = self.protocol["grid"]
@@ -66,6 +72,28 @@ class Qwen3PerturbationProtocolTest(unittest.TestCase):
         mutated["grid"]["quality_selected_subset"] = True
         with self.assertRaises(Qwen3PerturbationError):
             validate_perturbation_protocol(mutated)
+
+    def test_acceptance_gate_freezes_both_bitwise_repeat_pairs(self):
+        self.assertEqual(self.gate["status"], "pass")
+        self.assertEqual(
+            self.gate["partitions"]["cage_qwen3"]["scientific_payload_sha256"],
+            "c498287ff6a7f65b23e66ac4b96543cf5047832a2795ae8c0b6744ab7a231260",
+        )
+        self.assertEqual(
+            self.gate["partitions"]["kitty_qwen3"]["scientific_payload_sha256"],
+            "108058c37c0c6cfe5b89b8dc650d434234e1776f03054e6205e00252ec07d508",
+        )
+        self.assertTrue(self.gate["comparison"]["cage_qwen3_pass"])
+        self.assertTrue(self.gate["comparison"]["kitty_qwen3_pass"])
+        self.assertEqual(self.gate["full_run_authorization"]["total_cases"], 1300)
+        self.assertEqual(self.gate["full_run_authorization"]["layer_records"], 46800)
+
+    def test_acceptance_gate_rejects_protocol_hash_mutation(self):
+        with self.assertRaises(Qwen3PerturbationError):
+            load_perturbation_acceptance_gate(
+                GATE_PATH,
+                perturbation_protocol_sha256="0" * 64,
+            )
 
     def test_case_ids_bind_the_base_case_and_new_protocol(self):
         first = perturbation_case_id(

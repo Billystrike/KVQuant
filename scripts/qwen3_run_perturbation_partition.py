@@ -5,6 +5,7 @@ import argparse
 import gc
 import hashlib
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -46,6 +47,7 @@ from utils.qwen3_perturbation_protocol import (
     Qwen3PerturbationError,
     aggregate_layer_metrics,
     file_sha256,
+    load_perturbation_acceptance_gate,
     load_perturbation_protocol,
     perturbation_case_id,
     validate_aggregates,
@@ -434,13 +436,39 @@ def main() -> None:
     args = _parse_args()
     if not torch.cuda.is_available():
         raise Qwen3PerturbationError("Qwen3 perturbation execution requires CUDA")
-    if args.stage == "full":
-        raise Qwen3PerturbationError(
-            "full perturbation execution is locked until the two-repeat acceptance gate is frozen"
-        )
     perturbation, perturbation_sha256 = load_perturbation_protocol(
         args.perturbation_protocol.resolve()
     )
+    acceptance_gate_sha256 = None
+    if args.stage == "full":
+        if args.acceptance_gate is None:
+            raise Qwen3PerturbationError(
+                "full perturbation execution requires --acceptance-gate"
+            )
+        acceptance_gate, acceptance_gate_sha256 = load_perturbation_acceptance_gate(
+            args.acceptance_gate.resolve(),
+            perturbation_protocol_sha256=perturbation_sha256,
+            verify_artifacts=True,
+        )
+        acceptance_source = acceptance_gate["acceptance_source"]
+        if (
+            file_sha256(REPO_ROOT / "utils" / "qwen3_perturbation_runtime.py")
+            != acceptance_source["recorder_sha256"]
+        ):
+            raise Qwen3PerturbationError("recorder source changed after acceptance")
+        if (
+            file_sha256(REPO_ROOT / "models" / "qwen3_cage.py")
+            != acceptance_source["qwen3_cage_sha256"]
+        ):
+            raise Qwen3PerturbationError("Qwen3 attention adapter changed after acceptance")
+        if os.environ.get("OMP_NUM_THREADS") != acceptance_source["omp_num_threads_observed"]:
+            raise Qwen3PerturbationError(
+                "OMP_NUM_THREADS differs from the accepted environment"
+            )
+    elif args.acceptance_gate is not None:
+        raise Qwen3PerturbationError(
+            "acceptance stage must not consume a full-run gate"
+        )
     receipt_path = REPO_ROOT / perturbation["quality_results_receipt"]["path"]
     if file_sha256(receipt_path) != perturbation["quality_results_receipt"]["sha256"]:
         raise Qwen3PerturbationError("formal quality results receipt differs from the post-quality freeze")
@@ -473,7 +501,7 @@ def main() -> None:
         execution_sha256=execution_sha256,
         input_manifest=input_manifest,
         partition=args.partition,
-        stage="acceptance",
+        stage=args.stage,
     )
     cases = []
     for case in base_cases:
@@ -497,6 +525,8 @@ def main() -> None:
         "source_state": source_state,
         "expected_case_ids": [case["perturbation_case_id"] for case in cases],
     }
+    if acceptance_gate_sha256 is not None:
+        run_identity["acceptance_gate_sha256"] = acceptance_gate_sha256
     identity_path = output_dir / "run_identity.json"
     if identity_path.exists():
         if _load_json(identity_path) != run_identity:

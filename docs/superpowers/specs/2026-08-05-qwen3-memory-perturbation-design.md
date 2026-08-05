@@ -66,10 +66,13 @@ One runner emits a common schema but is invoked separately:
 - `cage_qwen3` in `/root/autodl-tmp/conda-envs/cage-qwen3`;
 - `kitty_qwen3` in `/root/autodl-tmp/conda-envs/kitty-qwen3`.
 
-The runner is initially acceptance-only. Two fresh acceptance outputs per
-partition must be bitwise-consistent in the frozen scientific payload. A later
-checked-in acceptance gate will unlock the full run. This prevents an
-unvalidated instrumentation path from producing formal results.
+The runner was initially acceptance-only. Two fresh acceptance outputs per
+partition were required to be bitwise-consistent in the frozen scientific
+payload. Both pairs passed, and their artifact identities are frozen in
+`configs/qwen3_8b_memory_perturbation_acceptance_gate_v1.json`. Full execution
+is unlocked only when the checked-in gate and every server-side acceptance
+artifact are revalidated. This prevents an unvalidated instrumentation path
+from producing formal results.
 
 ## Claim boundary
 
