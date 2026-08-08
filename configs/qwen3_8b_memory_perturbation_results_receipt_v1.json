@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-kitty-memory-perturbation-results-receipt-v1",
+  "frozen_on": "2026-08-08",
+  "status": "frozen_after_joint_postrun_audit_before_perturbation_interpretation",
+  "execution_source_commit": "420a1f53abbaa2ca49df7ba64650ea90e50e9983",
+  "audit_source_commit": "cf79a5ea3c9cf02eb9493c8f6038e65ece6ebda2",
+  "perturbation_protocol": {
+    "path": "configs/qwen3_8b_memory_perturbation_protocol_v1.json",
+    "sha256": "90850f59347393c5c164c1f84737a1fb258db9cfb4ee0126bc4517eea9819e12"
+  },
+  "quality_protocol": {
+    "path": "configs/qwen3_8b_formal_quality_protocol_v1.json",
+    "sha256": "78f33126ace6822649c623b6a2535abc23262728e51818d74b0d14b92fe10e92"
+  },
+  "quality_execution": {
+    "path": "configs/qwen3_8b_formal_execution_v1.json",
+    "sha256": "c7a1634613cfeeecd604d2f056ea77a0f9371d42a1a0fc6fc199c27dffa26f5c"
+  },
+  "acceptance_gate": {
+    "path": "configs/qwen3_8b_memory_perturbation_acceptance_gate_v1.json",
+    "sha256": "ba4229bf54a1d7ea4998fa025edefde6191477f840eca9a90f2f610567a25fe1"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_formal_input_manifest_f6a182a.json",
+    "sha256": "911728ebd24683520c1378520ef02a0669aecfddf03fb4a458c0b73e280e07c5"
+  },
+  "full_artifact_manifest": {
+    "path": "configs/qwen3_8b_memory_perturbation_full_artifacts_v1.json",
+    "sha256": "a194ccc65ef9694b0f37469817a2f58dfbdc7d7de42d2cccda31744c8665f4cd"
+  },
+  "joint_postrun_audit": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_perturbation_full_postrun_audit_cf79a5e.json",
+    "sha256": "c909abf59332fef13818810317cdccfea3d286829b95cc2e06e74d0d1d5ae532",
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_perturbation_full_postrun_audit_cf79a5e.log",
+    "log_sha256": "4292f58c104c82bcebc3302ca8e93cd680a205355ebff65a026c286ff7cae075",
+    "log_size_bytes": 9567,
+    "status": "pass",
+    "case_count": 1300,
+    "layer_record_count": 46800,
+    "failure_count": 0,
+    "joint_scientific_payload_sha256": "82a684adaeb5e1f4555a7648e49a02c857fcac511f7d7b5f612adb9bc356ba94",
+    "interpretation_performed": false
+  },
+  "archive": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_perturbation_full_cf79a5e.tar.gz",
+    "sha256": "dfe394207176c916546997ec87ba86fdf15860d48fc47f65f754bed05bc0aace"
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_perturbation/cage_full_420a1f5",
+      "case_count": 1000,
+      "layer_record_count": 36000,
+      "failure_count": 0,
+      "run_identity_sha256": "cd9f1c5365fb273f198a87731e220fabe6caf7f3a11bf9c6c616c8ce2d18be00",
+      "summary_sha256": "92aa720c813b65182f4ead52ef395fa22972e7f9d6a7743635426b2f6fce57dd",
+      "execution_log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_perturbation_cage_full_420a1f5.log",
+      "execution_log_sha256": "1e7c04cf5254c64131b3aa79e57de4b54ad1a43d4b9367bc030e8d6e5dcd9782",
+      "execution_log_size_bytes": 180940,
+      "case_ids_sha256": "7974eb8705c1d62da935cebe852262cbcb660e64039f459b346147301bf42266",
+      "canonical_case_file_manifest_sha256": "574348ad80f24b7ec29510053afee7e5ca897835d4f43c62d28a0dd53540925b",
+      "shell_case_file_manifest_sha256": "651bb53dd79442a6d390de67579414b71c767088c73f26e3f94560a77b029f29",
+      "scientific_payload_sha256": "b347eef1fe7e8db3aa18d977c4ba9642d62dbe8a7cfa95d27295ab2878c2fa59",
+      "model_identity_sha256": "e6d45deeb0279548793805a0917854c3787703b3bcf94e78da25dadd2ef4c87a"
+    },
+    "kitty_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_perturbation/kitty_full_420a1f5",
+      "case_count": 300,
+      "layer_record_count": 10800,
+      "failure_count": 0,
+      "run_identity_sha256": "26eebeebd1e1cbb3bb65aa9b694a1d68c43d3e1b7b05f163e83734ffd1abe125",
+      "summary_sha256": "e56dcf0d4b4552e3f195fa8379a7b9b28ec12f2a17761fccc65334c205744d3e",
+      "execution_log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_perturbation_kitty_full_420a1f5.log",
+      "execution_log_sha256": "3338e00ea0400cba1d66e6a54b17da417210d1194bd7518dcc5e66880fa0775c",
+      "execution_log_size_bytes": 58429,
+      "case_ids_sha256": "f07d85a496b585be12501f074a32444002e53254eb53ebbfa1a764e168e9f19f",
+      "canonical_case_file_manifest_sha256": "234c104ece9aa69b634d5fd5ab187e4fa265542a7bb180225e0679c37df19f79",
+      "shell_case_file_manifest_sha256": "90ed85f0d5355f9e9da980f8697de69740c0701d4fb9b6ccbfc5d075bcd74e5a",
+      "scientific_payload_sha256": "a7f913e22567654e5d916152b341b5bf74849c7eb2d8c217dfb343485a0a52ef",
+      "model_identity_sha256": "8d78be9e093a6a94da2046dc6aa9e1ba7cd4316002d5f2c3f99ed44d3f70556a"
+    }
+  },
+  "analysis_freeze": {
+    "analysis_unit": "anchor_case",
+    "layer_aggregation": "use_the_exact_case_level_mean_median_and_maximum_recomputed_from_all_36_layers",
+    "primary_metric": "joint_post_o_proj_mse",
+    "primary_case_statistic": "mean",
+    "paired_delta": "candidate_case_mean_minus_baseline_case_mean",
+    "negative_delta_favors_candidate": true,
+    "tie_rule": "exact_zero",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260808,
+    "bootstrap_rng": "python_random.Random_reinitialized_per_contrast",
+    "bootstrap_sampling": "sample_50_paired_anchor_deltas_with_replacement",
+    "bootstrap_interval": "two_sided_95_percentile_type7_linear",
+    "primary_comparison_source": "inherit_all_10_frozen_quality_primary_matched_comparisons_without_selection",
+    "mechanism_comparison_source": "inherit_all_12_frozen_quality_exact_byte_mechanism_comparisons_without_selection",
+    "pareto_objectives": [
+      "minimize_complete_active_packed_bytes_at_prompt_length",
+      "minimize_mean_joint_post_o_proj_mse"
+    ],
+    "reported_metric_scope": "all_12_frozen_layer_metrics_with_primary_claims_limited_to_joint_post_o_proj_mse",
+    "interpretation_scope": "post_quality_local_mechanism_validation_over_the_deterministic_50_anchor_grid",
+    "not_end_to_end_quality": true,
+    "not_population_inference": true,
+    "memory_representation": "packed_paper_estimate_only"
+  }
+}
