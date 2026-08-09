@@ -1,11 +1,14 @@
 import copy
+import hashlib
 import json
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from utils.qwen3_cage_v3_postrun import (
     CageV3PostrunError,
     _validate_cache,
+    shell_case_manifest_sha256,
     validate_artifact_manifest,
     validate_validation_attempt_manifest,
 )
@@ -16,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_artifacts_v1.json"
 EXPECTED_ARTIFACT_SHA256 = "0543fa82f53127ce242fc0c89beeaa3867384a91826c75ff88122e6e91b882cf"
 ATTEMPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_postrun_attempts_v1.json"
-EXPECTED_ATTEMPT_SHA256 = "eac22cca89da07f50f8dcc521a3e3a8e8999396bb5244ae6e9b2b65e5c65405b"
+EXPECTED_ATTEMPT_SHA256 = "dafb63006a90f04ff47107c03d0e6ae4e553a9860ddc05c07a90afc275be1cad"
 
 
 class CageV3PostrunTest(unittest.TestCase):
@@ -96,6 +99,7 @@ class CageV3PostrunTest(unittest.TestCase):
     def test_failed_postrun_validation_is_frozen_without_scientific_mutation(self):
         self.assertEqual(file_sha256(ATTEMPT_PATH), EXPECTED_ATTEMPT_SHA256)
         validate_validation_attempt_manifest(self.attempts)
+        self.assertEqual(len(self.attempts["attempts"]), 2)
         attempt = self.attempts["attempts"][0]
         self.assertFalse(attempt["output_created"])
         self.assertFalse(attempt["scientific_artifacts_mutated"])
@@ -111,6 +115,20 @@ class CageV3PostrunTest(unittest.TestCase):
             with self.subTest(field=field):
                 with self.assertRaisesRegex(CageV3PostrunError, message):
                     validate_validation_attempt_manifest(payload)
+
+    def test_shell_manifest_uses_cases_relative_paths(self):
+        with TemporaryDirectory() as temporary:
+            cases = Path(temporary) / "cases"
+            cases.mkdir()
+            paths = [cases / "b.json", cases / "a.json"]
+            for path in paths:
+                path.write_text(path.stem, encoding="utf-8")
+            lines = "".join(
+                f"{file_sha256(path)}  cases/{path.name}\n"
+                for path in sorted(paths)
+            )
+            expected = hashlib.sha256(lines.encode("utf-8")).hexdigest()
+            self.assertEqual(shell_case_manifest_sha256(paths), expected)
 
 
 if __name__ == "__main__":

@@ -111,7 +111,7 @@ def validate_artifact_manifest(
 
 
 def shell_case_manifest_sha256(paths: list[Path]) -> str:
-    lines = "".join(f"{file_sha256(path)}  {path}\n" for path in sorted(paths))
+    lines = "".join(f"{file_sha256(path)}  cases/{path.name}\n" for path in sorted(paths))
     return hashlib.sha256(lines.encode("utf-8")).hexdigest()
 
 
@@ -155,29 +155,30 @@ def validate_validation_attempt_manifest(manifest: dict[str, Any]) -> None:
     _require(manifest.get("schema_version") == 1, "validation attempt schema mismatch")
     _require(manifest.get("attempt_set_id") == ATTEMPT_SET_ID, "validation attempt set ID mismatch")
     _require(
-        manifest.get("status") == "frozen_after_failed_validator_before_retry",
+        manifest.get("status") == "frozen_after_failed_validators_before_retry",
         "validation attempt status mismatch",
     )
     _require(manifest.get("claim_eligible") is False, "validation attempts must be claim-ineligible")
     _require(manifest.get("interpretation_performed") is False, "validation attempt performed interpretation")
     _require(manifest.get("scientific_artifacts_mutated") is False, "validation attempt mutated scientific artifacts")
     attempts = manifest.get("attempts")
-    _require(isinstance(attempts, list) and len(attempts) == 1, "validation attempt count mismatch")
-    attempt = attempts[0]
-    _require(attempt.get("attempt_index") == 1, "validation attempt index mismatch")
-    _require(attempt.get("output_created") is False, "failed validation unexpectedly created output")
-    _require(attempt.get("tests_passed_before_failure") == 28, "failed validation test count mismatch")
-    _require(attempt.get("failure_type") == "CageV3PostrunError", "validation failure type mismatch")
-    _require(
-        attempt.get("failure_message") == "cage_qwen3 log lacks successful pipeline status",
-        "validation failure message mismatch",
+    _require(isinstance(attempts, list) and len(attempts) == 2, "validation attempt count mismatch")
+    expected = (
+        (1, 28, "cage_qwen3 log lacks successful pipeline status"),
+        (2, 30, "cage_qwen3 shell case manifest mismatch"),
     )
-    _require(attempt.get("scientific_artifacts_mutated") is False, "failed validation mutated artifacts")
-    _require(attempt.get("interpretation_performed") is False, "failed validation performed interpretation")
-    for field, length in (("source_commit", 40), ("validator_sha256", 64), ("execution_log_sha256", 64)):
-        value = attempt.get(field)
-        _require(isinstance(value, str) and len(value) == length, f"validation attempt {field} is invalid")
-    _require(attempt.get("execution_log_size_bytes", 0) > 0, "validation attempt log size is invalid")
+    for attempt, (index, test_count, failure_message) in zip(attempts, expected):
+        _require(attempt.get("attempt_index") == index, "validation attempt index mismatch")
+        _require(attempt.get("output_created") is False, "failed validation unexpectedly created output")
+        _require(attempt.get("tests_passed_before_failure") == test_count, "failed validation test count mismatch")
+        _require(attempt.get("failure_type") == "CageV3PostrunError", "validation failure type mismatch")
+        _require(attempt.get("failure_message") == failure_message, "validation failure message mismatch")
+        _require(attempt.get("scientific_artifacts_mutated") is False, "failed validation mutated artifacts")
+        _require(attempt.get("interpretation_performed") is False, "failed validation performed interpretation")
+        for field, length in (("source_commit", 40), ("validator_sha256", 64), ("execution_log_sha256", 64)):
+            value = attempt.get(field)
+            _require(isinstance(value, str) and len(value) == length, f"validation attempt {field} is invalid")
+        _require(attempt.get("execution_log_size_bytes", 0) > 0, "validation attempt log size is invalid")
 
 
 def validate_failed_validation_attempt(attempt: dict[str, Any]) -> dict[str, Any]:
