@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "artifact_set_id": "qwen3-8b-cage-v2-round1-development-screen-artifacts-v1",
+  "declared_on": "2026-08-09",
+  "status": "declared_from_execution_outputs_before_joint_postrun_audit",
+  "claim_eligible": false,
+  "execution_source_commit": "2fda44d68639b40b21371289f1f026c9afabbc45",
+  "protocol_sha256": "5b0aa6f4eade3e42a99bbc731944113ab5f9173489ab78632b5d837eb70218c9",
+  "manifest_sha256": "444db800195a515ec33567682fd508b9051920f637d24ffa56f78b19dbaa31ef",
+  "acceptance_gate_sha256": "5625705019e6a063985d85cf581a57a58027d1ea72886912d11d42e3bb58dd25",
+  "partitions": {
+    "cage_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v2_round1/cage_screen_2fda44d",
+      "case_count": 115,
+      "layer_record_count": 4140,
+      "failure_count": 0,
+      "case_ids_sha256": "afb721170db9f19a24eabaef16f4e650166c2b6ddff50fa1ad65c4d597c44ad5",
+      "run_identity_sha256": "0d3c589acc3060902494780ffbcb17edf0ef867b24c76749ff0348ea26aba365",
+      "summary_sha256": "baf3cfec331e6b7ea4327635bf0d7e8758048d8b5a28d7df30381e3dc373fd01",
+      "shell_case_file_manifest_sha256": "3099f678898482b1d3132effeb285ae203a45d4c3c0ae992029b04d56e6582ef",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_cage_screen_2fda44d.log",
+      "execution_log_sha256": "872e223599ef6e4b000bade2229dd6c972840cf547b34e87f2da5b0305ebb223",
+      "execution_log_size_bytes": 28388
+    },
+    "kitty_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v2_round1/kitty_screen_2fda44d",
+      "case_count": 30,
+      "layer_record_count": 1080,
+      "failure_count": 0,
+      "case_ids_sha256": "563072357261feefeaacb4c1d7da47c0bdb5e714b487201eafb6e1562b1395f2",
+      "run_identity_sha256": "67afbd4fdfb874d1e8ef8a1f39d07a0347ddde95e49089536fca171b25c75780",
+      "summary_sha256": "6e8382005c1c5cb60c8eefc253e09d296983d07954abe7ccf44f6743e868e08e",
+      "shell_case_file_manifest_sha256": "0623e393e7efa84998b83048d1652bf4291ba88ce1e521f9f59a674810163a3c",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_kitty_screen_2fda44d.log",
+      "execution_log_sha256": "f0ad2eaec0eeb64e7cb961c5c78816e818f1066ff44670ebd7214b99eb2660ab",
+      "execution_log_size_bytes": 13022
+    }
+  },
+  "joint_expected": {
+    "case_count": 145,
+    "layer_record_count": 5220,
+    "failure_count": 0,
+    "interpretation_allowed_before_audit_pass": false
+  }
+}
