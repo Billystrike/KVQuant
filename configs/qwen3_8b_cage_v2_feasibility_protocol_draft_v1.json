@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-v2-sparse-refinement-feasibility-draft-v1",
+  "created_on": "2026-08-09",
+  "status": "development_protocol_not_frozen_for_final_claims",
+  "purpose": "Test whether query-aware sparse Key residual refinement can close the matched-byte Kitty gap before any formal CAGE-v2 rerun.",
+  "model": {
+    "reference": "/root/autodl-tmp/models/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "native_context": 40960,
+    "dtype": "float16"
+  },
+  "method_boundary": {
+    "key": "all-channel INT2 backbone plus disjoint prompt-adaptive 1-bit and 2-bit residual streams",
+    "key_importance": "q2_var",
+    "value": "uniform INT2 without Value channel adaptation",
+    "representation": "accuracy simulation with logical packed-byte accounting",
+    "runtime_claims_supported": false
+  },
+  "development_data": {
+    "corpus_id": "Salesforce/wikitext",
+    "corpus_config": "wikitext-2-raw-v1",
+    "corpus_split": "validation",
+    "corpus_revision": "00aa25585682d4957f9e86edc73f59be7419af99",
+    "join_separator": "\n\n",
+    "selection_id": "interior-11ths-v1",
+    "anchor_count": 10,
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "eligible_for_final_claims": false,
+    "exclusions": [
+      "the frozen WikiText-2 test split 50-anchor grid already observed for CAGE-v1",
+      "all 1300 frozen v1 quality cases",
+      "all 1300 frozen v1 perturbation cases"
+    ]
+  },
+  "candidate_families": [
+    {
+      "id": "sr2-no-sink",
+      "one_bit_channels": 0,
+      "two_bit_channels": "calibration_allocated_by_layer",
+      "sink_length": 0
+    },
+    {
+      "id": "sr1-sr2-no-sink",
+      "one_bit_channels": "calibration_allocated_by_layer",
+      "two_bit_channels": "calibration_allocated_by_layer",
+      "sink_length": 0
+    },
+    {
+      "id": "sr1-sr2-sink32",
+      "one_bit_channels": "calibration_allocated_by_layer",
+      "two_bit_channels": "calibration_allocated_by_layer",
+      "sink_length": 32
+    }
+  ],
+  "fixed_quantization_choices": {
+    "key_base_bits": 2,
+    "value_bits": 2,
+    "key_base_group_size": 128,
+    "key_refinement_group_size": 128,
+    "value_group_size": 128,
+    "scale_dtype": "float16",
+    "zero_point_dtype": "float16",
+    "channel_index_bytes": 1,
+    "value_adaptive": false
+  },
+  "byte_targets": [
+    {"prompt_length": 1024, "target": "kitty-12.5pct", "target_bytes": 46857888},
+    {"prompt_length": 1024, "target": "kitty-pro-25pct", "target_bytes": 47890080},
+    {"prompt_length": 2048, "target": "kitty-12.5pct", "target_bytes": 69570720},
+    {"prompt_length": 2048, "target": "kitty-pro-25pct", "target_bytes": 71782560},
+    {"prompt_length": 4032, "target": "kitty-12.5pct", "target_bytes": 105559200},
+    {"prompt_length": 4032, "target": "kitty-pro-25pct", "target_bytes": 110130336}
+  ],
+  "development_limits": {
+    "maximum_design_rounds": 2,
+    "maximum_candidate_families_advanced_per_round": 3,
+    "primary_screening_metric": "mean_joint_post_o_proj_mse_over_36_layers",
+    "quality_run_before_local_gate": false
+  },
+  "development_gate": {
+    "advance_only_if": [
+      "candidate does not exceed its target packed-byte budget",
+      "candidate improves over CAGE-v1 at every tested prompt length",
+      "candidate is no worse than matched Kitty at at least two of three prompt lengths"
+    ],
+    "not_a_final_claim_gate": true
+  },
+  "future_final_test": {
+    "status": "must_be_selected_and_frozen_after_development_before_final_gpu_results",
+    "must_not_reuse_development_anchors": true,
+    "must_run_same_inputs_for_fp16_kivi_kitty_kitty_pro_cage_v1_cage_v2": true,
+    "must_report_unfavorable_results": true
+  }
+}
