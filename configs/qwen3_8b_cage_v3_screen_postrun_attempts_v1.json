@@ -78,6 +78,25 @@
       "scientific_case_validation_started": true,
       "scientific_artifacts_mutated": false,
       "interpretation_performed": false
+    },
+    {
+      "attempt_index": 5,
+      "source_commit": "808dbc1c828f7dea212bdaf7228145340030839e",
+      "validator_sha256": "9278995a3177a4fab65e48fd4d9f5b2a4f6d0e95bbbb40b0662c27806b1b63e5",
+      "postrun_utils_sha256": "ad20e7490a1e4578f864151a383355e8644303a806a1fe0bf664b31b24dddc18",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_screen_postrun_retry5_808dbc1.log",
+      "execution_log_sha256": "2ee34e5bdefd245e76338c502ada3c03439e700e41c89417613180b97015a071",
+      "execution_log_size_bytes": 5653,
+      "intended_output": "/root/autodl-tmp/qwen3_cage_v3/screen_postrun_audit_retry5_808dbc1.json",
+      "output_created": false,
+      "tests_passed_before_failure": 33,
+      "failure_type": "CageV3PostrunError",
+      "failure_message": "failed attempt status missing from log",
+      "root_cause": "validator incorrectly required an outer-shell PIPELINE_STATUS line inside the frozen inner pre-case failure log",
+      "scientific_case_validation_started": true,
+      "scientific_case_validation_completed": true,
+      "scientific_artifacts_mutated": false,
+      "interpretation_performed": false
     }
   ]
 }

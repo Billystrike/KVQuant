@@ -10,6 +10,7 @@ from utils.qwen3_cage_v3_postrun import (
     _validate_cache,
     shell_case_manifest_sha256,
     validate_artifact_manifest,
+    validate_failed_pre_case_attempt,
     validate_failed_validation_attempt,
     validate_validation_attempt_manifest,
 )
@@ -20,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_artifacts_v1.json"
 EXPECTED_ARTIFACT_SHA256 = "0543fa82f53127ce242fc0c89beeaa3867384a91826c75ff88122e6e91b882cf"
 ATTEMPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_postrun_attempts_v1.json"
-EXPECTED_ATTEMPT_SHA256 = "d7fefdba2a88406bad7fed17cb0a039c32cd61bb40785036c2a4faff5b5c85e4"
+EXPECTED_ATTEMPT_SHA256 = "e13629915023b4e570c77b60f319fa88bc49181d94f34e016556efb32b75893d"
 
 
 class CageV3PostrunTest(unittest.TestCase):
@@ -133,7 +134,7 @@ class CageV3PostrunTest(unittest.TestCase):
     def test_failed_postrun_validation_is_frozen_without_scientific_mutation(self):
         self.assertEqual(file_sha256(ATTEMPT_PATH), EXPECTED_ATTEMPT_SHA256)
         validate_validation_attempt_manifest(self.attempts)
-        self.assertEqual(len(self.attempts["attempts"]), 4)
+        self.assertEqual(len(self.attempts["attempts"]), 5)
         attempt = self.attempts["attempts"][0]
         self.assertFalse(attempt["output_created"])
         self.assertFalse(attempt["scientific_artifacts_mutated"])
@@ -197,6 +198,38 @@ class CageV3PostrunTest(unittest.TestCase):
             attempt["tests_passed_before_failure"] = 28
             with self.assertRaisesRegex(CageV3PostrunError, "test evidence"):
                 validate_failed_validation_attempt(attempt)
+
+    def test_pre_case_failure_log_does_not_require_outer_pipeline_status(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            log_path = root / "pre_case.log"
+            script_path = root / "failed.sh"
+            observed = "dfd2c07b407179359207c612ab631f3ed1"
+            expected = "dfd2c07b407d6b407179359207c612ab631f3ed1"
+            log_path.write_text(
+                "=== QWEN3 CAGE-V3 SCREEN KITTY FULL START ===\n"
+                "ERROR: unexpected Kitty HEAD\n",
+                encoding="utf-8",
+            )
+            script_path.write_text(f"EXPECTED_KITTY={observed}\n", encoding="utf-8")
+            attempt = {
+                "partition": "kitty_qwen3",
+                "reason": "truncated_noncanonical_expected_kitty_commit_literal",
+                "case_execution_started": False,
+                "execution_log": str(log_path),
+                "execution_log_sha256": file_sha256(log_path),
+                "execution_log_size_bytes": log_path.stat().st_size,
+                "archived_script": str(script_path),
+                "archived_script_sha256": file_sha256(script_path),
+                "observed_literal": observed,
+                "observed_literal_length": len(observed),
+                "observed_literal_sha256": hashlib.sha256(observed.encode("ascii")).hexdigest(),
+                "expected_literal": expected,
+                "expected_literal_length": len(expected),
+                "expected_literal_sha256": hashlib.sha256(expected.encode("ascii")).hexdigest(),
+            }
+            report = validate_failed_pre_case_attempt(attempt)
+            self.assertFalse(report["case_execution_started"])
 
 
 if __name__ == "__main__":
