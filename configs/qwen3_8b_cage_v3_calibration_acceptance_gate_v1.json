@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "gate_id": "qwen3-8b-cage-v3-calibration-acceptance-gate-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "execution_sha256": "f97a25e85a4bc82a64c74c877309dc5e38f3ee5b908a6ccf42c7aaee108d2fb6",
+  "protocol_sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9",
+  "manifest_sha256": "e53cdec987d8206ed6c21ba3be5c04f3751c25f2fee074fa12e30916e06404d7",
+  "acceptance_source": {
+    "git_commit": "313a8ff43eb9a9504bdbe12b9f68ab6b0e54b919",
+    "source_sha256": {
+      "runner": "81768a00d9c148f93e77f25cd41032d727f70e3aee9d6c32b062d2383c2806e1",
+      "comparator": "fac39e675f01aa3ac4cdf4712e11b546aeffdbd67030ce4341465445e41fa1d1",
+      "execution_utils": "e6622e3656d86c8a6e3ef6c4a7a0c62827a68debd30bcb4e23b16d971dfb4dcb",
+      "protocol_utils": "88e44e4feddc2eba4817b0753943cfeb5bd0ca1c7933f1ec5dfd9edcca45d6a7",
+      "qwen3_cage": "d9aff2e539961b118d2b9e8375f5ed615d1fe4fa18ea929250bda8b617a2d439",
+      "qwen3_cage_v2": "a183da805e9acec7ab8af3c733a447bf27ba42d26a13377f86718550553a7367",
+      "cage_v2_quant": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a",
+      "cage_v2_memory": "aa5f6e9259d3eaf635e07614241c0d0aa1e95cac4d9bc342079dde80679ef0d0",
+      "recorder": "f699776de29f779379c4cfc2f6b65c9644503cfa8231606c717b8ff4d7e6ac82"
+    }
+  },
+  "repeat_a": {
+    "output_dir": "/root/autodl-tmp/qwen3_cage_v3/calibration_acceptance_a_313a8ff",
+    "run_identity_sha256": "3c65cd95b93befe16b7a4a36db0732be3a3e31466b02d85e66ce300b9d6c2fa5",
+    "summary_sha256": "48e0989839a6bcf108aca8da7472eca2ffdbbd8b2209c21517049b7c05666625",
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_calibration_acceptance_a_313a8ff.log",
+    "execution_log_sha256": "3c8a31cb0623a95dcb3641dcb1246b2a1fb4e5265bf8aa3f24164626cec8eb32",
+    "execution_log_size_bytes": 4791,
+    "case_file_manifest_sha256": "86aeb89e39c977a66fd07a86ede0fd5397473aca270b605c4945ed7cf8658bfd"
+  },
+  "repeat_b": {
+    "output_dir": "/root/autodl-tmp/qwen3_cage_v3/calibration_acceptance_b_313a8ff",
+    "run_identity_sha256": "3c65cd95b93befe16b7a4a36db0732be3a3e31466b02d85e66ce300b9d6c2fa5",
+    "summary_sha256": "48e0989839a6bcf108aca8da7472eca2ffdbbd8b2209c21517049b7c05666625",
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_calibration_acceptance_b_313a8ff.log",
+    "execution_log_sha256": "111b6b5fa2ce04f70546c9d1366e45dd89cd13e7ef29ca4d8dbd52c0e93705c4",
+    "execution_log_size_bytes": 4791,
+    "case_file_manifest_sha256": "b9c55260ba400d3800f67048ae2d47fb58a7d4629702588a0109a77713d3c55b"
+  },
+  "comparison": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_calibration_acceptance_comparison_313a8ff.json",
+    "sha256": "b2d7afd2cdb71f46dbece216d423f921f5be2870b7b0b2ece4fd23a154ebb3b4",
+    "scientific_payload_sha256": "a7eac3563cdcf9155f1078d1de06fe60b1de9aac544646fb93bfec019d68717a"
+  },
+  "calibration_full_authorization": {
+    "anchor_indices": [0, 1, 2, 3, 4],
+    "case_count": 30,
+    "screen_metrics": false,
+    "holdout_metrics": false,
+    "reserved_unseen_metrics": false
+  }
+}
