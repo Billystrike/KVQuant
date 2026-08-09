@@ -17,9 +17,11 @@ from utils.qwen3_cage_v3_protocol import file_sha256
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RECEIPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_calibration_full_receipt_v1.json"
+PLAN_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_calibrated_quota_plan_v1.json"
 PROTOCOL_SHA256 = "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9"
 EXECUTION_SHA256 = "f97a25e85a4bc82a64c74c877309dc5e38f3ee5b908a6ccf42c7aaee108d2fb6"
 EXPECTED_RECEIPT_SHA256 = "f6d7d57d683881a572b7c1eaf72e810891bb30f2f71f16b3c9f067c11e9562c6"
+EXPECTED_PLAN_SHA256 = "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914"
 
 
 class CageV3CalibrationPostrunTest(unittest.TestCase):
@@ -112,6 +114,31 @@ class CageV3CalibrationPostrunTest(unittest.TestCase):
             self.assertEqual(plan["layer_two_bit_channel_quotas"][12:24], [32] * 12)
             self.assertEqual(plan["layer_two_bit_channel_quotas"][24:], [48] * 12)
             self.assertEqual(plan["quota_total"], 1152)
+
+    def test_checked_in_quota_plan_is_exact_server_artifact(self):
+        self.assertEqual(file_sha256(PLAN_PATH), EXPECTED_PLAN_SHA256)
+        plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(plan["receipt_sha256"], EXPECTED_RECEIPT_SHA256)
+        self.assertEqual(
+            plan["calibration_scientific_payload_sha256"],
+            "949e49b0039b7084a9fc3cd1133036e38c86ce4bf5b9bcebdc77bd6adb2b1fac",
+        )
+        self.assertFalse(plan["screen_metrics_consumed"])
+        self.assertFalse(plan["holdout_metrics_consumed"])
+        self.assertFalse(plan["reserved_unseen_metrics_consumed"])
+        self.assertEqual(len(plan["plans"]), 6)
+        for record in plan["plans"]:
+            scores = record["layer_scores"]
+            ranking = sorted(range(36), key=lambda layer_idx: (-scores[layer_idx], layer_idx))
+            self.assertEqual(record["ranked_layer_indices"], ranking)
+            quotas = [32] * 36
+            for layer_idx in ranking[:12]:
+                quotas[layer_idx] = 48
+            for layer_idx in ranking[-12:]:
+                quotas[layer_idx] = 16
+            self.assertEqual(record["layer_two_bit_channel_quotas"], quotas)
+            self.assertEqual(record["quota_counts"], {"16": 12, "32": 12, "48": 12})
+            self.assertEqual(record["quota_total"], 1152)
 
 
 if __name__ == "__main__":
