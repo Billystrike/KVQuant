@@ -7,6 +7,7 @@ from utils.qwen3_cage_v3_postrun import (
     CageV3PostrunError,
     _validate_cache,
     validate_artifact_manifest,
+    validate_validation_attempt_manifest,
 )
 from utils.qwen3_cage_v3_protocol import file_sha256
 
@@ -14,11 +15,14 @@ from utils.qwen3_cage_v3_protocol import file_sha256
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_artifacts_v1.json"
 EXPECTED_ARTIFACT_SHA256 = "0543fa82f53127ce242fc0c89beeaa3867384a91826c75ff88122e6e91b882cf"
+ATTEMPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_postrun_attempts_v1.json"
+EXPECTED_ATTEMPT_SHA256 = "eac22cca89da07f50f8dcc521a3e3a8e8999396bb5244ae6e9b2b65e5c65405b"
 
 
 class CageV3PostrunTest(unittest.TestCase):
     def setUp(self):
         self.artifacts = json.loads(ARTIFACT_PATH.read_text(encoding="utf-8"))
+        self.attempts = json.loads(ATTEMPT_PATH.read_text(encoding="utf-8"))
 
     def _validate(self, value):
         validate_artifact_manifest(
@@ -88,6 +92,25 @@ class CageV3PostrunTest(unittest.TestCase):
         record["cache"]["value_adaptive"] = True
         with self.assertRaisesRegex(CageV3PostrunError, "Value adaptation"):
             _validate_cache(record)
+
+    def test_failed_postrun_validation_is_frozen_without_scientific_mutation(self):
+        self.assertEqual(file_sha256(ATTEMPT_PATH), EXPECTED_ATTEMPT_SHA256)
+        validate_validation_attempt_manifest(self.attempts)
+        attempt = self.attempts["attempts"][0]
+        self.assertFalse(attempt["output_created"])
+        self.assertFalse(attempt["scientific_artifacts_mutated"])
+        self.assertFalse(attempt["interpretation_performed"])
+
+    def test_validation_attempt_manifest_rejects_mutation(self):
+        for field, value, message in (
+            ("scientific_artifacts_mutated", True, "mutated"),
+            ("interpretation_performed", True, "interpretation"),
+        ):
+            payload = copy.deepcopy(self.attempts)
+            payload["attempts"][0][field] = value
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(CageV3PostrunError, message):
+                    validate_validation_attempt_manifest(payload)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "attempt_set_id": "qwen3-8b-cage-v3-screen-postrun-attempts-v1",
+  "declared_on": "2026-08-09",
+  "status": "frozen_after_failed_validator_before_retry",
+  "claim_eligible": false,
+  "interpretation_performed": false,
+  "scientific_artifacts_mutated": false,
+  "attempts": [
+    {
+      "attempt_index": 1,
+      "source_commit": "733cac9aa3a14e8f2f8af957cfd83c25bd101ef9",
+      "validator_sha256": "e6170df4b5cb55a43b366244aa88a81adbc8e4f315a4ef15c23666694e042573",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_screen_postrun_733cac9.log",
+      "execution_log_sha256": "e849f1d418b62e2ae0980b579ba350dd1b0c466aeb4ef50e465d1f07d9d6a4b0",
+      "execution_log_size_bytes": 5536,
+      "intended_output": "/root/autodl-tmp/qwen3_cage_v3/screen_postrun_audit_733cac9.json",
+      "output_created": false,
+      "tests_passed_before_failure": 28,
+      "failure_type": "CageV3PostrunError",
+      "failure_message": "cage_qwen3 log lacks successful pipeline status",
+      "root_cause": "validator incorrectly required an outer-shell status line inside an already-frozen inner execution log",
+      "scientific_case_validation_started": true,
+      "scientific_artifacts_mutated": false,
+      "interpretation_performed": false
+    }
+  ]
+}

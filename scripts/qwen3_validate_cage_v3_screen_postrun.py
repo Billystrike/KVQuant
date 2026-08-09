@@ -17,7 +17,9 @@ from utils.qwen3_cage_v3_execution import canonical_sha256, load_json
 from utils.qwen3_cage_v3_postrun import (
     validate_artifact_manifest,
     validate_failed_pre_case_attempt,
+    validate_failed_validation_attempt,
     validate_partition,
+    validate_validation_attempt_manifest,
 )
 from utils.qwen3_cage_v3_protocol import file_sha256
 from utils.qwen3_cage_v3_screen import expand_screen_cases, load_screen_execution
@@ -38,6 +40,7 @@ def main() -> None:
     parser.add_argument("--execution", type=Path, required=True)
     parser.add_argument("--acceptance-gate", type=Path, required=True)
     parser.add_argument("--artifact-manifest", type=Path, required=True)
+    parser.add_argument("--validation-attempts", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -57,6 +60,13 @@ def main() -> None:
         quota_plan_sha256=execution["quota_plan"]["sha256"],
         gate_sha256=gate_sha256,
     )
+    attempts_path = args.validation_attempts.resolve()
+    attempts_manifest = load_json(attempts_path)
+    validate_validation_attempt_manifest(attempts_manifest)
+    validation_attempts = [
+        validate_failed_validation_attempt(attempt)
+        for attempt in attempts_manifest["attempts"]
+    ]
 
     partition_reports = {}
     joint_payload = []
@@ -111,12 +121,15 @@ def main() -> None:
         "quota_plan_sha256": execution["quota_plan"]["sha256"],
         "acceptance_gate_sha256": gate_sha256,
         "artifact_manifest_sha256": file_sha256(artifacts_path),
+        "validation_attempt_manifest_sha256": file_sha256(attempts_path),
         "execution_source_commit": artifacts["execution_source_commit"],
         "case_count": sum(row["case_count"] for row in partition_reports.values()),
         "layer_record_count": sum(row["layer_record_count"] for row in partition_reports.values()),
         "failure_count": 0,
         "failed_pre_case_attempt_count": len(failed_attempts),
         "failed_pre_case_attempts": failed_attempts,
+        "failed_postrun_validation_attempt_count": len(validation_attempts),
+        "failed_postrun_validation_attempts": validation_attempts,
         "joint_scientific_payload_sha256": canonical_sha256(joint_payload),
         "partitions": partition_reports,
     }

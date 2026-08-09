@@ -16,6 +16,7 @@ from utils.qwen3_perturbation_protocol import (
 
 
 ARTIFACT_SET_ID = "qwen3-8b-cage-v3-development-screen-artifacts-v1"
+ATTEMPT_SET_ID = "qwen3-8b-cage-v3-screen-postrun-attempts-v1"
 PARTITIONS = ("cage_qwen3", "kitty_qwen3")
 EXPECTED_COUNTS = {"cage_qwen3": 60, "kitty_qwen3": 15}
 EXPECTED_LAYER_COUNTS = {partition: count * 36 for partition, count in EXPECTED_COUNTS.items()}
@@ -150,6 +151,58 @@ def validate_failed_pre_case_attempt(attempt: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def validate_validation_attempt_manifest(manifest: dict[str, Any]) -> None:
+    _require(manifest.get("schema_version") == 1, "validation attempt schema mismatch")
+    _require(manifest.get("attempt_set_id") == ATTEMPT_SET_ID, "validation attempt set ID mismatch")
+    _require(
+        manifest.get("status") == "frozen_after_failed_validator_before_retry",
+        "validation attempt status mismatch",
+    )
+    _require(manifest.get("claim_eligible") is False, "validation attempts must be claim-ineligible")
+    _require(manifest.get("interpretation_performed") is False, "validation attempt performed interpretation")
+    _require(manifest.get("scientific_artifacts_mutated") is False, "validation attempt mutated scientific artifacts")
+    attempts = manifest.get("attempts")
+    _require(isinstance(attempts, list) and len(attempts) == 1, "validation attempt count mismatch")
+    attempt = attempts[0]
+    _require(attempt.get("attempt_index") == 1, "validation attempt index mismatch")
+    _require(attempt.get("output_created") is False, "failed validation unexpectedly created output")
+    _require(attempt.get("tests_passed_before_failure") == 28, "failed validation test count mismatch")
+    _require(attempt.get("failure_type") == "CageV3PostrunError", "validation failure type mismatch")
+    _require(
+        attempt.get("failure_message") == "cage_qwen3 log lacks successful pipeline status",
+        "validation failure message mismatch",
+    )
+    _require(attempt.get("scientific_artifacts_mutated") is False, "failed validation mutated artifacts")
+    _require(attempt.get("interpretation_performed") is False, "failed validation performed interpretation")
+    for field, length in (("source_commit", 40), ("validator_sha256", 64), ("execution_log_sha256", 64)):
+        value = attempt.get(field)
+        _require(isinstance(value, str) and len(value) == length, f"validation attempt {field} is invalid")
+    _require(attempt.get("execution_log_size_bytes", 0) > 0, "validation attempt log size is invalid")
+
+
+def validate_failed_validation_attempt(attempt: dict[str, Any]) -> dict[str, Any]:
+    log_path = Path(attempt["execution_log"])
+    output_path = Path(attempt["intended_output"])
+    _require(file_sha256(log_path) == attempt["execution_log_sha256"], "validation attempt log hash mismatch")
+    _require(log_path.stat().st_size == attempt["execution_log_size_bytes"], "validation attempt log size mismatch")
+    text = log_path.read_text(encoding="utf-8")
+    _require("Ran 28 tests" in text and "OK" in text, "validation attempt test evidence mismatch")
+    _require(attempt["failure_message"] in text, "validation attempt failure message missing")
+    _require("JOINT 75-CASE DEEP AUDIT" in text, "validation attempt did not reach deep audit")
+    _require(not output_path.exists(), "failed validation output now unexpectedly exists")
+    return {
+        "attempt_index": attempt["attempt_index"],
+        "source_commit": attempt["source_commit"],
+        "validator_sha256": attempt["validator_sha256"],
+        "execution_log_sha256": attempt["execution_log_sha256"],
+        "failure_type": attempt["failure_type"],
+        "failure_message": attempt["failure_message"],
+        "output_created": False,
+        "scientific_artifacts_mutated": False,
+        "interpretation_performed": False,
+    }
+
+
 def _validate_cache(record: dict[str, Any]) -> None:
     cache = record.get("cache", {})
     method = record["method"]
@@ -218,7 +271,6 @@ def validate_partition(
     _require("Traceback (most recent call last)" not in log_text, f"{partition} log contains traceback")
     _require("ERROR conda.cli.main_run" not in log_text, f"{partition} log contains conda error")
     _require(spec["completion_marker"] in log_text, f"{partition} log lacks completion marker")
-    _require("PIPELINE_STATUS=0" in log_text, f"{partition} log lacks successful pipeline status")
 
     identity = load_json(identity_path)
     summary = load_json(summary_path)
@@ -311,5 +363,7 @@ __all__ = [
     "shell_case_manifest_sha256",
     "validate_artifact_manifest",
     "validate_failed_pre_case_attempt",
+    "validate_failed_validation_attempt",
     "validate_partition",
+    "validate_validation_attempt_manifest",
 ]
