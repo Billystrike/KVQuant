@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "gate_id": "qwen3-8b-cage-v2-round1-development-acceptance-gate-v1",
+  "frozen_on": "2026-08-09",
+  "status": "pass",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/qwen3_8b_cage_v2_feasibility_protocol_draft_v1.json",
+    "protocol_id": "qwen3-8b-cage-v2-sparse-refinement-feasibility-draft-v1",
+    "sha256": "5b0aa6f4eade3e42a99bbc731944113ab5f9173489ab78632b5d837eb70218c9"
+  },
+  "development_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_dev_manifest_2fda44d.json",
+    "sha256": "444db800195a515ec33567682fd508b9051920f637d24ffa56f78b19dbaa31ef"
+  },
+  "acceptance_source": {
+    "cage_commit": "2fda44d68639b40b21371289f1f026c9afabbc45",
+    "kitty_commit": "dfd2c07b407d6b407179359207c612ab631f3ed1",
+    "transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178",
+    "runner_sha256": "3dc1528a2cfff9a84f7e0bd8cd1f1d740c6e264295803bcfdfba8767344010b8",
+    "qwen3_cage_v1_sha256": "d9aff2e539961b118d2b9e8375f5ed615d1fe4fa18ea929250bda8b617a2d439",
+    "qwen3_cage_v2_sha256": "a183da805e9acec7ab8af3c733a447bf27ba42d26a13377f86718550553a7367",
+    "cage_v2_quant_sha256": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a",
+    "cage_v2_memory_sha256": "aa5f6e9259d3eaf635e07614241c0d0aa1e95cac4d9bc342079dde80679ef0d0",
+    "recorder_sha256": "f699776de29f779379c4cfc2f6b65c9644503cfa8231606c717b8ff4d7e6ac82",
+    "comparator_sha256": "35a44535dee5c17e86c0005c0b7ae4cdcc6f880affcdf341da0600dd6979997b"
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "case_count_per_repeat": 23,
+      "case_ids_sha256": "9362db3256cc0288cd185ecdf8089a586c69ee92e50acd04f9a9e0dc9098749f",
+      "scientific_payload_sha256": "16875d9d219523d4a9889c4ce5a94e0f740da36675b6d58fe8ecf89c4ab71b55",
+      "repeat_a": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v2_round1/cage_acceptance_a_2fda44d",
+        "run_identity_sha256": "28f364f78bbf10abc070fde9b5f3583bd4971019538ab8c466fec53046d1ee61",
+        "summary_sha256": "ed8bddf7e930ec57fe02797a6ce26ddd19b145f9f8e2f9f064ca25389fef8975",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_cage_acceptance_a_2fda44d.log",
+        "execution_log_sha256": "c553a63c41163b4e5d36d7d8b5199ea2fa78a58a7f3de184281f805f66d50fb2"
+      },
+      "repeat_b": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v2_round1/cage_acceptance_b_2fda44d",
+        "run_identity_sha256": "28f364f78bbf10abc070fde9b5f3583bd4971019538ab8c466fec53046d1ee61",
+        "summary_sha256": "ed8bddf7e930ec57fe02797a6ce26ddd19b145f9f8e2f9f064ca25389fef8975",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_cage_acceptance_b_2fda44d.log",
+        "execution_log_sha256": "e494ef80e45c50fed01b07253ee0b67f49a06f6fa3f7a1ca22570c77d3bbd9fc"
+      },
+      "comparison": {
+        "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_cage_acceptance_comparison_2fda44d.json",
+        "sha256": "1a9f00c504fbf5de0d35c38bde40e73438b896d4f0b81addf438a133b6b5aba6"
+      }
+    },
+    "kitty_qwen3": {
+      "case_count_per_repeat": 6,
+      "case_ids_sha256": "a8ffafec42426d89d6da5aeec879dc92fe8f4485612b4488515c678bffe6112e",
+      "scientific_payload_sha256": "e9001039c1c88f04e6f171d3af6815c6c995bbe319aa6e2e8c27aac633b75467",
+      "repeat_a": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v2_round1/kitty_acceptance_a_2fda44d",
+        "run_identity_sha256": "c039ee42fd075445f8a8eb3493f18ff7a333f0893556610d2964b9c002062deb",
+        "summary_sha256": "52bf7e505676f1e2e819fac35df36d766261da2e466366a974f75ff4dcbe800f",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_kitty_acceptance_a_2fda44d.log",
+        "execution_log_sha256": "de7df0522bebb109e557900d0f0910e1ee7917a65084425e5e03da7c44deb95a"
+      },
+      "repeat_b": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v2_round1/kitty_acceptance_b_2fda44d",
+        "run_identity_sha256": "c039ee42fd075445f8a8eb3493f18ff7a333f0893556610d2964b9c002062deb",
+        "summary_sha256": "52bf7e505676f1e2e819fac35df36d766261da2e466366a974f75ff4dcbe800f",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_kitty_acceptance_b_2fda44d.log",
+        "execution_log_sha256": "a9257a4ec45bc771f4bb34d379c1695d0b9c03ab7bd64dba8f821f9369545791"
+      },
+      "comparison": {
+        "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v2_round1_kitty_acceptance_ab_2fda44d.json",
+        "sha256": "30c2f9bcfa20b3f89095885f10185cf18fc459944f958b3953d6723e8bbefb59"
+      }
+    }
+  },
+  "comparison": {
+    "fields": [
+      "case_id",
+      "method",
+      "input",
+      "memory",
+      "layer_metrics",
+      "aggregates",
+      "cache"
+    ],
+    "required": "bitwise_equal_json_numeric_payload",
+    "cage_qwen3_pass": true,
+    "kitty_qwen3_pass": true
+  },
+  "round1_screen_authorization": {
+    "execution_commit": "2fda44d68639b40b21371289f1f026c9afabbc45",
+    "anchor_indices": [5, 6, 7, 8, 9],
+    "cage_qwen3_cases": 115,
+    "kitty_qwen3_cases": 30,
+    "total_cases": 145,
+    "claim_eligible": false,
+    "protocol_grid_mutation_allowed": false,
+    "requires_exact_execution_commit": true,
+    "interpretation_before_joint_postrun_validation": false
+  }
+}
