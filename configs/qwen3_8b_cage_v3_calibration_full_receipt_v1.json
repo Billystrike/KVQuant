@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-v3-calibration-full-receipt-v1",
+  "status": "declared_from_execution_outputs_before_quota_derivation",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/qwen3_8b_cage_v3_development_protocol_v1.json",
+    "sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9"
+  },
+  "execution": {
+    "path": "configs/qwen3_8b_cage_v3_calibration_execution_v1.json",
+    "sha256": "f97a25e85a4bc82a64c74c877309dc5e38f3ee5b908a6ccf42c7aaee108d2fb6"
+  },
+  "acceptance_gate": {
+    "path": "configs/qwen3_8b_cage_v3_calibration_acceptance_gate_v1.json",
+    "sha256": "b3961d72f529a8ebf6c949a39a13f80a078700b8b8ec92044b21e10f9ac29a44"
+  },
+  "calibration_full": {
+    "output_dir": "/root/autodl-tmp/qwen3_cage_v3/calibration_full_9d7b1e6",
+    "execution_commit": "9d7b1e68890bb6cf1d24c3ed248873e9b81eacee",
+    "case_count": 30,
+    "layer_record_count": 1080,
+    "failure_count": 0,
+    "case_ids_sha256": "92ca5f73d5375f6e4443255286fb69595c77ea0ce70c7c80554048694eb6f0d7",
+    "run_identity_sha256": "edee1012a438798b73ce8bf964ba25cab2935aed652a47b6779d9291b37aee5e",
+    "summary_sha256": "5bd2784938f73671758e3b19b786c0c1d8843ab0e59496740dd5b7ead87c6409",
+    "shell_case_file_manifest_sha256": "e13deba2eae919ed2a22b4ca394ec4528b0382241c57b99401f2cf07b7c72853",
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_calibration_full_9d7b1e6.log",
+    "execution_log_sha256": "0367c5013ca056bd404ae86c5f064c3441f03f832517044498a36b84fbbdbc68",
+    "execution_log_size_bytes": 13901
+  },
+  "derivation_authorization": {
+    "anchor_indices": [0, 1, 2, 3, 4],
+    "score_metric": "joint_post_o_proj_mse",
+    "score_aggregation": "arithmetic_mean_over_five_calibration_anchors_separately_per_sink_family_and_prompt_length",
+    "quota_rule": {
+      "top_12_layers": 48,
+      "middle_12_layers": 32,
+      "bottom_12_layers": 16,
+      "total_channels": 1152
+    },
+    "screen_metrics": false,
+    "holdout_metrics": false,
+    "reserved_unseen_metrics": false
+  }
+}
