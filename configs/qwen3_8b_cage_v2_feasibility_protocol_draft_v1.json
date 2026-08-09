@@ -25,6 +25,9 @@
     "join_separator": "\n\n",
     "selection_id": "interior-11ths-v1",
     "anchor_count": 10,
+    "calibration_anchor_indices": [0, 1, 2, 3, 4],
+    "round1_screening_anchor_indices": [5, 6, 7, 8, 9],
+    "acceptance_anchor_indices": [5],
     "prompt_lengths": [1024, 2048, 4032],
     "continuation_tokens": 64,
     "eligible_for_final_claims": false,
@@ -73,6 +76,51 @@
     {"prompt_length": 4032, "target": "kitty-12.5pct", "target_bytes": 105559200},
     {"prompt_length": 4032, "target": "kitty-pro-25pct", "target_bytes": 110130336}
   ],
+  "round1": {
+    "status": "frozen_before_round1_gpu_results",
+    "selection_rule": [
+      "Use fixed 12.5 percent or 25 percent refined-channel counts matching the target Kitty variant.",
+      "Compare two-bit-only, balanced one-bit/two-bit, and balanced one-bit/two-bit plus sink32 families.",
+      "Enumerate residual lengths from 16 through 512 in steps of 16 without quality results.",
+      "Select the residual length with the largest packed bytes not exceeding the target.",
+      "Round1 uses uniform per-layer quotas; calibration-derived layer allocation is reserved for round2."
+    ],
+    "cage_v1_controls": [
+      {"method_id": "cage-v1-r224-l1024", "prompt_length": 1024, "residual_length": 224},
+      {"method_id": "cage-v1-r224-l2048", "prompt_length": 2048, "residual_length": 224},
+      {"method_id": "cage-v1-r288-l2048", "prompt_length": 2048, "residual_length": 288},
+      {"method_id": "cage-v1-r32-l4032", "prompt_length": 4032, "residual_length": 32},
+      {"method_id": "cage-v1-r96-l4032", "prompt_length": 4032, "residual_length": 96}
+    ],
+    "cage_v2_points": [
+      {"method_id": "cage-v2-sr2-kitty12-l1024", "prompt_length": 1024, "target_method": "kitty-12.5pct", "target_bytes": 46857888, "residual_length": 336, "sink_length": 0, "one_bit_channels": 0, "two_bit_channels": 16, "packed_bytes": 44868096},
+      {"method_id": "cage-v2-mixed-kitty12-l1024", "prompt_length": 1024, "target_method": "kitty-12.5pct", "target_bytes": 46857888, "residual_length": 320, "sink_length": 0, "one_bit_channels": 8, "two_bit_channels": 8, "packed_bytes": 46619136},
+      {"method_id": "cage-v2-mixed-sink32-kitty12-l1024", "prompt_length": 1024, "target_method": "kitty-12.5pct", "target_bytes": 46857888, "residual_length": 224, "sink_length": 32, "one_bit_channels": 8, "two_bit_channels": 8, "packed_bytes": 46471680},
+      {"method_id": "cage-v2-sr2-kittypro-l1024", "prompt_length": 1024, "target_method": "kitty-pro-25pct", "target_bytes": 47890080, "residual_length": 336, "sink_length": 0, "one_bit_channels": 0, "two_bit_channels": 32, "packed_bytes": 46181376},
+      {"method_id": "cage-v2-mixed-kittypro-l1024", "prompt_length": 1024, "target_method": "kitty-pro-25pct", "target_bytes": 47890080, "residual_length": 320, "sink_length": 0, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 47600640},
+      {"method_id": "cage-v2-mixed-sink32-kittypro-l1024", "prompt_length": 1024, "target_method": "kitty-pro-25pct", "target_bytes": 47890080, "residual_length": 224, "sink_length": 32, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 47379456},
+      {"method_id": "cage-v2-sr2-kitty12-l2048", "prompt_length": 2048, "target_method": "kitty-12.5pct", "target_bytes": 69570720, "residual_length": 208, "sink_length": 0, "one_bit_channels": 0, "two_bit_channels": 16, "packed_bytes": 69290496},
+      {"method_id": "cage-v2-mixed-kitty12-l2048", "prompt_length": 2048, "target_method": "kitty-12.5pct", "target_bytes": 69570720, "residual_length": 208, "sink_length": 0, "one_bit_channels": 8, "two_bit_channels": 8, "packed_bytes": 68751360},
+      {"method_id": "cage-v2-mixed-sink32-kitty12-l2048", "prompt_length": 2048, "target_method": "kitty-12.5pct", "target_bytes": 69570720, "residual_length": 288, "sink_length": 32, "one_bit_channels": 8, "two_bit_channels": 8, "packed_bytes": 66848256},
+      {"method_id": "cage-v2-sr2-kittypro-l2048", "prompt_length": 2048, "target_method": "kitty-pro-25pct", "target_bytes": 71782560, "residual_length": 208, "sink_length": 0, "one_bit_channels": 0, "two_bit_channels": 32, "packed_bytes": 71728128},
+      {"method_id": "cage-v2-mixed-kittypro-l2048", "prompt_length": 2048, "target_method": "kitty-pro-25pct", "target_bytes": 71782560, "residual_length": 208, "sink_length": 0, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 70649856},
+      {"method_id": "cage-v2-mixed-sink32-kittypro-l2048", "prompt_length": 2048, "target_method": "kitty-pro-25pct", "target_bytes": 71782560, "residual_length": 240, "sink_length": 32, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 71691264},
+      {"method_id": "cage-v2-sr2-kitty12-l4032", "prompt_length": 4032, "target_method": "kitty-12.5pct", "target_bytes": 105559200, "residual_length": 224, "sink_length": 0, "one_bit_channels": 0, "two_bit_channels": 16, "packed_bytes": 103113216},
+      {"method_id": "cage-v2-mixed-kitty12-l4032", "prompt_length": 4032, "target_method": "kitty-12.5pct", "target_bytes": 105559200, "residual_length": 224, "sink_length": 0, "one_bit_channels": 8, "two_bit_channels": 8, "packed_bytes": 101952000},
+      {"method_id": "cage-v2-mixed-sink32-kitty12-l4032", "prompt_length": 4032, "target_method": "kitty-12.5pct", "target_bytes": 105559200, "residual_length": 112, "sink_length": 32, "one_bit_channels": 8, "two_bit_channels": 8, "packed_bytes": 103845888},
+      {"method_id": "cage-v2-sr2-kittypro-l4032", "prompt_length": 4032, "target_method": "kitty-pro-25pct", "target_bytes": 110130336, "residual_length": 224, "sink_length": 0, "one_bit_channels": 0, "two_bit_channels": 32, "packed_bytes": 108352512},
+      {"method_id": "cage-v2-mixed-kittypro-l4032", "prompt_length": 4032, "target_method": "kitty-pro-25pct", "target_bytes": 110130336, "residual_length": 288, "sink_length": 0, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 110085120},
+      {"method_id": "cage-v2-mixed-sink32-kittypro-l4032", "prompt_length": 4032, "target_method": "kitty-pro-25pct", "target_bytes": 110130336, "residual_length": 112, "sink_length": 32, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 107808768}
+    ],
+    "kitty_points": [
+      {"method_id": "kitty-12.5pct-l1024", "prompt_length": 1024, "boosted_channels": 16, "packed_bytes": 46857888},
+      {"method_id": "kitty-pro-25pct-l1024", "prompt_length": 1024, "boosted_channels": 32, "packed_bytes": 47890080},
+      {"method_id": "kitty-12.5pct-l2048", "prompt_length": 2048, "boosted_channels": 16, "packed_bytes": 69570720},
+      {"method_id": "kitty-pro-25pct-l2048", "prompt_length": 2048, "boosted_channels": 32, "packed_bytes": 71782560},
+      {"method_id": "kitty-12.5pct-l4032", "prompt_length": 4032, "boosted_channels": 16, "packed_bytes": 105559200},
+      {"method_id": "kitty-pro-25pct-l4032", "prompt_length": 4032, "boosted_channels": 32, "packed_bytes": 110130336}
+    ]
+  },
   "development_limits": {
     "maximum_design_rounds": 2,
     "maximum_candidate_families_advanced_per_round": 3,

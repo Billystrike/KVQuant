@@ -33,6 +33,12 @@ non-overlapping anchors from the WikiText-2 validation split and marks every
 derived artifact as development-only.  A distinct final holdout must be chosen
 and frozen after development and before final GPU results.
 
+Validation anchors 0--4 are reserved for a possible round-2 layer allocator.
+Round 1 uses anchors 5--9 only and compares three predeclared uniform-layer
+families: two-bit residual only, balanced one-/two-bit residuals, and the same
+balanced policy with a 32-token sink.  Residual lengths are selected by the
+byte-only rule recorded in the protocol before any round-1 GPU result.
+
 ## Development limit
 
 At most two design rounds and three candidate families per round are permitted.

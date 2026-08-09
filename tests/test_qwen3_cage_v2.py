@@ -8,7 +8,7 @@ from utils.qwen3_cage_v2 import (
     allocate_layer_options,
     estimate_qwen3_cage_v2_bytes,
 )
-from utils.qwen3_memory import estimate_qwen3_kivi_bytes
+from utils.qwen3_memory import estimate_qwen3_kivi_bytes, estimate_qwen3_kitty_bytes
 from utils.qwen3_cage_v2_protocol import (
     build_cage_v2_dev_manifest,
     validate_cage_v2_dev_manifest,
@@ -181,6 +181,50 @@ class CageV2DevelopmentProtocolTest(unittest.TestCase):
         exclusions = " ".join(protocol["development_data"]["exclusions"])
         self.assertIn("50-anchor", exclusions)
         self.assertFalse(protocol["fixed_quantization_choices"]["value_adaptive"])
+
+    def test_round1_points_are_byte_only_under_budget_and_reproducible(self):
+        protocol, _ = self._protocol()
+        data = protocol["development_data"]
+        self.assertEqual(
+            set(data["calibration_anchor_indices"])
+            | set(data["round1_screening_anchor_indices"]),
+            set(range(10)),
+        )
+        self.assertFalse(
+            set(data["calibration_anchor_indices"])
+            & set(data["round1_screening_anchor_indices"])
+        )
+        points = protocol["round1"]["cage_v2_points"]
+        self.assertEqual(len(points), 18)
+        self.assertEqual(len({point["method_id"] for point in points}), 18)
+        for point in points:
+            report = estimate_qwen3_cage_v2_bytes(
+                seq_len=point["prompt_length"],
+                residual_length=point["residual_length"],
+                one_bit_channels=point["one_bit_channels"],
+                two_bit_channels=point["two_bit_channels"],
+                sink_length=point["sink_length"],
+            )
+            self.assertEqual(report["model_total_bytes"], point["packed_bytes"])
+            self.assertLessEqual(point["packed_bytes"], point["target_bytes"])
+            eligible = []
+            for residual in range(16, 513, 16):
+                candidate = estimate_qwen3_cage_v2_bytes(
+                    seq_len=point["prompt_length"],
+                    residual_length=residual,
+                    one_bit_channels=point["one_bit_channels"],
+                    two_bit_channels=point["two_bit_channels"],
+                    sink_length=point["sink_length"],
+                )["model_total_bytes"]
+                if candidate <= point["target_bytes"]:
+                    eligible.append(candidate)
+            self.assertEqual(point["packed_bytes"], max(eligible))
+        for point in protocol["round1"]["kitty_points"]:
+            report = estimate_qwen3_kitty_bytes(
+                seq_len=point["prompt_length"],
+                boosted_channels=point["boosted_channels"],
+            )
+            self.assertEqual(report["model_total_bytes"], point["packed_bytes"])
 
 
 try:
