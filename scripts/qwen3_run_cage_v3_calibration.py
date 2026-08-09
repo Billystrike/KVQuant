@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import hashlib
 import json
 import os
 import platform
@@ -91,6 +92,119 @@ def _source_state() -> dict[str, Any]:
         "git_commit": _git("rev-parse", "HEAD"),
         "dirty": bool(_git("status", "--porcelain", "--untracked-files=all")),
     }
+
+
+def _scientific_source_hashes() -> dict[str, str]:
+    return {
+        "runner": file_sha256(Path(__file__).resolve()),
+        "comparator": file_sha256(REPO_ROOT / "scripts" / "qwen3_compare_cage_v3_calibration_acceptance.py"),
+        "execution_utils": file_sha256(REPO_ROOT / "utils" / "qwen3_cage_v3_execution.py"),
+        "protocol_utils": file_sha256(REPO_ROOT / "utils" / "qwen3_cage_v3_protocol.py"),
+        "qwen3_cage": file_sha256(REPO_ROOT / "models" / "qwen3_cage.py"),
+        "qwen3_cage_v2": file_sha256(REPO_ROOT / "models" / "qwen3_cage_v2.py"),
+        "cage_v2_quant": file_sha256(REPO_ROOT / "models" / "cage_v2_quant.py"),
+        "cage_v2_memory": file_sha256(REPO_ROOT / "utils" / "qwen3_cage_v2.py"),
+        "recorder": file_sha256(REPO_ROOT / "utils" / "qwen3_perturbation_runtime.py"),
+    }
+
+
+def _shell_case_manifest_sha256(root: Path) -> str:
+    lines = []
+    for path in sorted((root / "cases").glob("*.json")):
+        lines.append(f"{file_sha256(path)}  cases/{path.name}\n")
+    return hashlib.sha256("".join(lines).encode("utf-8")).hexdigest()
+
+
+def _validate_full_acceptance_gate(
+    gate_path: Path,
+    *,
+    execution: dict[str, Any],
+    execution_sha256: str,
+) -> dict[str, Any]:
+    gate = load_json(gate_path)
+    required = (
+        gate.get("schema_version") == 1,
+        gate.get("gate_id") == "qwen3-8b-cage-v3-calibration-acceptance-gate-v1",
+        gate.get("status") == "pass",
+        gate.get("claim_eligible") is False,
+        gate.get("execution_sha256") == execution_sha256,
+        gate.get("protocol_sha256") == execution["protocol"]["sha256"],
+        gate.get("manifest_sha256") == execution["input_manifest"]["sha256"],
+        gate.get("acceptance_source", {}).get("source_sha256") == _scientific_source_hashes(),
+        gate.get("calibration_full_authorization", {}).get("anchor_indices") == list(range(5)),
+        gate.get("calibration_full_authorization", {}).get("case_count") == 30,
+        gate.get("calibration_full_authorization", {}).get("screen_metrics") is False,
+        gate.get("calibration_full_authorization", {}).get("holdout_metrics") is False,
+        gate.get("calibration_full_authorization", {}).get("reserved_unseen_metrics") is False,
+    )
+    if not all(required):
+        raise CageV3CalibrationError("calibration acceptance gate static identity is invalid")
+    accepted_commit = gate["acceptance_source"].get("git_commit")
+    repeat_records = []
+    for name in ("repeat_a", "repeat_b"):
+        artifact = gate[name]
+        root = Path(artifact["output_dir"])
+        identity_path = root / "run_identity.json"
+        summary_path = root / "summary.json"
+        log_path = Path(artifact["execution_log"])
+        checks = (
+            file_sha256(identity_path) == artifact["run_identity_sha256"],
+            file_sha256(summary_path) == artifact["summary_sha256"],
+            file_sha256(log_path) == artifact["execution_log_sha256"],
+            log_path.stat().st_size == artifact["execution_log_size_bytes"],
+            _shell_case_manifest_sha256(root) == artifact["case_file_manifest_sha256"],
+        )
+        if not all(checks):
+            raise CageV3CalibrationError(f"calibration gate artifact mismatch: {name}")
+        identity = load_json(identity_path)
+        summary = load_json(summary_path)
+        if identity.get("source_state") != {"git_commit": accepted_commit, "dirty": False}:
+            raise CageV3CalibrationError(f"calibration gate source mismatch: {name}")
+        expected_summary = (
+            summary.get("status") == "pass",
+            summary.get("claim_eligible") is False,
+            summary.get("stage") == "calibration_acceptance",
+            summary.get("expected_cases") == 6,
+            summary.get("completed_cases") == 6,
+            summary.get("new_cases") == 6,
+            summary.get("resumed_cases") == 0,
+            summary.get("failure_records") == 0,
+            summary.get("identity") == identity,
+            summary.get("model", {}).get("source_sha256") == _scientific_source_hashes(),
+        )
+        if not all(expected_summary):
+            raise CageV3CalibrationError(f"calibration gate summary mismatch: {name}")
+        cases = {path.stem: load_json(path) for path in sorted((root / "cases").glob("*.json"))}
+        if len(cases) != 6:
+            raise CageV3CalibrationError(f"calibration gate case count mismatch: {name}")
+        repeat_records.append(cases)
+    first, second = repeat_records
+    if set(first) != set(second):
+        raise CageV3CalibrationError("calibration gate repeat case IDs differ")
+    payload = []
+    for case_id in sorted(first):
+        left = {field: first[case_id][field] for field in execution["scientific_payload_fields"]}
+        right = {field: second[case_id][field] for field in execution["scientific_payload_fields"]}
+        if left != right:
+            raise CageV3CalibrationError(f"calibration gate repeat mismatch: {case_id}")
+        payload.append(left)
+    scientific_sha256 = canonical_sha256(payload)
+    comparison_artifact = gate["comparison"]
+    comparison_path = Path(comparison_artifact["path"])
+    if file_sha256(comparison_path) != comparison_artifact["sha256"]:
+        raise CageV3CalibrationError("calibration comparison artifact hash mismatch")
+    comparison = load_json(comparison_path)
+    comparison_checks = (
+        comparison.get("status") == "pass",
+        comparison.get("case_count") == 6,
+        comparison.get("mismatch_case_ids") == [],
+        comparison.get("scientific_payload_sha256") == scientific_sha256,
+        comparison_artifact.get("scientific_payload_sha256") == scientific_sha256,
+        comparison.get("comparator_sha256") == _scientific_source_hashes()["comparator"],
+    )
+    if not all(comparison_checks):
+        raise CageV3CalibrationError("calibration comparison gate mismatch")
+    return gate
 
 
 def _memory_report(method: dict[str, Any]) -> dict[str, Any]:
@@ -246,16 +360,7 @@ def _model_identity(model: Any) -> dict[str, Any]:
         "cache_utils_sha256": file_sha256(cache_path),
         "qwen3_modeling_sha256": file_sha256(qwen_path),
         "metadata_hashes": metadata,
-        "source_sha256": {
-            "runner": file_sha256(Path(__file__).resolve()),
-            "execution_utils": file_sha256(REPO_ROOT / "utils" / "qwen3_cage_v3_execution.py"),
-            "protocol_utils": file_sha256(REPO_ROOT / "utils" / "qwen3_cage_v3_protocol.py"),
-            "qwen3_cage": file_sha256(REPO_ROOT / "models" / "qwen3_cage.py"),
-            "qwen3_cage_v2": file_sha256(REPO_ROOT / "models" / "qwen3_cage_v2.py"),
-            "cage_v2_quant": file_sha256(REPO_ROOT / "models" / "cage_v2_quant.py"),
-            "cage_v2_memory": file_sha256(REPO_ROOT / "utils" / "qwen3_cage_v2.py"),
-            "recorder": file_sha256(REPO_ROOT / "utils" / "qwen3_perturbation_runtime.py"),
-        },
+        "source_sha256": _scientific_source_hashes(),
     }
     checks = {
         "python": identity["python"] == EXPECTED["python"],
@@ -307,19 +412,11 @@ def main() -> None:
     if args.stage == "calibration_full":
         if args.acceptance_gate is None:
             raise CageV3CalibrationError("calibration_full requires a frozen acceptance gate")
-        gate = load_json(args.acceptance_gate.resolve())
-        gate_checks = (
-            gate.get("schema_version") == 1,
-            gate.get("gate_id") == "qwen3-8b-cage-v3-calibration-acceptance-gate-v1",
-            gate.get("status") == "pass",
-            gate.get("claim_eligible") is False,
-            gate.get("execution_sha256") == execution_sha256,
-            gate.get("acceptance_source", {}).get("git_commit") == source_state["git_commit"],
-            gate.get("calibration_full_authorization", {}).get("anchor_indices") == list(range(5)),
-            gate.get("calibration_full_authorization", {}).get("case_count") == 30,
+        _validate_full_acceptance_gate(
+            args.acceptance_gate.resolve(),
+            execution=execution,
+            execution_sha256=execution_sha256,
         )
-        if not all(gate_checks):
-            raise CageV3CalibrationError("calibration acceptance gate is invalid for this execution")
     elif args.acceptance_gate is not None:
         raise CageV3CalibrationError("calibration_acceptance must not consume a gate")
     cases = expand_calibration_cases(
