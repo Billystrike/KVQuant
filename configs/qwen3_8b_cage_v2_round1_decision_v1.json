@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "decision_id": "qwen3-8b-cage-v2-round1-development-decision-v1",
+  "frozen_on": "2026-08-09",
+  "status": "closed_negative_development_result",
+  "claim_eligible": false,
+  "results_receipt": {
+    "path": "configs/qwen3_8b_cage_v2_round1_results_receipt_v1.json",
+    "sha256": "1ce9a6b3df36726426c5f9f1118f4a62fdd1a1512295c458f65ec90ccb5e7661"
+  },
+  "analysis_artifact": {
+    "filename": "qwen3_cage_v2_round1_analysis_v1.json",
+    "server_path": "/root/autodl-tmp/qwen3_cage_v2_round1/analysis_v1_f41df4e/qwen3_cage_v2_round1_analysis_v1.json",
+    "source_commit": "f41df4ed40e890c8fd654f997fbc9d4fd6ffcf9b",
+    "sha256": "24cdd2ae46a8351d25d24bce5cc7e46189c36601e2578b2b5f636732de1060bc",
+    "size_bytes": 82970,
+    "analysis_manifest_sha256": "4c650f86a12144b56735fb579b4739e59f6ac015afce6978dfc70e847797bdb2",
+    "markdown_sha256": "b3d29671c10c19171deb4de4747bee67b413808550dde574caffa2994d3eebd6",
+    "markdown_size_bytes": 1025,
+    "analysis_log_sha256": "b536c4cea6666db65da56e55fad14cd032974045c919d0197a482f71e6090d4e",
+    "analysis_log_size_bytes": 7792
+  },
+  "frozen_outcome": {
+    "advanced_family_count": 0,
+    "track_count": 6,
+    "all_tracks_memory_pass": true,
+    "all_tracks_failed_kitty_gate": true,
+    "best_track": {
+      "family_id": "sr1-sr2-sink32",
+      "target": "kitty-pro-25pct",
+      "overall_15_case_mean_delta_vs_kitty": 0.004697471982490242,
+      "kitty_favor_count": 2,
+      "paired_count": 15,
+      "length_mean_deltas_vs_kitty": {
+        "1024": 0.007002632398931988,
+        "2048": 0.0015392395116072693,
+        "4032": 0.005550544036931469
+      },
+      "overall_15_case_mean_delta_vs_cage_v1": -0.0415340924420013,
+      "cage_v1_favor_count": 15
+    }
+  },
+  "interpretation": {
+    "primary": "CAGE-v2 round1 did not establish superiority or non-inferiority to either matched Kitty tier on the frozen development gate.",
+    "supported_secondary": "The best sink32 track improved local perturbation over its mapped CAGE-v1 controls on all 15 paired cases.",
+    "mechanistic_signal": "The sink32 family was the closest Kitty competitor; the one-bit refinement path did not provide evidence sufficient for advancement.",
+    "scope": "development-only local perturbation evidence; not end-to-end quality and not a population claim",
+    "memory_representation": "logical packed paper estimate only"
+  },
+  "closure_rules": {
+    "run_round2_under_v2_protocol": false,
+    "relax_v2_gate_after_results": false,
+    "reuse_v2_validation_anchors_for_v3_development": false,
+    "hide_or_delete_unfavorable_v2_results": false
+  },
+  "cage_v3_pre_registration_boundary": {
+    "new_protocol_required": true,
+    "development_corpus": {
+      "id": "Salesforce/wikitext",
+      "config": "wikitext-2-raw-v1",
+      "split": "train",
+      "revision": "00aa25585682d4957f9e86edc73f59be7419af99"
+    },
+    "fixed_method_choices": {
+      "key_backbone_bits": 2,
+      "key_refinement_bits": 2,
+      "one_bit_refinement_enabled": false,
+      "value_bits": 2,
+      "value_adaptive": false
+    },
+    "candidate_structures_before_train_metrics": [
+      "pure-sr2-sink32-uniform-layer-quota",
+      "pure-sr2-sink32-calibrated-layer-quota",
+      "pure-sr2-sink64-calibrated-layer-quota"
+    ],
+    "first_development_target": "kitty-pro-25pct",
+    "mandatory_later_stress_target": "kitty-12.5pct",
+    "gate_before_any_end_to_end_quality": [
+      "within matched packed-byte target at all three lengths",
+      "strictly improves over the frozen best CAGE-v2 track at all three lengths",
+      "no worse than matched Kitty-Pro at at least two of three lengths"
+    ],
+    "train_identity_must_be_audited_before_freezing_anchors_or_gpu_cases": true
+  }
+}
