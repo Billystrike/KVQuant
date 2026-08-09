@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "execution_id": "qwen3-8b-cage-v3-calibration-execution-v1",
+  "frozen_on": "2026-08-09",
+  "status": "frozen_before_any_cage_v3_gpu_metric",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/qwen3_8b_cage_v3_development_protocol_v1.json",
+    "sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_manifest_f0510af.json",
+    "sha256": "e53cdec987d8206ed6c21ba3be5c04f3751c25f2fee074fa12e30916e06404d7",
+    "case_count": 150
+  },
+  "cpu_acceptance": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_cpu_acceptance_f0510af.json",
+    "sha256": "50aaba8695348d6c2d4cbfd05a89b21660fe15fb8b56aa59e7eb346879a02487",
+    "status": "pass"
+  },
+  "stages": {
+    "calibration_acceptance": {
+      "anchor_indices": [0],
+      "probe_family_count": 2,
+      "prompt_lengths": [1024, 2048, 4032],
+      "case_count": 6,
+      "fresh_repeats_required": 2,
+      "required_consistency": "bitwise_equal_json_numeric_payload"
+    },
+    "calibration_full": {
+      "anchor_indices": [0, 1, 2, 3, 4],
+      "probe_family_count": 2,
+      "prompt_lengths": [1024, 2048, 4032],
+      "case_count": 30,
+      "authorized_only_after_acceptance_gate": true
+    }
+  },
+  "probe_families": [
+    {
+      "family_id": "pure-sr2-sink32-uniform32",
+      "sink_length": 32,
+      "two_bit_channels": 32,
+      "points": [
+        {"prompt_length": 1024, "method_id": "cage-v3-calibration-sr2-sink32-l1024", "residual_length": 176, "packed_bytes": 45849600, "target_bytes": 47890080},
+        {"prompt_length": 2048, "method_id": "cage-v3-calibration-sr2-sink32-l2048", "residual_length": 288, "packed_bytes": 70050816, "target_bytes": 71782560},
+        {"prompt_length": 4032, "method_id": "cage-v3-calibration-sr2-sink32-l4032", "residual_length": 112, "packed_bytes": 110066688, "target_bytes": 110130336}
+      ]
+    },
+    {
+      "family_id": "pure-sr2-sink64-uniform32",
+      "sink_length": 64,
+      "two_bit_channels": 32,
+      "points": [
+        {"prompt_length": 1024, "method_id": "cage-v3-calibration-sr2-sink64-l1024", "residual_length": 176, "packed_bytes": 47877120, "target_bytes": 47890080},
+        {"prompt_length": 2048, "method_id": "cage-v3-calibration-sr2-sink64-l2048", "residual_length": 144, "packed_bytes": 71728128, "target_bytes": 71782560},
+        {"prompt_length": 4032, "method_id": "cage-v3-calibration-sr2-sink64-l4032", "residual_length": 128, "packed_bytes": 110121984, "target_bytes": 110130336}
+      ]
+    }
+  ],
+  "scientific_payload_fields": [
+    "case_id",
+    "method",
+    "input",
+    "memory",
+    "layer_metrics",
+    "aggregates",
+    "cache"
+  ],
+  "authorization": {
+    "calibration_metrics": true,
+    "screen_metrics": false,
+    "holdout_metrics": false,
+    "reserved_unseen_metrics": false,
+    "end_to_end_quality": false
+  }
+}
