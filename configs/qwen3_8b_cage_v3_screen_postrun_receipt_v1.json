@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-v3-development-screen-postrun-receipt-v1",
+  "frozen_on": "2026-08-09",
+  "status": "frozen_after_joint_postrun_audit_before_screen_interpretation",
+  "claim_eligible": false,
+  "interpretation_performed": false,
+  "audit": {
+    "path": "/root/autodl-tmp/qwen3_cage_v3/screen_postrun_audit_retry6_0089d6c.json",
+    "sha256": "bf0601bd338f3efb1282fbcf46443b3804dac1ef259f7829a1ca87424cdc9484",
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_screen_postrun_retry6_0089d6c.log",
+    "execution_log_sha256": "31aa99310497d13e8646e3297f7dd0580be19ed3a2dd281f07cde337125978e7",
+    "execution_log_size_bytes": 12309,
+    "source_commit": "0089d6c2e99b44917365693d03f5307bcd5225a1",
+    "validator_sha256": "9278995a3177a4fab65e48fd4d9f5b2a4f6d0e95bbbb40b0662c27806b1b63e5",
+    "postrun_utils_sha256": "a355ecf32c1e8cb427cb5d972fb2fa17695669f15666a0b74f165b00a9523fc0",
+    "tests_sha256": "b9ee6b5b6a61b3dd2df442836de746370872f39c9f6ec87b44689034e98f4349",
+    "tests_passed": 34
+  },
+  "frozen_inputs": {
+    "execution_sha256": "2f94fdb35c1c087270b971b524cb9a26722676d1d950fa8588037027a90f7dc0",
+    "protocol_sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9",
+    "manifest_sha256": "e53cdec987d8206ed6c21ba3be5c04f3751c25f2fee074fa12e30916e06404d7",
+    "quota_plan_sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914",
+    "acceptance_gate_sha256": "89329379bed30bb82b7974252bc453156b27f503d39331a80de4a0d523b09d7f",
+    "artifact_manifest_sha256": "0543fa82f53127ce242fc0c89beeaa3867384a91826c75ff88122e6e91b882cf",
+    "validation_attempt_manifest_sha256": "e13629915023b4e570c77b60f319fa88bc49181d94f34e016556efb32b75893d"
+  },
+  "audit_summary": {
+    "status": "pass",
+    "case_count": 75,
+    "layer_record_count": 2700,
+    "failure_count": 0,
+    "failed_pre_case_attempt_count": 1,
+    "failed_postrun_validation_attempt_count": 5,
+    "joint_scientific_payload_sha256": "3b4c93981550f81a55324c9682f87f81842185a8b26fddd81681d55ec19b8678",
+    "holdout_metrics_consumed": false,
+    "reserved_unseen_metrics_consumed": false,
+    "interpretation_performed": false
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "case_count": 60,
+      "layer_record_count": 2160,
+      "failure_count": 0,
+      "case_ids_sha256": "233b7e61b9ca2e4af082bf4ae487609e552d1c6976ca2e2397cf1945c7ca666f",
+      "canonical_case_file_manifest_sha256": "14cea4542f228b506eb2e4fa72e711b2af7c27e7734dc193b1e70b53475f2d99",
+      "shell_case_file_manifest_sha256": "e3ea89c0dab9e83913f90f0b262f8acb950cf31937bb17da0ff534f7b2c87b79",
+      "model_identity_sha256": "62c5fbc0cf78b2b23e0e24bc53558233edd420e8136011e7e2837ec5bd1061e4",
+      "scientific_payload_sha256": "6057c05cbe169acf02bbb887f2b94bf6aa3b966057d66656bb0a1c16282b7fb9"
+    },
+    "kitty_qwen3": {
+      "case_count": 15,
+      "layer_record_count": 540,
+      "failure_count": 0,
+      "case_ids_sha256": "170ceeb0df3e203f24f5227af09ae753ef2b3fd2af0a76c9a403420ae351f3ff",
+      "canonical_case_file_manifest_sha256": "78026e8f8e76e8e4f3ce442112278f8aaa398a47c2c9a439be8d91de5ba93f51",
+      "shell_case_file_manifest_sha256": "49bcc47444bc590311ab478c8517c58f653260dca4ac497485dd4f45e21658a0",
+      "model_identity_sha256": "cc2292efa875b71f2a278319f8e8bbc941ef3752b3afc05ffb42eb664abddb5b",
+      "scientific_payload_sha256": "60b0657e4e20204b0325700284f169d6de7abdf9bb14b578805e6b21612e7397"
+    }
+  },
+  "next_authorization": {
+    "screen_interpretation": true,
+    "maximum_candidates_advanced": 1,
+    "holdout_metrics": false,
+    "reserved_unseen_metrics": false,
+    "end_to_end_quality": false
+  }
+}
