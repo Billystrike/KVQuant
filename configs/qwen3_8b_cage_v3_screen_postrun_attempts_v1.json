@@ -60,6 +60,24 @@
       "scientific_case_validation_started": false,
       "scientific_artifacts_mutated": false,
       "interpretation_performed": false
+    },
+    {
+      "attempt_index": 4,
+      "source_commit": "6f5ec9e404db6e821c17fcd6987b81d551c101b3",
+      "validator_sha256": "9278995a3177a4fab65e48fd4d9f5b2a4f6d0e95bbbb40b0662c27806b1b63e5",
+      "postrun_utils_sha256": "446b0adff47a033903732c936236f81d7e2b61fbd447f14754930c187aeeac67",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_screen_postrun_retry4_6f5ec9e.log",
+      "execution_log_sha256": "c6d54f40bb329c36d97036c18501ef05d8993f96dae4269f37c98cc0f288d0b7",
+      "execution_log_size_bytes": 5495,
+      "intended_output": "/root/autodl-tmp/qwen3_cage_v3/screen_postrun_audit_retry4_6f5ec9e.json",
+      "output_created": false,
+      "tests_passed_before_failure": 32,
+      "failure_type": "CageV3PostrunError",
+      "failure_message": "CAGE-v3 one-bit refinement changed",
+      "root_cause": "validator incorrectly applied the CAGE-v3 zero-one-bit constraint to the three preregistered CAGE-v2 controls in the same partition",
+      "scientific_case_validation_started": true,
+      "scientific_artifacts_mutated": false,
+      "interpretation_performed": false
     }
   ]
 }

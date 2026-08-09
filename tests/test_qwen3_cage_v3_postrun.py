@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_artifacts_v1.json"
 EXPECTED_ARTIFACT_SHA256 = "0543fa82f53127ce242fc0c89beeaa3867384a91826c75ff88122e6e91b882cf"
 ATTEMPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_postrun_attempts_v1.json"
-EXPECTED_ATTEMPT_SHA256 = "2c2d2f28ef7c7d288d6b978c215422e1281fdf8aeaaa52cd6251544ce4338a5f"
+EXPECTED_ATTEMPT_SHA256 = "d7fefdba2a88406bad7fed17cb0a039c32cd61bb40785036c2a4faff5b5c85e4"
 
 
 class CageV3PostrunTest(unittest.TestCase):
@@ -71,6 +71,7 @@ class CageV3PostrunTest(unittest.TestCase):
         record = {
             "method": {
                 "name": "cage_v2",
+                "family_id": "pure-sr2-sink32-calibrated",
                 "config": {
                     "residual_length": 128,
                     "sink_length": 32,
@@ -97,10 +98,42 @@ class CageV3PostrunTest(unittest.TestCase):
         with self.assertRaisesRegex(CageV3PostrunError, "Value adaptation"):
             _validate_cache(record)
 
+    def test_cache_audit_distinguishes_v2_controls_from_v3_candidates(self):
+        control = {
+            "method": {
+                "name": "cage_v2",
+                "family_id": "cage-v2-best-control",
+                "config": {
+                    "residual_length": 128,
+                    "sink_length": 32,
+                    "one_bit_channels": 16,
+                    "two_bit_channels": 16,
+                },
+            },
+            "input": {"prompt_length": 1024},
+            "cache": {
+                "reported_seq_length": 1025,
+                "expected_seq_length": 1025,
+                "layer_count": 36,
+                "tensor_dtypes": ["torch.float16"],
+                "tensors_finite": True,
+                "key_quantized_lengths": [928],
+                "value_quantized_lengths": [897],
+                "value_adaptive": False,
+                "one_bit_channels": 16,
+                "two_bit_channels": 16,
+            },
+        }
+        _validate_cache(control)
+        candidate = copy.deepcopy(control)
+        candidate["method"]["family_id"] = "pure-sr2-sink32-uniform"
+        with self.assertRaisesRegex(CageV3PostrunError, "one-bit refinement"):
+            _validate_cache(candidate)
+
     def test_failed_postrun_validation_is_frozen_without_scientific_mutation(self):
         self.assertEqual(file_sha256(ATTEMPT_PATH), EXPECTED_ATTEMPT_SHA256)
         validate_validation_attempt_manifest(self.attempts)
-        self.assertEqual(len(self.attempts["attempts"]), 3)
+        self.assertEqual(len(self.attempts["attempts"]), 4)
         attempt = self.attempts["attempts"][0]
         self.assertFalse(attempt["output_created"])
         self.assertFalse(attempt["scientific_artifacts_mutated"])

@@ -22,6 +22,11 @@ EXPECTED_COUNTS = {"cage_qwen3": 60, "kitty_qwen3": 15}
 EXPECTED_LAYER_COUNTS = {partition: count * 36 for partition, count in EXPECTED_COUNTS.items()}
 EXPECTED_KITTY_COMMIT = "dfd2c07b407d6b407179359207c612ab631f3ed1"
 EXPECTED_TRANSFORMERS_COMMIT = "37f8b0b53512e6aae0cfd15746c133c101783178"
+CAGE_V3_FAMILIES = {
+    "pure-sr2-sink32-uniform",
+    "pure-sr2-sink32-calibrated",
+    "pure-sr2-sink64-calibrated",
+}
 
 
 class CageV3PostrunError(RuntimeError):
@@ -162,11 +167,12 @@ def validate_validation_attempt_manifest(manifest: dict[str, Any]) -> None:
     _require(manifest.get("interpretation_performed") is False, "validation attempt performed interpretation")
     _require(manifest.get("scientific_artifacts_mutated") is False, "validation attempt mutated scientific artifacts")
     attempts = manifest.get("attempts")
-    _require(isinstance(attempts, list) and len(attempts) == 3, "validation attempt count mismatch")
+    _require(isinstance(attempts, list) and len(attempts) == 4, "validation attempt count mismatch")
     expected = (
         (1, 28, "cage_qwen3 log lacks successful pipeline status"),
         (2, 30, "cage_qwen3 shell case manifest mismatch"),
         (3, 31, "validation attempt test evidence mismatch"),
+        (4, 32, "CAGE-v3 one-bit refinement changed"),
     )
     for attempt, (index, test_count, failure_message) in zip(attempts, expected):
         _require(attempt.get("attempt_index") == index, "validation attempt index mismatch")
@@ -250,9 +256,15 @@ def _validate_cache(record: dict[str, Any]) -> None:
     _require(cache.get("key_quantized_lengths") == [expected_key], "Key cache mechanics mismatch")
     _require(cache.get("value_quantized_lengths") == [expected_value], "Value cache mechanics mismatch")
     _require(cache.get("value_adaptive") is False, "CAGE-v3 Value adaptation changed")
-    _require(cache.get("one_bit_channels") == 0, "CAGE-v3 one-bit refinement changed")
     _require(cache.get("one_bit_channels") == config["one_bit_channels"], "one-bit quota mismatch")
     _require(cache.get("two_bit_channels") == config["two_bit_channels"], "two-bit quota mismatch")
+    family = method.get("family_id")
+    if family == "cage-v2-best-control":
+        _require(config["one_bit_channels"] == 16, "CAGE-v2 control one-bit quota changed")
+    elif family in CAGE_V3_FAMILIES:
+        _require(config["one_bit_channels"] == 0, "CAGE-v3 one-bit refinement changed")
+    else:
+        raise CageV3PostrunError(f"unsupported CAGE screen family: {family!r}")
 
 
 def validate_partition(
