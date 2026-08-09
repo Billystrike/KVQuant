@@ -1,0 +1,94 @@
+import copy
+import json
+import unittest
+from pathlib import Path
+
+from utils.qwen3_cage_v3_postrun import (
+    CageV3PostrunError,
+    _validate_cache,
+    validate_artifact_manifest,
+)
+from utils.qwen3_cage_v3_protocol import file_sha256
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ARTIFACT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_artifacts_v1.json"
+EXPECTED_ARTIFACT_SHA256 = "0543fa82f53127ce242fc0c89beeaa3867384a91826c75ff88122e6e91b882cf"
+
+
+class CageV3PostrunTest(unittest.TestCase):
+    def setUp(self):
+        self.artifacts = json.loads(ARTIFACT_PATH.read_text(encoding="utf-8"))
+
+    def _validate(self, value):
+        validate_artifact_manifest(
+            value,
+            execution_sha256="2f94fdb35c1c087270b971b524cb9a26722676d1d950fa8588037027a90f7dc0",
+            protocol_sha256="c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9",
+            input_manifest_sha256="e53cdec987d8206ed6c21ba3be5c04f3751c25f2fee074fa12e30916e06404d7",
+            quota_plan_sha256="01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914",
+            gate_sha256="89329379bed30bb82b7974252bc453156b27f503d39331a80de4a0d523b09d7f",
+        )
+
+    def test_checked_in_artifacts_freeze_75_cases_and_failed_pre_case_attempt(self):
+        self.assertEqual(file_sha256(ARTIFACT_PATH), EXPECTED_ARTIFACT_SHA256)
+        self._validate(self.artifacts)
+        self.assertEqual(self.artifacts["joint_expected"]["case_count"], 75)
+        self.assertEqual(self.artifacts["joint_expected"]["layer_record_count"], 2700)
+        self.assertEqual(self.artifacts["joint_expected"]["failed_pre_case_attempt_count"], 1)
+        self.assertFalse(self.artifacts["claim_eligible"])
+        self.assertFalse(self.artifacts["interpretation_performed"])
+
+    def test_artifact_manifest_rejects_scientific_and_provenance_mutation(self):
+        mutations = []
+        value = copy.deepcopy(self.artifacts)
+        value["partitions"]["cage_qwen3"]["case_count"] = 59
+        mutations.append((value, "case count"))
+        value = copy.deepcopy(self.artifacts)
+        value["joint_expected"]["layer_record_count"] = 2699
+        mutations.append((value, "expectations"))
+        value = copy.deepcopy(self.artifacts)
+        value["failed_pre_case_attempts"][0]["case_execution_started"] = True
+        mutations.append((value, "executed a case"))
+        value = copy.deepcopy(self.artifacts)
+        value["interpretation_performed"] = True
+        mutations.append((value, "interpretation"))
+        for payload, message in mutations:
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(CageV3PostrunError, message):
+                    self._validate(payload)
+
+    def test_cache_audit_accepts_per_layer_two_bit_quotas_and_uniform_value(self):
+        quotas = [48] * 12 + [32] * 12 + [16] * 12
+        record = {
+            "method": {
+                "name": "cage_v2",
+                "config": {
+                    "residual_length": 128,
+                    "sink_length": 32,
+                    "one_bit_channels": 0,
+                    "two_bit_channels": quotas,
+                },
+            },
+            "input": {"prompt_length": 1024},
+            "cache": {
+                "reported_seq_length": 1025,
+                "expected_seq_length": 1025,
+                "layer_count": 36,
+                "tensor_dtypes": ["torch.float16"],
+                "tensors_finite": True,
+                "key_quantized_lengths": [928],
+                "value_quantized_lengths": [897],
+                "value_adaptive": False,
+                "one_bit_channels": 0,
+                "two_bit_channels": quotas,
+            },
+        }
+        _validate_cache(record)
+        record["cache"]["value_adaptive"] = True
+        with self.assertRaisesRegex(CageV3PostrunError, "Value adaptation"):
+            _validate_cache(record)
+
+
+if __name__ == "__main__":
+    unittest.main()
