@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RECEIPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_calibration_full_receipt_v1.json"
 PROTOCOL_SHA256 = "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9"
 EXECUTION_SHA256 = "f97a25e85a4bc82a64c74c877309dc5e38f3ee5b908a6ccf42c7aaee108d2fb6"
-EXPECTED_RECEIPT_SHA256 = "e9a82bc1c00efbc17973416dedfc5f6cbf08dfd4960a39f740d754d252ff5a5f"
+EXPECTED_RECEIPT_SHA256 = "f6d7d57d683881a572b7c1eaf72e810891bb30f2f71f16b3c9f067c11e9562c6"
 
 
 class CageV3CalibrationPostrunTest(unittest.TestCase):

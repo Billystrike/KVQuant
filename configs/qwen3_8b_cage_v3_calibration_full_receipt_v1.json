@@ -26,8 +26,8 @@
     "summary_sha256": "5bd2784938f73671758e3b19b786c0c1d8843ab0e59496740dd5b7ead87c6409",
     "shell_case_file_manifest_sha256": "e13deba2eae919ed2a22b4ca394ec4528b0382241c57b99401f2cf07b7c72853",
     "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_calibration_full_9d7b1e6.log",
-    "execution_log_sha256": "0367c5013ca056bd404ae86c5f064c3441f03f832517044498a36b84fbbdbc68",
-    "execution_log_size_bytes": 13901
+    "execution_log_sha256": "bc3a2f632f64df802fbfeeccab81c2f3e8473802cf2476b07b9d35a5cc37324b",
+    "execution_log_size_bytes": 13951
   },
   "derivation_authorization": {
     "anchor_indices": [0, 1, 2, 3, 4],
