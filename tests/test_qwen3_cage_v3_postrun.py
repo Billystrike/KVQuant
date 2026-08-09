@@ -10,6 +10,7 @@ from utils.qwen3_cage_v3_postrun import (
     _validate_cache,
     shell_case_manifest_sha256,
     validate_artifact_manifest,
+    validate_failed_validation_attempt,
     validate_validation_attempt_manifest,
 )
 from utils.qwen3_cage_v3_protocol import file_sha256
@@ -19,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_artifacts_v1.json"
 EXPECTED_ARTIFACT_SHA256 = "0543fa82f53127ce242fc0c89beeaa3867384a91826c75ff88122e6e91b882cf"
 ATTEMPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v3_screen_postrun_attempts_v1.json"
-EXPECTED_ATTEMPT_SHA256 = "dafb63006a90f04ff47107c03d0e6ae4e553a9860ddc05c07a90afc275be1cad"
+EXPECTED_ATTEMPT_SHA256 = "2c2d2f28ef7c7d288d6b978c215422e1281fdf8aeaaa52cd6251544ce4338a5f"
 
 
 class CageV3PostrunTest(unittest.TestCase):
@@ -99,7 +100,7 @@ class CageV3PostrunTest(unittest.TestCase):
     def test_failed_postrun_validation_is_frozen_without_scientific_mutation(self):
         self.assertEqual(file_sha256(ATTEMPT_PATH), EXPECTED_ATTEMPT_SHA256)
         validate_validation_attempt_manifest(self.attempts)
-        self.assertEqual(len(self.attempts["attempts"]), 2)
+        self.assertEqual(len(self.attempts["attempts"]), 3)
         attempt = self.attempts["attempts"][0]
         self.assertFalse(attempt["output_created"])
         self.assertFalse(attempt["scientific_artifacts_mutated"])
@@ -129,6 +130,40 @@ class CageV3PostrunTest(unittest.TestCase):
             )
             expected = hashlib.sha256(lines.encode("utf-8")).hexdigest()
             self.assertEqual(shell_case_manifest_sha256(paths), expected)
+
+    def test_failed_validation_log_uses_attempt_specific_test_count(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            log_path = root / "attempt.log"
+            output_path = root / "absent.json"
+            message = "synthetic validator failure"
+            log_text = (
+                "Ran 30 tests in 1.000s\n\nOK\n"
+                "=== JOINT 75-CASE DEEP AUDIT ===\n"
+                f"CageV3PostrunError: {message}\n"
+            )
+            log_path.write_text(log_text, encoding="utf-8")
+            attempt = {
+                "attempt_index": 2,
+                "source_commit": "1" * 40,
+                "validator_sha256": "2" * 64,
+                "postrun_utils_sha256": "3" * 64,
+                "execution_log": str(log_path),
+                "execution_log_sha256": file_sha256(log_path),
+                "execution_log_size_bytes": log_path.stat().st_size,
+                "intended_output": str(output_path),
+                "output_created": False,
+                "tests_passed_before_failure": 30,
+                "failure_type": "CageV3PostrunError",
+                "failure_message": message,
+                "scientific_artifacts_mutated": False,
+                "interpretation_performed": False,
+            }
+            report = validate_failed_validation_attempt(attempt)
+            self.assertEqual(report["attempt_index"], 2)
+            attempt["tests_passed_before_failure"] = 28
+            with self.assertRaisesRegex(CageV3PostrunError, "test evidence"):
+                validate_failed_validation_attempt(attempt)
 
 
 if __name__ == "__main__":

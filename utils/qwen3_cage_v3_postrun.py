@@ -162,10 +162,11 @@ def validate_validation_attempt_manifest(manifest: dict[str, Any]) -> None:
     _require(manifest.get("interpretation_performed") is False, "validation attempt performed interpretation")
     _require(manifest.get("scientific_artifacts_mutated") is False, "validation attempt mutated scientific artifacts")
     attempts = manifest.get("attempts")
-    _require(isinstance(attempts, list) and len(attempts) == 2, "validation attempt count mismatch")
+    _require(isinstance(attempts, list) and len(attempts) == 3, "validation attempt count mismatch")
     expected = (
         (1, 28, "cage_qwen3 log lacks successful pipeline status"),
         (2, 30, "cage_qwen3 shell case manifest mismatch"),
+        (3, 31, "validation attempt test evidence mismatch"),
     )
     for attempt, (index, test_count, failure_message) in zip(attempts, expected):
         _require(attempt.get("attempt_index") == index, "validation attempt index mismatch")
@@ -175,7 +176,12 @@ def validate_validation_attempt_manifest(manifest: dict[str, Any]) -> None:
         _require(attempt.get("failure_message") == failure_message, "validation failure message mismatch")
         _require(attempt.get("scientific_artifacts_mutated") is False, "failed validation mutated artifacts")
         _require(attempt.get("interpretation_performed") is False, "failed validation performed interpretation")
-        for field, length in (("source_commit", 40), ("validator_sha256", 64), ("execution_log_sha256", 64)):
+        for field, length in (
+            ("source_commit", 40),
+            ("validator_sha256", 64),
+            ("postrun_utils_sha256", 64),
+            ("execution_log_sha256", 64),
+        ):
             value = attempt.get(field)
             _require(isinstance(value, str) and len(value) == length, f"validation attempt {field} is invalid")
         _require(attempt.get("execution_log_size_bytes", 0) > 0, "validation attempt log size is invalid")
@@ -187,7 +193,8 @@ def validate_failed_validation_attempt(attempt: dict[str, Any]) -> dict[str, Any
     _require(file_sha256(log_path) == attempt["execution_log_sha256"], "validation attempt log hash mismatch")
     _require(log_path.stat().st_size == attempt["execution_log_size_bytes"], "validation attempt log size mismatch")
     text = log_path.read_text(encoding="utf-8")
-    _require("Ran 28 tests" in text and "OK" in text, "validation attempt test evidence mismatch")
+    test_evidence = f"Ran {attempt['tests_passed_before_failure']} tests"
+    _require(test_evidence in text and "OK" in text, "validation attempt test evidence mismatch")
     _require(attempt["failure_message"] in text, "validation attempt failure message missing")
     _require("JOINT 75-CASE DEEP AUDIT" in text, "validation attempt did not reach deep audit")
     _require(not output_path.exists(), "failed validation output now unexpectedly exists")
@@ -195,6 +202,7 @@ def validate_failed_validation_attempt(attempt: dict[str, Any]) -> dict[str, Any
         "attempt_index": attempt["attempt_index"],
         "source_commit": attempt["source_commit"],
         "validator_sha256": attempt["validator_sha256"],
+        "postrun_utils_sha256": attempt["postrun_utils_sha256"],
         "execution_log_sha256": attempt["execution_log_sha256"],
         "failure_type": attempt["failure_type"],
         "failure_message": attempt["failure_message"],
