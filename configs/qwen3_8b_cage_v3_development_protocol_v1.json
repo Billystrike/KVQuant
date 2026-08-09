@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-v3-pure-sr2-development-v1",
+  "frozen_on": "2026-08-09",
+  "status": "frozen_before_any_cage_v3_gpu_metric",
+  "claim_eligible": false,
+  "purpose": "Evaluate whether pure 2-bit sparse Key refinement with protected sink tokens and pre-registered layer allocation closes the frozen matched-memory Kitty-Pro local-perturbation gap.",
+  "prior_negative_result": {
+    "decision_path": "configs/qwen3_8b_cage_v2_round1_decision_v1.json",
+    "decision_sha256": "2deef42fced836b7c277441284fcba8f9f97a9e15beace159493c6f21bb48fd3",
+    "advanced_family_count": 0,
+    "best_family_id": "sr1-sr2-sink32",
+    "best_target": "kitty-pro-25pct",
+    "best_overall_mean_delta_vs_kitty": 0.004697471982490242
+  },
+  "model": {
+    "reference": "/root/autodl-tmp/models/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "dtype": "float16",
+    "native_context": 40960
+  },
+  "development_data": {
+    "corpus_id": "Salesforce/wikitext",
+    "corpus_config": "wikitext-2-raw-v1",
+    "corpus_split": "train",
+    "corpus_revision": "00aa25585682d4957f9e86edc73f59be7419af99",
+    "dataset_fingerprint": "ffbffeda6f701220",
+    "datasets_version": "5.0.0",
+    "join_separator": "\n\n",
+    "rows": 36718,
+    "nonempty_rows": 23767,
+    "joined_utf8_bytes": 10988279,
+    "joined_text_sha256": "aee724fa58bfbdeb3fc6803297fb6bab27b203d7c40b39ddef9b9770e5d52fe5",
+    "snapshot_sha256": "088612387db3937f9dcda70af8ca732f94f2c65bf4c2c3e51781833e99648d4c",
+    "token_count": 2518423,
+    "token_ids_sha256": "49a593d8dcd3ec4bb0b17c591e97dae99fcfd79a892471d8f1abb28792cc3a14",
+    "token_audit_sha256": "661bafe33d1a99e7b25cebe5da5e39567f9760a8cf315a6a7d25371d185e2aa5",
+    "selection_id": "interior-51sts-cage-v3-train-v1",
+    "anchor_count": 50,
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "minimum_anchor_gap": 49300,
+    "maximum_window_tokens": 4096,
+    "partitions": {
+      "calibration": [0, 1, 2, 3, 4],
+      "screen": [5, 6, 7, 8, 9],
+      "holdout": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+      "reserved_unseen": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]
+    },
+    "partition_boundary": {
+      "calibration_only_for_layer_scores": true,
+      "screen_only_for_candidate_selection": true,
+      "holdout_metrics_must_remain_unread_until_one_candidate_is_frozen": true,
+      "reserved_unseen_execution_authorized": false,
+      "eligible_for_final_claims": false
+    }
+  },
+  "method_boundary": {
+    "key": "all-channel INT2 backbone plus one prompt-adaptive 2-bit sparse residual stream",
+    "key_importance": "q2_var",
+    "one_bit_refinement_enabled": false,
+    "value": "uniform INT2 without Value channel adaptation",
+    "sink_tokens": "unquantized FP16 K and V",
+    "representation": "accuracy simulation with logical packed-byte accounting",
+    "runtime_claims_supported": false
+  },
+  "fixed_quantization": {
+    "key_base_bits": 2,
+    "key_refinement_bits": 2,
+    "value_bits": 2,
+    "key_base_group_size": 128,
+    "key_refinement_group_size": 128,
+    "value_group_size": 128,
+    "scale_dtype": "float16",
+    "zero_point_dtype": "float16",
+    "channel_index_bytes": 1,
+    "total_two_bit_channels_across_36_layers_per_kv_head": 1152,
+    "mean_two_bit_channels_per_layer_per_kv_head": 32,
+    "value_adaptive": false
+  },
+  "calibration": {
+    "probe_families": [
+      "pure-sr2-sink32-uniform32",
+      "pure-sr2-sink64-uniform32"
+    ],
+    "anchors": [0, 1, 2, 3, 4],
+    "score_path": "layer_metrics[layer_idx].metrics.joint_post_o_proj_mse",
+    "score_aggregation": "arithmetic mean over the five calibration anchors separately for each prompt length and sink family",
+    "ranking": "descending score with ascending layer_idx as the exact tie break",
+    "quota_rule": {
+      "top_12_layers": 48,
+      "middle_12_layers": 32,
+      "bottom_12_layers": 16,
+      "total_channels": 1152,
+      "counts_are_per_kv_head": true
+    },
+    "prohibitions": [
+      "Kitty metrics must not enter layer allocation",
+      "screen or holdout metrics must not enter layer allocation",
+      "quota thresholds must not change after calibration results"
+    ]
+  },
+  "kitty_pro_targets": [
+    {"prompt_length": 1024, "method_id": "kitty-pro-25pct-l1024", "boosted_channels": 32, "target_bytes": 47890080},
+    {"prompt_length": 2048, "method_id": "kitty-pro-25pct-l2048", "boosted_channels": 32, "target_bytes": 71782560},
+    {"prompt_length": 4032, "method_id": "kitty-pro-25pct-l4032", "boosted_channels": 32, "target_bytes": 110130336}
+  ],
+  "cage_v2_best_controls": [
+    {"prompt_length": 1024, "method_id": "cage-v2-mixed-sink32-kittypro-l1024", "sink_length": 32, "residual_length": 224, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 47379456},
+    {"prompt_length": 2048, "method_id": "cage-v2-mixed-sink32-kittypro-l2048", "sink_length": 32, "residual_length": 240, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 71691264},
+    {"prompt_length": 4032, "method_id": "cage-v2-mixed-sink32-kittypro-l4032", "sink_length": 32, "residual_length": 112, "one_bit_channels": 16, "two_bit_channels": 16, "packed_bytes": 107808768}
+  ],
+  "candidate_families": [
+    {
+      "family_id": "pure-sr2-sink32-uniform",
+      "sink_length": 32,
+      "layer_allocation": "uniform32",
+      "points": [
+        {"prompt_length": 1024, "method_id": "cage-v3-sr2-sink32-uniform-l1024", "residual_length": 176, "packed_bytes": 45849600, "target_bytes": 47890080},
+        {"prompt_length": 2048, "method_id": "cage-v3-sr2-sink32-uniform-l2048", "residual_length": 288, "packed_bytes": 70050816, "target_bytes": 71782560},
+        {"prompt_length": 4032, "method_id": "cage-v3-sr2-sink32-uniform-l4032", "residual_length": 112, "packed_bytes": 110066688, "target_bytes": 110130336}
+      ]
+    },
+    {
+      "family_id": "pure-sr2-sink32-calibrated",
+      "sink_length": 32,
+      "layer_allocation": "frozen_tiered_quota_from_matching_sink32_calibration",
+      "points": [
+        {"prompt_length": 1024, "method_id": "cage-v3-sr2-sink32-calibrated-l1024", "residual_length": 176, "packed_bytes": 45849600, "target_bytes": 47890080},
+        {"prompt_length": 2048, "method_id": "cage-v3-sr2-sink32-calibrated-l2048", "residual_length": 288, "packed_bytes": 70050816, "target_bytes": 71782560},
+        {"prompt_length": 4032, "method_id": "cage-v3-sr2-sink32-calibrated-l4032", "residual_length": 112, "packed_bytes": 110066688, "target_bytes": 110130336}
+      ]
+    },
+    {
+      "family_id": "pure-sr2-sink64-calibrated",
+      "sink_length": 64,
+      "layer_allocation": "frozen_tiered_quota_from_matching_sink64_calibration",
+      "points": [
+        {"prompt_length": 1024, "method_id": "cage-v3-sr2-sink64-calibrated-l1024", "residual_length": 176, "packed_bytes": 47877120, "target_bytes": 47890080},
+        {"prompt_length": 2048, "method_id": "cage-v3-sr2-sink64-calibrated-l2048", "residual_length": 144, "packed_bytes": 71728128, "target_bytes": 71782560},
+        {"prompt_length": 4032, "method_id": "cage-v3-sr2-sink64-calibrated-l4032", "residual_length": 128, "packed_bytes": 110121984, "target_bytes": 110130336}
+      ]
+    }
+  ],
+  "byte_selection_rule": {
+    "two_bit_channels_fixed_before_metrics": 32,
+    "residual_grid": {"minimum": 16, "maximum": 512, "step": 16},
+    "selection": "for each fixed sink, length, and uniform mean-32 quota, select the residual with maximum packed bytes not exceeding the Kitty-Pro target; ties select the smaller residual",
+    "calibrated_distribution_preserves_total_channels_and_therefore_packed_bytes": true
+  },
+  "execution_order": [
+    "calibration acceptance repeat A and B",
+    "full calibration on anchors 0 through 4",
+    "freeze and validate per-layer quota artifact",
+    "screen acceptance repeat A and B",
+    "full screen on anchors 5 through 9",
+    "freeze screen analysis and select at most one candidate",
+    "only if one candidate advances, run holdout acceptance then anchors 10 through 19"
+  ],
+  "screen_gate": {
+    "primary_metric": "mean joint_post_o_proj_mse over 36 layers",
+    "paired_delta": "candidate minus baseline; negative favors candidate",
+    "memory": "candidate packed bytes must not exceed Kitty-Pro at all three lengths",
+    "versus_cage_v2": "candidate mean paired delta must be strictly negative at all three lengths",
+    "versus_kitty_pro": "candidate mean paired delta must be nonpositive at at least two of three lengths",
+    "selection": "among passing candidates choose minimum overall 15-case mean delta versus Kitty-Pro, then total packed bytes, then family_id",
+    "maximum_candidates_advanced": 1,
+    "if_none_pass": "close CAGE-v3 screen as negative and do not read holdout metrics"
+  },
+  "holdout_gate": {
+    "anchors": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+    "memory": "selected candidate packed bytes must not exceed Kitty-Pro at all three lengths",
+    "versus_cage_v2": "selected candidate mean paired delta must be strictly negative at all three lengths",
+    "versus_kitty_pro": "selected candidate mean paired delta must be nonpositive at at least two of three lengths",
+    "bootstrap": "descriptive only and forbidden for gate decisions",
+    "quality_run_before_holdout_pass": false
+  },
+  "reporting_requirements": {
+    "report_all_three_candidates": true,
+    "report_all_lengths": true,
+    "report_unfavorable_results": true,
+    "kitty_12_5pct_mandatory_after_successful_kitty_pro_holdout": true,
+    "no_nominal_two_bit_comparison": true,
+    "packed_paper_estimate_only": true
+  }
+}
