@@ -49,6 +49,10 @@ EXPECTED = {
     "transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178",
     "cache_utils_sha256": "529e858b9bb0ba59a830713bbd5ab594e29f262bbad1bba860ff7de3248e5a5a",
     "qwen3_modeling_sha256": "c12b4c4a34a06e887f3df399b1b09e9966c12d2a19769c258b7379066e585ea4",
+    "config_sha256": "f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30",
+    "generation_config_sha256": "2325da0f15bb848e018c5ae071b7943332e9f871d6b60e2ed22ca97d4cb993d2",
+    "model_index_sha256": "f9fdbcb91c23971c13ec5d5f2573d2349e8f61f2f049371ec699281748fdb1bc",
+    "tokenizer_config_sha256": "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101",
 }
 KITTY_ROOT = Path("/root/autodl-tmp/Kitty")
 SEED = 20260809
@@ -426,7 +430,15 @@ def _run_case(
 def _model_identity(model: Any, partition: str) -> dict[str, Any]:
     cache_path = Path(transformers_cache_utils.__file__).resolve()
     qwen_path = Path(modeling_qwen3.__file__).resolve()
+    model_path = Path(model.config._name_or_path).resolve()
+    metadata = {
+        "config_sha256": file_sha256(model_path / "config.json"),
+        "generation_config_sha256": file_sha256(model_path / "generation_config.json"),
+        "model_index_sha256": file_sha256(model_path / "model.safetensors.index.json"),
+        "tokenizer_config_sha256": file_sha256(model_path / "tokenizer_config.json"),
+    }
     identity = {
+        "reference": str(model_path),
         "class": f"{type(model).__module__}.{type(model).__qualname__}",
         "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
         "parameter_devices": sorted({str(parameter.device) for parameter in model.parameters()}),
@@ -439,6 +451,7 @@ def _model_identity(model: Any, partition: str) -> dict[str, Any]:
         "cache_utils_sha256": file_sha256(cache_path),
         "qwen3_modeling_sha256": file_sha256(qwen_path),
         "partition": partition,
+        "metadata_hashes": metadata,
         "source_sha256": {
             "qwen3_cage_v1": file_sha256(REPO_ROOT / "models" / "qwen3_cage.py"),
             "cage_v2_quant": file_sha256(REPO_ROOT / "models" / "cage_v2_quant.py"),
@@ -458,6 +471,7 @@ def _model_identity(model: Any, partition: str) -> dict[str, Any]:
         "attention": identity["attention_implementation"] == "flash_attention_2",
         "cache_utils": identity["cache_utils_sha256"] == EXPECTED["cache_utils_sha256"],
         "qwen3_modeling": identity["qwen3_modeling_sha256"] == EXPECTED["qwen3_modeling_sha256"],
+        "metadata": all(metadata[name] == EXPECTED[name] for name in metadata),
     }
     failures = sorted(name for name, passed in checks.items() if not passed)
     if failures:
