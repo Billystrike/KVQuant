@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-v4-pg19-document-inputs-v1",
+  "frozen_on": "2026-08-10",
+  "status": "frozen_before_any_pg19_method_metric",
+  "claim_eligible": false,
+  "purpose": "Freeze independent PG-19 document partitions and shared token windows before defining CAGE-v4 or reading any method result on this corpus.",
+  "source_receipt": {
+    "source_candidate_sha256": "a48dcb48f732a16e61afd2934739094ed0ee9d575ab71254d543d9251ff59d91",
+    "token_audit_sha256": "3b295e239da2f1d53c6d55241f69ee2a207f8f7c34987e6ba679ff0b78eaa71c",
+    "token_audit_log_sha256": "8260b9c5f0facb50df41047f861d8b41353d84d99088e702857a032472442e76",
+    "parquet_sha256": "81680529564d4ead1c0e3859509a62d86c7126c32afc95dce6bd98e729e491ef",
+    "ordered_document_identities_sha256": "2ee1222163f954af64f06603d4c5737d7e28231387ebc4b4af145202242d98ba",
+    "ordered_document_token_hashes_sha256": "58e917d8bb76a77a884fb8af54b0d68566a71a375bf8abe0d549fad7084d892e",
+    "document_count": 50,
+    "total_qwen3_tokens": 4272631,
+    "minimum_document_tokens": 10371,
+    "median_document_tokens": 72137.5,
+    "maximum_document_tokens": 431387,
+    "all_documents_unique": true,
+    "all_documents_support_two_nonoverlapping_4096_token_windows": true
+  },
+  "model": {
+    "reference": "/root/autodl-tmp/models/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "tokenizer_class": "transformers.models.qwen2.tokenization_qwen2_fast.Qwen2TokenizerFast",
+    "tokenizer_add_special_tokens": false,
+    "tokenizers_version": "0.21.4",
+    "transformers_version": "4.53.2"
+  },
+  "selection": {
+    "partition_algorithm": "sort by (token_count, document_identity_sha256); form ten consecutive strata of five; within each stratum sort by document_identity_sha256 and assign positions [0] calibration, [1,2] screen, [3,4] holdout",
+    "length_strata": 10,
+    "documents_per_stratum": 5,
+    "documents_per_stratum_by_partition": {
+      "calibration": 1,
+      "screen": 2,
+      "holdout": 2
+    },
+    "prompt_lengths": [
+      1024,
+      2048,
+      4032
+    ],
+    "continuation_tokens": 64,
+    "maximum_window_tokens": 4096,
+    "anchors_per_document": 2,
+    "window_algorithm": "slack = token_count - 8192; prompt_starts = [floor(slack/3), 4096 + floor(2*slack/3)]; each stored maximum window is 4032 prompt tokens plus 64 continuation tokens",
+    "nested_prompt_windows": true,
+    "same_continuation_across_prompt_lengths": true,
+    "maximum_windows_nonoverlapping_within_document": true,
+    "statistical_unit": "document; multiple anchors and target tokens must remain clustered within document"
+  },
+  "frozen_partitions": {
+    "calibration": [
+      "pg19-validation-15-238b0076bb0bf9de",
+      "pg19-validation-19-41acaafecfc729a2",
+      "pg19-validation-41-33e0dbe3c13d6b13",
+      "pg19-validation-11-554385a281c78d43",
+      "pg19-validation-26-19bb6348b0c0e19e",
+      "pg19-validation-20-2ef19b7e9e2b6674",
+      "pg19-validation-31-3092dc0c35012417",
+      "pg19-validation-28-0f05108d7e70dfc0",
+      "pg19-validation-02-0fa547e667d25daa",
+      "pg19-validation-25-b05bb935933a405a"
+    ],
+    "screen": [
+      "pg19-validation-27-23a9deb97ca58bf3",
+      "pg19-validation-00-33bd8f3ad92fb1d1",
+      "pg19-validation-36-69e56dd46bed8afd",
+      "pg19-validation-14-a423581e5a6f7c3e",
+      "pg19-validation-06-7d09da8b89fd9304",
+      "pg19-validation-45-87ea6698c13fbb30",
+      "pg19-validation-35-66e0f5ad534347d1",
+      "pg19-validation-17-8acedef22d186440",
+      "pg19-validation-44-8cdf8b21be5d259a",
+      "pg19-validation-40-8e399ef373197b00",
+      "pg19-validation-38-70c3626055d91129",
+      "pg19-validation-04-b6b3b116336ee7c3",
+      "pg19-validation-16-8b5d048a5fd14e2c",
+      "pg19-validation-32-d0d69b33ba9199fa",
+      "pg19-validation-43-1b0f32bf7a7d297d",
+      "pg19-validation-48-5414e092d689537a",
+      "pg19-validation-21-5a1c615f564b49fd",
+      "pg19-validation-01-8fc45a9e976eea11",
+      "pg19-validation-49-cd6c534959126e2c",
+      "pg19-validation-07-d3ccd51b1269888a"
+    ],
+    "holdout": [
+      "pg19-validation-13-4bff8b8c6d7def9e",
+      "pg19-validation-10-fbd6b13d3349b16f",
+      "pg19-validation-09-c9b607679273abb3",
+      "pg19-validation-23-e3c4eabe698b32c6",
+      "pg19-validation-18-8ac4c47406d6cb5f",
+      "pg19-validation-39-ca28b6328349e31c",
+      "pg19-validation-03-b90fcc517c65e0b4",
+      "pg19-validation-37-edc577812e503d09",
+      "pg19-validation-42-b4375beaf2f32932",
+      "pg19-validation-22-ea7ff90f85730ab1",
+      "pg19-validation-24-e7556a56c1ce54e3",
+      "pg19-validation-34-f981a836cc403ad3",
+      "pg19-validation-30-d35e945836a6da8f",
+      "pg19-validation-47-efbc88ae1a527a7d",
+      "pg19-validation-46-61c86e8132a9b2e3",
+      "pg19-validation-33-6c1df47da223fd77",
+      "pg19-validation-08-be60a446668b3012",
+      "pg19-validation-12-cdb46554a10fcc05",
+      "pg19-validation-05-e1860e49cb257236",
+      "pg19-validation-29-f218b417c5fff127"
+    ]
+  },
+  "partition_summary": {
+    "calibration": {
+      "documents": 10,
+      "minimum_tokens": 14316,
+      "median_tokens": 69138.0,
+      "maximum_tokens": 256490
+    },
+    "screen": {
+      "documents": 20,
+      "minimum_tokens": 10371,
+      "median_tokens": 71121.0,
+      "maximum_tokens": 212687
+    },
+    "holdout": {
+      "documents": 20,
+      "minimum_tokens": 12414,
+      "median_tokens": 72829.0,
+      "maximum_tokens": 431387
+    }
+  },
+  "access_boundary": {
+    "calibration_inputs_available": true,
+    "screen_inputs_available": true,
+    "holdout_inputs_may_be_materialized_without_method_metrics": true,
+    "holdout_method_metrics_authorized": false,
+    "metric_protocol_frozen": false,
+    "cage_v4_method_frozen": false,
+    "gpu_execution_authorized": false,
+    "paper_claims_authorized": false
+  },
+  "prohibitions": [
+    "No CAGE, Kitty, KIVI, FP16, perturbation, NLL, or PPL result may alter the frozen document partitions or token windows.",
+    "Materializing holdout token inputs does not authorize computing or reading any holdout method metric.",
+    "PG-19 validation is development data and is not eligible by itself for final paper claims.",
+    "The untouched official PG-19 test split must not be downloaded or read during CAGE-v4 development."
+  ]
+}
