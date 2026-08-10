@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "gate_id": "qwen3-8b-cage-v3-holdout-acceptance-gate-v1",
+  "frozen_on": "2026-08-10",
+  "status": "pass",
+  "claim_eligible": false,
+  "execution_sha256": "b8a39f59247346e6a893e05d79d44082e64c6a38f3e0da618bf86f4195ccc2f1",
+  "protocol_sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9",
+  "manifest_sha256": "e53cdec987d8206ed6c21ba3be5c04f3751c25f2fee074fa12e30916e06404d7",
+  "quota_plan_sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914",
+  "screen_decision_sha256": "60e90b4176812a8a6e4d82886776d1cfa211ef2797a07a9a73f8bdbc906414c2",
+  "acceptance_source": {
+    "git_commit": "ba3130b8305a3c9ff8d70255bd44e82af331ec1b",
+    "source_sha256": {
+      "runner": "bcb283a064d719fa816de2de5896238e16d44b3adb881a6eaa32164d2c429035",
+      "comparator": "390e9644487fb7e0199399fd7566c6df76c712a60b2de36dd49f76c292512f60",
+      "holdout_utils": "5fc61df7095a5dc2442d22e50b0992596e343209c0383e52b716c236afa0aed3",
+      "round1_runtime": "3dc1528a2cfff9a84f7e0bd8cd1f1d740c6e264295803bcfdfba8767344010b8",
+      "qwen3_cage": "d9aff2e539961b118d2b9e8375f5ed615d1fe4fa18ea929250bda8b617a2d439",
+      "qwen3_cage_v2": "a183da805e9acec7ab8af3c733a447bf27ba42d26a13377f86718550553a7367",
+      "cage_v2_quant": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a",
+      "cage_v2_memory": "aa5f6e9259d3eaf635e07614241c0d0aa1e95cac4d9bc342079dde80679ef0d0",
+      "recorder": "f699776de29f779379c4cfc2f6b65c9644503cfa8231606c717b8ff4d7e6ac82"
+    }
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "case_count": 6,
+      "case_ids_sha256": "4ff15e25d2e9f44971de6c15bbcdf2b5bedf3ddfc6381ff7717a18bc2cc53724",
+      "scientific_payload_sha256": "371b758bc5602b324285e8185b367b9c4f24e694fb554039c450e8f346a02e18",
+      "repeat_a": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v3/holdout_acceptance_cage_a_ba3130b",
+        "run_identity_sha256": "682e8fb74c2d3fdc92c9b330b896027071957635a3eb5cd50f670bb50e5a0d30",
+        "summary_sha256": "c09d2b199590c5d7b416f0cfb6c8e78362e031af29e2c70d6f73131f46c4c720",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_acceptance_cage_a_ba3130b.log",
+        "execution_log_sha256": "3f966db85fd176e7b41335d606e3de54c3460fac177e102a804fbf045689d11a",
+        "execution_log_size_bytes": 9834,
+        "case_file_manifest_sha256": "7a0b24567da1dbb63d5896501eac59794aa94b054920e5fd0df336f60b902f07"
+      },
+      "repeat_b": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v3/holdout_acceptance_cage_b_ba3130b",
+        "run_identity_sha256": "682e8fb74c2d3fdc92c9b330b896027071957635a3eb5cd50f670bb50e5a0d30",
+        "summary_sha256": "c09d2b199590c5d7b416f0cfb6c8e78362e031af29e2c70d6f73131f46c4c720",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_acceptance_cage_b_ba3130b.log",
+        "execution_log_sha256": "26f51268d570cd1f7139144fe056f38b78275838d586134fb850e2a241244a8d",
+        "execution_log_size_bytes": 7521,
+        "case_file_manifest_sha256": "50367d23b4bda5108307b19f829c321357fc0b1a7faf191b9cdecf1d36119d84"
+      },
+      "comparison": {
+        "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_acceptance_comparison_cage_ba3130b.json",
+        "sha256": "59dbf66ddbfcd5dcf780aa12ea9df1ad673afd74a6f53026541c345c6d2cc349"
+      }
+    },
+    "kitty_qwen3": {
+      "case_count": 3,
+      "case_ids_sha256": "c9ee91abeb883ba319cde33ad712666ff8ae866e19c915e2237b58180a9464cf",
+      "scientific_payload_sha256": "2826ddee6c7327b262ea23c13267eb4ded66f27921939615dc88a766cd166863",
+      "repeat_a": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v3/holdout_acceptance_kitty_a_ba3130b",
+        "run_identity_sha256": "0ce7075eaa39a4c98ea34350cc8ae8c4767f720fe19a63497b3fd89e6df6c7e1",
+        "summary_sha256": "11c4399206be672cd2cb0ee59bc18422fc47182d2858b085aed81d2fd57843d2",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_acceptance_kitty_a_ba3130b.log",
+        "execution_log_sha256": "585f839e18d491a5f646ad67360e906e4ff63f31b4de02b8f659e74955323688",
+        "execution_log_size_bytes": 9591,
+        "case_file_manifest_sha256": "6b567a93237ab5ceb421120c6ce88e326248099d626cf89bbc5fad4eb5b93106"
+      },
+      "repeat_b": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v3/holdout_acceptance_kitty_b_ba3130b",
+        "run_identity_sha256": "0ce7075eaa39a4c98ea34350cc8ae8c4767f720fe19a63497b3fd89e6df6c7e1",
+        "summary_sha256": "11c4399206be672cd2cb0ee59bc18422fc47182d2858b085aed81d2fd57843d2",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_acceptance_kitty_b_ba3130b.log",
+        "execution_log_sha256": "fb93842110b6092fce030584789920ba1df1468afe051d76ebfd073da0f35754",
+        "execution_log_size_bytes": 7230,
+        "case_file_manifest_sha256": "d1725434641597097e9fc649be69b63b404e3b4d4b7cef59e8d054cf50080568"
+      },
+      "comparison": {
+        "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_acceptance_comparison_kitty_ba3130b.json",
+        "sha256": "4e2d8ce8a0615e11fb4be5c1de8c14b0292fd87b1c2fa156494537c70488e49c"
+      }
+    }
+  },
+  "holdout_full_authorization": {
+    "anchor_indices": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+    "cage_case_count": 60,
+    "kitty_case_count": 30,
+    "selected_family_id": "pure-sr2-sink32-calibrated",
+    "reserved_unseen_metrics": false,
+    "end_to_end_quality": false
+  }
+}
