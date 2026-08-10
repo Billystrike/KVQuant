@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "decision_id": "qwen3-8b-cage-v3-development-holdout-decision-v1",
+  "frozen_on": "2026-08-10",
+  "status": "frozen_negative_after_preregistered_holdout_interpretation",
+  "claim_eligible": false,
+  "analysis": {
+    "source_commit": "7bb9708fd682e169465a54365f3324af898cd7ed",
+    "analysis_path": "/root/autodl-tmp/qwen3_cage_v3/holdout_analysis_7bb9708/qwen3_cage_v3_holdout_analysis_v1.json",
+    "analysis_sha256": "b6e6946cd462671034a360897ffb3bb44dc752ecd572384a2854bd071bee71fd",
+    "analysis_size_bytes": 19136,
+    "manifest_path": "/root/autodl-tmp/qwen3_cage_v3/holdout_analysis_7bb9708/qwen3_cage_v3_holdout_analysis_manifest_v1.json",
+    "manifest_sha256": "2fc44033ff20181a2b23991b26996777f6e604918bd9c5a7da8e98f0145522c9",
+    "manifest_size_bytes": 835,
+    "markdown_path": "/root/autodl-tmp/qwen3_cage_v3/holdout_analysis_7bb9708/qwen3_cage_v3_holdout_analysis_v1.md",
+    "markdown_sha256": "e286115f94be36c807fee5a8117ab8d3e4328c325c891f507eb08a24691af9e3",
+    "markdown_size_bytes": 895,
+    "length_csv_path": "/root/autodl-tmp/qwen3_cage_v3/holdout_analysis_7bb9708/qwen3_cage_v3_holdout_length_comparisons_v1.csv",
+    "length_csv_sha256": "fdd076cd65ce8265823810df34fad9c784228c1e1d84d30c0a7c96e5f8645f71",
+    "length_csv_size_bytes": 840,
+    "archive_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_analysis_7bb9708.tar.gz",
+    "archive_sha256": "7d43fd653a657af3145acaac5a2990317e72ef108b9a804b92dc9e54bd1b1894",
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_analysis_7bb9708.log",
+    "execution_log_sha256": "7552f20d9bc6665025241e3963b3393804a208621c5373f8c5b98759f8df59be",
+    "execution_log_size_bytes": 14111,
+    "tests_passed": 59,
+    "run_status": 0,
+    "tee_status": 0
+  },
+  "frozen_inputs": {
+    "holdout_postrun_receipt_sha256": "6eeeb54c45f9ca0ca3cec015c3bd33e408a067755bb651f36a8947fa57d905ac",
+    "holdout_joint_scientific_payload_sha256": "fc2ae7f310adf98251900d235c5e21c6769131e38b89641679c9535a4e80d5f2",
+    "development_protocol_sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9",
+    "screen_decision_sha256": "60e90b4176812a8a6e4d82886776d1cfa211ef2797a07a9a73f8bdbc906414c2",
+    "holdout_execution_sha256": "b8a39f59247346e6a893e05d79d44082e64c6a38f3e0da618bf86f4195ccc2f1",
+    "holdout_acceptance_gate_sha256": "e83cdccdb1faf9005ab7a5cbdbecd3c63ede04e27ed9b94862e718a5eb7cd576",
+    "analysis_source_sha256": {
+      "script": "784fad850f7ef94a935914a6b5feb385d9e96f6f821cb64ee915d0b1654287c7",
+      "utils": "a44fdde5f5cd214b7028a059665117a37ce6a9f86d39552cd182e49f1a9dbaa6",
+      "tests": "3b273e20678305f3244fc02284c8a44471e5523d5515a4926cd5cace95061063"
+    }
+  },
+  "decision": {
+    "analysis_id": "qwen3-8b-cage-v3-development-holdout-analysis-v1",
+    "selected_family_id": "pure-sr2-sink32-calibrated",
+    "holdout_gate_pass": false,
+    "decision_status": "development_holdout_failed_preregistered_local_perturbation_gate",
+    "gates": {
+      "memory_all_three": true,
+      "beats_cage_v2_all_three": true,
+      "no_worse_than_kitty_pro_at_least_two": false,
+      "kitty_pro_no_worse_length_count": 1
+    },
+    "overall_30_case_mean_delta_vs_cage_v2": -0.007745799538452047,
+    "overall_30_case_mean_delta_vs_kitty_pro": 0.0011415569992428332,
+    "bootstrap_used_for_gate": false,
+    "bootstrap_descriptive_interval_computed": false
+  },
+  "all_lengths": [
+    {
+      "prompt_length": 1024,
+      "candidate_model_total_bytes": 45849600,
+      "kitty_pro_model_total_bytes": 47890080,
+      "candidate_minus_kitty_pro_bytes": -2040480,
+      "mean_delta_vs_cage_v2": -0.008051102599045457,
+      "favor_tie_oppose_vs_cage_v2": [10, 0, 0],
+      "mean_delta_vs_kitty_pro": -0.0011625337877527878,
+      "favor_tie_oppose_vs_kitty_pro": [8, 0, 2],
+      "memory_pass": true,
+      "beats_cage_v2": true,
+      "no_worse_than_kitty_pro": true
+    },
+    {
+      "prompt_length": 2048,
+      "candidate_model_total_bytes": 70050816,
+      "kitty_pro_model_total_bytes": 71782560,
+      "candidate_minus_kitty_pro_bytes": -1731744,
+      "mean_delta_vs_cage_v2": -0.005362898989034823,
+      "favor_tie_oppose_vs_cage_v2": [6, 0, 4],
+      "mean_delta_vs_kitty_pro": 0.003686088673897656,
+      "favor_tie_oppose_vs_kitty_pro": [2, 0, 8],
+      "memory_pass": true,
+      "beats_cage_v2": true,
+      "no_worse_than_kitty_pro": false
+    },
+    {
+      "prompt_length": 4032,
+      "candidate_model_total_bytes": 110066688,
+      "kitty_pro_model_total_bytes": 110130336,
+      "candidate_minus_kitty_pro_bytes": -63648,
+      "mean_delta_vs_cage_v2": -0.00982339702727586,
+      "favor_tie_oppose_vs_cage_v2": [10, 0, 0],
+      "mean_delta_vs_kitty_pro": 0.0009011161115836316,
+      "favor_tie_oppose_vs_kitty_pro": [4, 0, 6],
+      "memory_pass": true,
+      "beats_cage_v2": true,
+      "no_worse_than_kitty_pro": false
+    }
+  ],
+  "consumption_state": {
+    "calibration_metrics_consumed": true,
+    "screen_metrics_consumed": true,
+    "holdout_metrics_consumed": true,
+    "reserved_unseen_metrics_consumed": false
+  },
+  "closure": {
+    "cage_v3_closed": true,
+    "kitty_12_5pct_followup_authorized": false,
+    "end_to_end_quality_authorized": false,
+    "new_candidate_selection_authorized": false,
+    "protocol_mutation_authorized": false,
+    "reserved_unseen_execution_authorized": false
+  },
+  "claim_boundary": {
+    "development_only": true,
+    "local_perturbation_only": true,
+    "accuracy_simulation": true,
+    "packed_paper_estimate_only": true,
+    "runtime_or_latency_claim": false,
+    "end_to_end_quality_claim": false
+  }
+}
