@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-v4-pg19-metric-validity-v1",
+  "frozen_on": "2026-08-10",
+  "status": "frozen_before_any_pg19_method_metric",
+  "claim_eligible": false,
+  "purpose": "Determine whether local post-o-projection MSE is reliable for fine method ranking on fresh independent documents, while making continuation NLL and practical relative-PPL effect size primary before any CAGE-v4 design.",
+  "input_receipt": {
+    "data_protocol_sha256": "b5405e6bb9acf964047d0c7e033acdd90b6affac73c28805902de07df024b544",
+    "input_manifest_sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+    "input_manifest_size_bytes": 5880826,
+    "case_ids_sha256": "2077fbfffd6e36273dedf4bf69922a984a533d2a7add76eff0596ed052e42416",
+    "manifest_build_log_sha256": "05a6b563a4073d16fc37bc49b9a60c26631c52d9296ee6bd0d851cfce690d84b",
+    "documents": 50,
+    "anchors": 100,
+    "input_cases": 300
+  },
+  "frozen_method_sources": {
+    "matched_memory_protocol": {
+      "path": "configs/qwen3_8b_matched_memory_protocol_v1.json",
+      "sha256": "f8ca2f107126f926395f4db96fb3d827860ebae4a9801f83f8d622636e489c80"
+    },
+    "formal_quality_protocol": {
+      "path": "configs/qwen3_8b_formal_quality_protocol_v1.json",
+      "sha256": "78f33126ace6822649c623b6a2535abc23262728e51818d74b0d14b92fe10e92"
+    },
+    "cage_v2_protocol": {
+      "path": "configs/qwen3_8b_cage_v2_feasibility_protocol_draft_v1.json",
+      "sha256": "5b0aa6f4eade3e42a99bbc731944113ab5f9173489ab78632b5d837eb70218c9"
+    },
+    "cage_v3_protocol": {
+      "path": "configs/qwen3_8b_cage_v3_development_protocol_v1.json",
+      "sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9"
+    },
+    "cage_v3_quota_plan": {
+      "path": "configs/qwen3_8b_cage_v3_calibrated_quota_plan_v1.json",
+      "sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914"
+    },
+    "kitty_commit": "dfd2c07b407d6b407179359207c612ab631f3ed1",
+    "kitty_transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178"
+  },
+  "primary_scoring": {
+    "metric": "cache_conditioned_continuation_nll",
+    "target_tokens_per_case": 64,
+    "boundary_target": "score continuation token 0 from final prompt-position logits",
+    "decode_targets": "teacher-force continuation tokens 0 through 62 and score tokens 1 through 63",
+    "case_value": "arithmetic mean of all 64 token NLL values",
+    "document_value": "for each method and prompt length, arithmetic mean over both anchors and all 128 continuation-token NLL values in that document",
+    "statistical_unit": "document",
+    "overall_length_aggregation": "equal-weight arithmetic mean of the three per-document prompt-length mean NLL values",
+    "relative_ppl_percent": "100 * (exp(candidate_mean_nll_minus_baseline_mean_nll) - 1)",
+    "same_inputs_and_rule_for_all_methods": true,
+    "canonical_full_corpus_ppl_claim": false
+  },
+  "secondary_local_metric": {
+    "metric": "joint_post_o_proj_mse",
+    "case_value": "arithmetic mean over 36 transformer layers",
+    "role_before_validity_gate": "diagnostic_only",
+    "role_after_validity_gate": "fine-ranking proxy only if every pre-registered validity condition passes",
+    "cannot_override_nll": true
+  },
+  "practical_effect_policy": {
+    "status": "project_defined_conservative_threshold_not_a_field_standard",
+    "negligible_absolute_relative_ppl_percent_below": 0.5,
+    "material_absolute_relative_ppl_percent_at_least": 1.0,
+    "per_length_noninferiority_margin_relative_ppl_percent": 0.5,
+    "between_negligible_and_material": "report as a small effect; it cannot alone advance a CAGE-v4 candidate",
+    "directional_uncertainty_requirement": "paired document-cluster bootstrap 95 percent interval for mean NLL delta must exclude zero in the favorable direction",
+    "prohibition": "metric decimal sign alone never constitutes a win"
+  },
+  "method_grid": [
+    {
+      "method_id": "fp16",
+      "family": "fp16",
+      "role": "quality reference",
+      "points": [
+        {"prompt_length": 1024, "packed_bytes": 150994944},
+        {"prompt_length": 2048, "packed_bytes": 301989888},
+        {"prompt_length": 4032, "packed_bytes": 594542592}
+      ]
+    },
+    {
+      "method_id": "kivi-kittypro-matched",
+      "family": "kivi",
+      "role": "matched-memory uniform quantization control",
+      "points": [
+        {"prompt_length": 1024, "point_id": "kivi-g64-r320", "group_size": 64, "residual_length": 320, "packed_bytes": 47480832},
+        {"prompt_length": 2048, "point_id": "kivi-g32-r224", "group_size": 32, "residual_length": 224, "packed_bytes": 71958528},
+        {"prompt_length": 4032, "point_id": "kivi-g128-r256", "group_size": 128, "residual_length": 256, "packed_bytes": 111992832}
+      ]
+    },
+    {
+      "method_id": "cage-v1-kittypro-matched",
+      "family": "cage_v1",
+      "role": "original CAGE matched-memory control",
+      "points": [
+        {"prompt_length": 1024, "point_id": "cage-r224", "residual_length": 224, "packed_bytes": 48253824},
+        {"prompt_length": 2048, "point_id": "cage-r288", "residual_length": 288, "packed_bytes": 72518400},
+        {"prompt_length": 4032, "point_id": "cage-r96", "residual_length": 96, "packed_bytes": 110040192}
+      ]
+    },
+    {
+      "method_id": "kitty-pro-25pct",
+      "family": "kitty",
+      "role": "primary external baseline",
+      "boosted_channels": 32,
+      "points": [
+        {"prompt_length": 1024, "packed_bytes": 47890080},
+        {"prompt_length": 2048, "packed_bytes": 71782560},
+        {"prompt_length": 4032, "packed_bytes": 110130336}
+      ]
+    },
+    {
+      "method_id": "cage-v2-mixed-sink32-kittypro",
+      "family": "cage_v2",
+      "role": "frozen sparse one-bit/two-bit CAGE predecessor",
+      "one_bit_channels": 16,
+      "two_bit_channels": 16,
+      "sink_length": 32,
+      "points": [
+        {"prompt_length": 1024, "residual_length": 224, "packed_bytes": 47379456},
+        {"prompt_length": 2048, "residual_length": 240, "packed_bytes": 71691264},
+        {"prompt_length": 4032, "residual_length": 112, "packed_bytes": 107808768}
+      ]
+    },
+    {
+      "method_id": "cage-v3-sr2-sink32-calibrated",
+      "family": "cage_v3",
+      "role": "frozen pure two-bit calibrated CAGE predecessor",
+      "two_bit_channels": "frozen per-layer quota plan with mean 32 per layer per KV head",
+      "sink_length": 32,
+      "points": [
+        {"prompt_length": 1024, "residual_length": 176, "packed_bytes": 45849600},
+        {"prompt_length": 2048, "residual_length": 288, "packed_bytes": 70050816},
+        {"prompt_length": 4032, "residual_length": 112, "packed_bytes": 110066688}
+      ]
+    }
+  ],
+  "execution_boundary": {
+    "input_partition": "screen",
+    "screen_documents": 20,
+    "anchors_per_document": 2,
+    "method_length_points": 18,
+    "full_quality_cases": 720,
+    "compressed_perturbation_cases": 600,
+    "acceptance_repeats_required": 2,
+    "acceptance_must_pass_before_full": true,
+    "holdout_method_metrics_authorized": false,
+    "cage_v4_candidate_execution_authorized": false,
+    "full_gpu_execution_authorized": false
+  },
+  "acceptance_policy": {
+    "document_id": "pg19-validation-27-23a9deb97ca58bf3",
+    "anchor_index": 0,
+    "all_18_method_length_points_required": true,
+    "cases_per_repeat": 18,
+    "repeat_count": 2,
+    "required_consistency": "bitwise_equal_json_numeric_payload",
+    "required_checks": [
+      "model_and_source_identity",
+      "manifest_and_case identity",
+      "quantization_triggered_for_every_compressed_method",
+      "64_finite_token_nll_values",
+      "finite_local_metric_for_every_compressed_method",
+      "resume_without_recomputing_completed_cases"
+    ]
+  },
+  "statistics": {
+    "paired_unit": "document",
+    "anchors_clustered_within_document": true,
+    "lengths_clustered_within_document_for_overall_effect": true,
+    "bootstrap": "resample the 20 screen documents with replacement and retain all anchors, lengths, methods, and targets from each sampled document",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260810,
+    "interval": "percentile 95 percent",
+    "inference_scope": "development-screen stability over independent PG-19 validation documents, not a population-level significance claim"
+  },
+  "local_proxy_validity_gate": {
+    "methods": [
+      "kivi-kittypro-matched",
+      "cage-v1-kittypro-matched",
+      "kitty-pro-25pct",
+      "cage-v2-mixed-sink32-kittypro",
+      "cage-v3-sr2-sink32-calibrated"
+    ],
+    "truth_axis": "mean continuation NLL degradation versus FP16",
+    "proxy_axis": "mean joint_post_o_proj_mse",
+    "per_length_spearman": true,
+    "minimum_spearman_each_length": 0.8,
+    "all_method_pair_directional_concordance": true,
+    "minimum_all_method_pair_concordance": 0.8,
+    "frontier_methods": [
+      "kitty-pro-25pct",
+      "cage-v2-mixed-sink32-kittypro",
+      "cage-v3-sr2-sink32-calibrated"
+    ],
+    "frontier_pair_count_across_lengths": 9,
+    "minimum_frontier_pair_concordance": 0.8888888888888888,
+    "if_all_pass": "local MSE may be used as a secondary fine-ranking proxy but never override NLL or the practical-effect policy",
+    "if_any_fail": "local MSE is restricted to coarse diagnostics; all future CAGE-v4 screen selection must use NLL and practical relative-PPL effect"
+  },
+  "future_candidate_success_policy": {
+    "status": "frozen_success_definition_before_cage_v4_design",
+    "maximum_cage_v4_candidates": 1,
+    "primary_external_baseline": "kitty-pro-25pct",
+    "predecessor_baseline": "cage-v3-sr2-sink32-calibrated",
+    "memory": "candidate packed bytes must not exceed Kitty-Pro at all three prompt lengths",
+    "overall_material_superiority": "relative PPL must improve by at least 1.0 percent versus both Kitty-Pro and the frozen CAGE-v3 predecessor",
+    "uncertainty": "paired document-cluster bootstrap 95 percent upper bound for mean NLL delta must be below zero versus both baselines",
+    "per_length_noninferiority": "candidate relative PPL may not be worse by more than 0.5 percent at any prompt length versus either baseline",
+    "if_no_candidate_passes": "close CAGE-v4 as negative; do not reinterpret local MSE decimals as a win and do not read holdout method metrics"
+  },
+  "reporting_requirements": {
+    "report_all_methods_and_lengths": true,
+    "report_unfavorable_results": true,
+    "report_nll_relative_ppl_local_mse_and_packed_bytes": true,
+    "separate_practical_effect_from_decimal_direction": true,
+    "runtime_latency_throughput_or_real_cuda_memory_claim": false,
+    "pg19_test_split_consumed": false
+  }
+}
