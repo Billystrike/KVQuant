@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from collections import defaultdict
+from typing import Any, Sequence
 
+from utils.qwen3_cage_v3_analysis import paired_summary
 from utils.qwen3_cage_v3_protocol import file_sha256
 
 
@@ -108,10 +110,201 @@ def validate_holdout_receipt(receipt: dict[str, Any], *, receipt_path: Path) -> 
     )
 
 
+def _index(records: Sequence[dict[str, Any]]) -> dict[str, dict[int, dict[str, Any]]]:
+    result: dict[str, dict[int, dict[str, Any]]] = defaultdict(dict)
+    for record in records:
+        method_id = record["method"]["id"]
+        anchor = int(record["input"]["anchor_index"])
+        _require(anchor not in result[method_id], f"duplicate holdout record: {method_id}/{anchor}")
+        result[method_id][anchor] = record
+    return dict(result)
+
+
+def _records(index: dict[str, dict[int, dict[str, Any]]], method_id: str) -> dict[int, dict[str, Any]]:
+    records = index.get(method_id, {})
+    _require(sorted(records) == HOLDOUT_ANCHORS, f"method lacks frozen holdout grid: {method_id}")
+    return records
+
+
+def _values(index: dict[str, dict[int, dict[str, Any]]], method_id: str) -> dict[int, float]:
+    return {
+        anchor: float(record["aggregates"]["joint_post_o_proj_mse"]["mean"])
+        for anchor, record in _records(index, method_id).items()
+    }
+
+
+def _bytes(index: dict[str, dict[int, dict[str, Any]]], method_id: str) -> int:
+    values = {
+        int(record["memory"]["model_total_bytes"])
+        for record in _records(index, method_id).values()
+    }
+    _require(len(values) == 1, f"method packed bytes vary across holdout anchors: {method_id}")
+    return values.pop()
+
+
+def _point_map(points: Sequence[dict[str, Any]]) -> dict[int, dict[str, Any]]:
+    result = {int(point["prompt_length"]): point for point in points}
+    _require(sorted(result) == LENGTHS, "holdout point lengths mismatch")
+    return result
+
+
+def build_holdout_analysis(
+    *,
+    protocol: dict[str, Any],
+    decision: dict[str, Any],
+    receipt: dict[str, Any],
+    receipt_sha256: str,
+    records: Sequence[dict[str, Any]],
+) -> dict[str, Any]:
+    _require(len(records) == 90, "holdout analysis requires exactly 90 records")
+    _require(
+        protocol["development_data"]["partitions"]["holdout"] == HOLDOUT_ANCHORS,
+        "holdout anchors changed",
+    )
+    _require(
+        protocol["development_data"]["partitions"]["reserved_unseen"] == list(range(20, 50)),
+        "reserved-unseen partition changed",
+    )
+    gate = protocol.get("holdout_gate", {})
+    _require(gate.get("anchors") == HOLDOUT_ANCHORS, "holdout gate anchors mismatch")
+    _require(
+        gate.get("versus_cage_v2")
+        == "selected candidate mean paired delta must be strictly negative at all three lengths",
+        "holdout CAGE-v2 gate changed",
+    )
+    _require(
+        gate.get("versus_kitty_pro")
+        == "selected candidate mean paired delta must be nonpositive at at least two of three lengths",
+        "holdout Kitty-Pro gate changed",
+    )
+    _require(gate.get("bootstrap") == "descriptive only and forbidden for gate decisions", "bootstrap gate changed")
+    _require(gate.get("quality_run_before_holdout_pass") is False, "quality-run boundary changed")
+    reporting = protocol.get("reporting_requirements", {})
+    _require(reporting.get("report_all_lengths") is True, "all-length reporting changed")
+    _require(reporting.get("report_unfavorable_results") is True, "unfavorable-result reporting changed")
+
+    selected_family_id = decision["decision"]["selected_family_id"]
+    _require(selected_family_id == "pure-sr2-sink32-calibrated", "selected holdout family changed")
+    _require(
+        receipt["audit_summary"]["selected_family_id"] == selected_family_id,
+        "receipt selected family mismatch",
+    )
+    families = {row["family_id"]: row for row in protocol["candidate_families"]}
+    _require(selected_family_id in families, "selected family is absent from frozen protocol")
+    candidate_points = _point_map(families[selected_family_id]["points"])
+    control_points = _point_map(protocol["cage_v2_best_controls"])
+    kitty_points = _point_map(protocol["kitty_pro_targets"])
+    index = _index(records)
+
+    expected_method_ids = {
+        point["method_id"]
+        for points in (candidate_points, control_points, kitty_points)
+        for point in points.values()
+    }
+    _require(set(index) == expected_method_ids, "holdout method grid mismatch")
+
+    length_reports = []
+    overall_candidate: dict[tuple[int, int], float] = {}
+    overall_control: dict[tuple[int, int], float] = {}
+    overall_kitty: dict[tuple[int, int], float] = {}
+    for length in LENGTHS:
+        candidate_point = candidate_points[length]
+        control_point = control_points[length]
+        kitty_point = kitty_points[length]
+        candidate_id = candidate_point["method_id"]
+        control_id = control_point["method_id"]
+        kitty_id = kitty_point["method_id"]
+        candidate_records = _records(index, candidate_id)
+        _require(
+            all(record["method"]["family_id"] == selected_family_id for record in candidate_records.values()),
+            f"selected candidate identity mismatch: {candidate_id}",
+        )
+        candidate = _values(index, candidate_id)
+        control = _values(index, control_id)
+        kitty = _values(index, kitty_id)
+        candidate_bytes = _bytes(index, candidate_id)
+        control_bytes = _bytes(index, control_id)
+        kitty_bytes = _bytes(index, kitty_id)
+        _require(candidate_bytes == candidate_point["packed_bytes"], "candidate frozen bytes mismatch")
+        _require(control_bytes == control_point["packed_bytes"], "CAGE-v2 frozen bytes mismatch")
+        _require(kitty_bytes == kitty_point["target_bytes"], "Kitty-Pro frozen bytes mismatch")
+        for anchor in HOLDOUT_ANCHORS:
+            key = (length, anchor)
+            overall_candidate[key] = candidate[anchor]
+            overall_control[key] = control[anchor]
+            overall_kitty[key] = kitty[anchor]
+        versus_control = paired_summary(candidate, control)
+        versus_kitty = paired_summary(candidate, kitty)
+        length_reports.append({
+            "prompt_length": length,
+            "candidate_method_id": candidate_id,
+            "cage_v2_control_method_id": control_id,
+            "kitty_pro_method_id": kitty_id,
+            "candidate_model_total_bytes": candidate_bytes,
+            "cage_v2_control_model_total_bytes": control_bytes,
+            "kitty_pro_model_total_bytes": kitty_bytes,
+            "candidate_minus_kitty_pro_bytes": candidate_bytes - kitty_bytes,
+            "memory_pass": candidate_bytes <= kitty_bytes,
+            "versus_cage_v2": versus_control,
+            "versus_kitty_pro": versus_kitty,
+            "beats_cage_v2": versus_control["mean_delta"] < 0,
+            "no_worse_than_kitty_pro": versus_kitty["mean_delta"] <= 0,
+        })
+
+    kitty_pass_count = sum(row["no_worse_than_kitty_pro"] for row in length_reports)
+    gates = {
+        "memory_all_three": all(row["memory_pass"] for row in length_reports),
+        "beats_cage_v2_all_three": all(row["beats_cage_v2"] for row in length_reports),
+        "no_worse_than_kitty_pro_at_least_two": kitty_pass_count >= 2,
+        "kitty_pro_no_worse_length_count": kitty_pass_count,
+    }
+    holdout_pass = (
+        gates["memory_all_three"]
+        and gates["beats_cage_v2_all_three"]
+        and gates["no_worse_than_kitty_pro_at_least_two"]
+    )
+    return {
+        "schema_version": 1,
+        "analysis_id": "qwen3-8b-cage-v3-development-holdout-analysis-v1",
+        "status": "pass",
+        "claim_eligible": False,
+        "development_only": True,
+        "receipt_sha256": receipt_sha256,
+        "selected_family_id": selected_family_id,
+        "primary_metric": "mean joint_post_o_proj_mse over 36 layers",
+        "paired_unit": "same prompt length and development-holdout anchor",
+        "anchors": HOLDOUT_ANCHORS,
+        "prompt_lengths": LENGTHS,
+        "lengths": length_reports,
+        "overall_30_case_versus_cage_v2": paired_summary(overall_candidate, overall_control),
+        "overall_30_case_versus_kitty_pro": paired_summary(overall_candidate, overall_kitty),
+        "gates": gates,
+        "holdout_gate_pass": holdout_pass,
+        "decision_status": (
+            "development_holdout_passed_preregistered_local_perturbation_gate"
+            if holdout_pass
+            else "development_holdout_failed_preregistered_local_perturbation_gate"
+        ),
+        "bootstrap": {
+            "used_for_gate": False,
+            "descriptive_interval_computed": False,
+            "reason": "seed and resample count were not preregistered; exact paired deltas are reported instead",
+        },
+        "report_all_lengths": True,
+        "report_unfavorable_results": True,
+        "reserved_unseen_metrics_consumed": False,
+        "end_to_end_quality_authorized": False,
+        "next_protocol_may_be_frozen": holdout_pass,
+        "kitty_12_5pct_followup_required_if_advanced": holdout_pass,
+        "new_candidate_selection_authorized": False,
+    }
+
+
 __all__ = [
     "CageV3HoldoutAnalysisError",
     "EXPECTED_HOLDOUT_RECEIPT_SHA256",
     "HOLDOUT_ANCHORS",
     "LENGTHS",
+    "build_holdout_analysis",
     "validate_holdout_receipt",
 ]
