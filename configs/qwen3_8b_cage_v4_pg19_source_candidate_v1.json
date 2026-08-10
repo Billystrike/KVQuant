@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "candidate_id": "qwen3-cage-v4-pg19-validation-source-candidate-v1",
+  "purpose": "fresh_document_level_development_data_candidate_for_metric_validity_before_any_cage_v4_design",
+  "claim_eligible": false,
+  "official_source": {
+    "repository": "https://github.com/google-deepmind/pg19",
+    "benchmark_name": "PG-19 Language Modelling Benchmark",
+    "license_spdx": "Apache-2.0",
+    "license_evidence": "https://github.com/google-deepmind/pg19/blob/master/LICENSE",
+    "reported_validation_books": 50,
+    "reported_validation_word_tokens": 3007061,
+    "historical_language_caveat": "books were published before 1919; dated language and historical biases limit domain generalization"
+  },
+  "mirror_snapshot": {
+    "repo_id": "emozilla/pg19",
+    "repo_type": "dataset",
+    "revision": "c021754c8e01c5b1cc83a1f549c1f97fbbb756b8",
+    "filename": "data/validation-00000-of-00001-0f92e2337f79aeac.parquet",
+    "split": "validation",
+    "row_count": 50,
+    "text_column": "text",
+    "size_bytes": 10803864,
+    "sha256": "81680529564d4ead1c0e3859509a62d86c7126c32afc95dce6bd98e729e491ef",
+    "git_blob_id": "3e86263f595fae38387a938ec882417649c2bbd4",
+    "http_etag_observed": "a4dc39bb44e88f4ca6acc68c4dacf9f3c13bdf2bef0f973533d5001909944945",
+    "license_metadata_status": "absent_in_hugging_face_repo_tags",
+    "license_interpretation": "official PG-19 provenance records Apache-2.0; the mirror itself did not expose a license tag in the pre-download audit"
+  },
+  "model": {
+    "id": "Qwen/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "config_sha256": "f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30",
+    "tokenizer_config_sha256": "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101",
+    "tokenizer_json_sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+    "vocab_sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+    "merges_sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+  },
+  "audit": {
+    "tokenizer_add_special_tokens": false,
+    "full_window_token_thresholds": [
+      1088,
+      2112,
+      4096
+    ],
+    "required_checks": [
+      "exact_file_size_and_sha256",
+      "parquet_schema_and_row_count",
+      "per_document_text_and_token_hashes",
+      "per_document_qwen3_token_counts",
+      "duplicate_text_and_token_stream_detection"
+    ]
+  },
+  "environment_boundary": {
+    "target_conda_environment": "/root/autodl-tmp/conda-envs/cage-qwen3",
+    "required_addition": "pyarrow==24.0.0",
+    "datasets_package_required": false,
+    "expected_versions": {
+      "python": "3.10.20",
+      "huggingface_hub": "0.36.2",
+      "pyarrow": "24.0.0",
+      "transformers": "4.53.2"
+    },
+    "kitty_environment_must_remain_unchanged": true,
+    "legacy_cage_environment_must_remain_unchanged": true
+  },
+  "freeze_boundary": {
+    "documents_selected": false,
+    "development_partitions_frozen": false,
+    "metric_protocol_frozen": false,
+    "cage_v4_method_frozen": false,
+    "gpu_execution_authorized": false,
+    "paper_claims_authorized": false
+  }
+}

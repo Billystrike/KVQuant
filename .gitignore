@@ -30,6 +30,7 @@ output_samples
 !configs/qwen3_8b_cage_v2_round1_acceptance_gate_v1.json
 !configs/qwen3_8b_cage_v2_round1_screen_artifacts_v1.json
 !configs/qwen3_8b_cage_v2_round1_results_receipt_v1.json
+!configs/qwen3_8b_cage_v4_pg19_source_candidate_v1.json
 *.jsonl
 third_party
 speed_logs
