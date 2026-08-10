@@ -23,6 +23,7 @@ import scripts.qwen3_run_cage_v4_metric_acceptance as accepted_runtime
 from utils.qwen3_cage_v4_acceptance import call_with_recorder_uninstalled
 from utils.qwen3_cage_v4_data import file_sha256
 from utils.qwen3_cage_v4_execution import load_screen_execution
+from utils.qwen3_cage_v4_gate import EXPECTED_KITTY_COMMIT, EXPECTED_TRANSFORMERS_COMMIT
 from utils.qwen3_formal import formal_scoring
 from utils.qwen3_perturbation_protocol import validate_aggregates, validate_layer_records
 
@@ -123,6 +124,28 @@ def main() -> None:
     source_state = round1_runtime._source_state(args.partition)
     if source_state["dirty"] or source_state.get("kitty_dirty", False):
         raise CageV4ScreenRuntimeError("metric screen requires clean sources")
+    runtime_dependency_state = {
+        "kitty_commit": round1_runtime._git(round1_runtime.KITTY_ROOT, "rev-parse", "HEAD"),
+        "kitty_dirty": bool(
+            round1_runtime._git(
+                round1_runtime.KITTY_ROOT,
+                "status",
+                "--porcelain",
+                "--untracked-files=all",
+            )
+        ),
+        "transformers_commit": round1_runtime._git(
+            round1_runtime.KITTY_ROOT / "third_party" / "transformers",
+            "rev-parse",
+            "HEAD",
+        ),
+    }
+    if (
+        runtime_dependency_state["kitty_commit"] != EXPECTED_KITTY_COMMIT
+        or runtime_dependency_state["transformers_commit"] != EXPECTED_TRANSFORMERS_COMMIT
+        or runtime_dependency_state["kitty_dirty"]
+    ):
+        raise CageV4ScreenRuntimeError("frozen Kitty/Transformers runtime dependency changed")
     runner_sha256 = file_sha256(Path(__file__).resolve())
     accepted_runner_sha256 = file_sha256(
         REPO_ROOT / "scripts" / "qwen3_run_cage_v4_metric_acceptance.py"
@@ -138,6 +161,7 @@ def main() -> None:
         "acceptance_gate_sha256": execution["acceptance_gate"]["sha256"],
         "input_manifest_sha256": execution["input_manifest"]["sha256"],
         "source_state": source_state,
+        "runtime_dependency_state": runtime_dependency_state,
         "runner_sha256": runner_sha256,
         "accepted_runtime_sha256": accepted_runner_sha256,
         "expected_case_ids": [case["case_id"] for case in cases],
