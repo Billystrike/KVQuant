@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "artifact_set_id": "qwen3-8b-cage-v3-development-holdout-full-artifacts-v1",
+  "declared_on": "2026-08-10",
+  "status": "declared_from_holdout_outputs_before_joint_postrun_audit",
+  "claim_eligible": false,
+  "interpretation_performed": false,
+  "execution_source_commit": "391c78103d9bd6a86e0c19f1aa84ee09bf586e67",
+  "execution_sha256": "b8a39f59247346e6a893e05d79d44082e64c6a38f3e0da618bf86f4195ccc2f1",
+  "protocol_sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9",
+  "manifest_sha256": "e53cdec987d8206ed6c21ba3be5c04f3751c25f2fee074fa12e30916e06404d7",
+  "quota_plan_sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914",
+  "screen_decision_sha256": "60e90b4176812a8a6e4d82886776d1cfa211ef2797a07a9a73f8bdbc906414c2",
+  "acceptance_gate_sha256": "e83cdccdb1faf9005ab7a5cbdbecd3c63ede04e27ed9b94862e718a5eb7cd576",
+  "partitions": {
+    "cage_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v3/holdout_full_cage_391c781",
+      "case_count": 60,
+      "layer_record_count": 2160,
+      "failure_count": 0,
+      "case_ids_sha256": "b116328780b695545446479e05311201e8f8e35e1c90ecb5db44423079a83d18",
+      "run_identity_sha256": "36e7b47a7b7b9404289be10b3d9e1a043be7b710f7b753b45ca614768e1a8dd4",
+      "summary_sha256": "ea63e5bdda181ec98da6175b0c3f2d26a49ace8cb0f431500387f6f3b93e4c8e",
+      "shell_case_file_manifest_sha256": "dd7593f5ca65d454be6ddf59f797b8d9754f9b4cdf4dfc64d636708388341787",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_full_cage_391c781.log",
+      "execution_log_sha256": "be5099737d3f413ce2d8ac1c7cac7bc25beb03bf46c12c5693142b604bd94087",
+      "execution_log_size_bytes": 18936,
+      "completion_marker": "=== QWEN3 CAGE-V3 HOLDOUT CAGE FULL END ==="
+    },
+    "kitty_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v3/holdout_full_kitty_391c781",
+      "case_count": 30,
+      "layer_record_count": 1080,
+      "failure_count": 0,
+      "case_ids_sha256": "54c9f6ac283412e1d38d1a59b04fcb7d2e7f1725421117794cc0bf5de7d2a9ea",
+      "run_identity_sha256": "c2d11f838851922d14891520c705532d7d394a7d0b2bff9d17a773137c4825df",
+      "summary_sha256": "74793c1acda7e0db9d8e5b394b9ce126fd74a5a41c2ce547d0ceb37ca83056e9",
+      "shell_case_file_manifest_sha256": "fb0261d8c29a3ffc078d1ab2b692ea1dddccaa40be46036296dbad2850792d37",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_holdout_full_kitty_391c781.log",
+      "execution_log_sha256": "e79978b438510e4eb9c50e1cc162c17a7b58e27e99a4a7556742a3d93d96070c",
+      "execution_log_size_bytes": 13082,
+      "completion_marker": "=== QWEN3 CAGE-V3 HOLDOUT KITTY FULL END ==="
+    }
+  },
+  "joint_expected": {
+    "case_count": 90,
+    "layer_record_count": 3240,
+    "failure_count": 0,
+    "interpretation_allowed_before_audit_pass": false,
+    "holdout_metrics_consumed": true,
+    "reserved_unseen_metrics_consumed": false,
+    "end_to_end_quality_authorized": false
+  }
+}
