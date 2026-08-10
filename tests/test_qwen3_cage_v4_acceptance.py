@@ -7,6 +7,7 @@ from pathlib import Path
 from scripts.qwen3_compare_cage_v4_metric_acceptance import _payload
 from utils.qwen3_cage_v4_acceptance import (
     acceptance_input_cases,
+    call_with_recorder_uninstalled,
     expand_metric_methods,
 )
 from utils.qwen3_cage_v4_metric_protocol import load_metric_protocol
@@ -119,6 +120,53 @@ class CageV4AcceptanceTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertNotIn('"--stage"', source)
         self.assertNotIn("holdout", source.lower())
+
+    def test_quality_callback_runs_only_while_recorder_is_uninstalled(self):
+        events = []
+
+        class Recorder:
+            def uninstall(self):
+                events.append("uninstall")
+                return 36
+
+            def install(self, model):
+                events.append(("install", model))
+                return 36
+
+        model = object()
+        result = call_with_recorder_uninstalled(
+            recorder=Recorder(),
+            model=model,
+            callback=lambda: events.append("quality") or "result",
+            expected_modules=36,
+        )
+        self.assertEqual(result, "result")
+        self.assertEqual(events, ["uninstall", "quality", ("install", model)])
+
+    def test_recorder_is_restored_when_quality_callback_fails(self):
+        events = []
+
+        class Recorder:
+            def uninstall(self):
+                events.append("uninstall")
+                return 36
+
+            def install(self, model):
+                events.append("install")
+                return 36
+
+        def fail():
+            events.append("quality")
+            raise ValueError("quality failure")
+
+        with self.assertRaisesRegex(ValueError, "quality failure"):
+            call_with_recorder_uninstalled(
+                recorder=Recorder(),
+                model=object(),
+                callback=fail,
+                expected_modules=36,
+            )
+        self.assertEqual(events, ["uninstall", "quality", "install"])
 
 
 if __name__ == "__main__":

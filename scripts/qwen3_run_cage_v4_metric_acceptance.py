@@ -24,7 +24,11 @@ from transformers import AutoModelForCausalLM
 import scripts.qwen3_run_cage_partition as formal_runtime
 import scripts.qwen3_run_cage_v2_round1 as round1_runtime
 import scripts.qwen3_run_perturbation_partition as perturbation_runtime
-from utils.qwen3_cage_v4_acceptance import PARTITIONS, expand_acceptance_cases
+from utils.qwen3_cage_v4_acceptance import (
+    PARTITIONS,
+    call_with_recorder_uninstalled,
+    expand_acceptance_cases,
+)
 from utils.qwen3_cage_v4_data import file_sha256, load_data_protocol, validate_input_manifest
 from utils.qwen3_cage_v4_metric_protocol import load_metric_protocol
 from utils.qwen3_formal import formal_scoring
@@ -316,7 +320,12 @@ def main() -> None:
         )
         try:
             local, local_runtime = _local_case(model, recorder, case, args.partition)
-            scoring, quality_runtime = _quality_case(model, case)
+            scoring, quality_runtime = call_with_recorder_uninstalled(
+                recorder=recorder,
+                model=model,
+                callback=lambda: _quality_case(model, case),
+                expected_modules=36,
+            )
             record = {
                 "schema_version": 1,
                 "status": "completed",

@@ -4,7 +4,7 @@ import copy
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 from utils.qwen3_cage_v3_screen import expand_screen_methods, validate_quota_plan
 from utils.qwen3_cage_v4_data import CONTINUATION_TOKENS, PROMPT_LENGTHS, canonical_sha256
@@ -13,6 +13,7 @@ from utils.qwen3_formal import formal_method_length_points, load_formal_protocol
 
 
 PARTITIONS = ("cage_qwen3", "kitty_qwen3")
+T = TypeVar("T")
 SCIENTIFIC_FIELDS = (
     "case_id",
     "partition",
@@ -32,6 +33,26 @@ class CageV4AcceptanceError(RuntimeError):
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise CageV4AcceptanceError(message)
+
+
+def call_with_recorder_uninstalled(
+    *, recorder: Any, model: Any, callback: Callable[[], T], expected_modules: int
+) -> T:
+    """Run quality scoring without allowing the local-metric callback to fire."""
+    removed = recorder.uninstall()
+    _require(removed == expected_modules, "perturbation recorder uninstall count mismatch")
+    try:
+        result = callback()
+    except BaseException as error:
+        installed = recorder.install(model)
+        if installed != expected_modules:
+            raise CageV4AcceptanceError(
+                "perturbation recorder restore failed after quality-scoring error"
+            ) from error
+        raise
+    installed = recorder.install(model)
+    _require(installed == expected_modules, "perturbation recorder restore count mismatch")
+    return result
 
 
 def expand_metric_methods(
@@ -195,6 +216,7 @@ __all__ = [
     "PARTITIONS",
     "SCIENTIFIC_FIELDS",
     "acceptance_input_cases",
+    "call_with_recorder_uninstalled",
     "expand_acceptance_cases",
     "expand_metric_methods",
 ]
