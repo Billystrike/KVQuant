@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "execution_id": "qwen3-8b-cage-v4-pg19-metric-screen-execution-v1",
+  "status": "frozen_after_joint_acceptance_before_full_screen_gpu",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/qwen3_8b_cage_v4_metric_validity_protocol_v1.json",
+    "sha256": "ebbb974a2d5ef5c3ec249fef5c2e809f603db3937e3a5f799607422dba89dafe"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_pg19_input_manifest_1ac723c.json",
+    "sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d"
+  },
+  "acceptance_gate": {
+    "path": "configs/qwen3_8b_cage_v4_metric_acceptance_gate_v1.json",
+    "sha256": "a443a84af5fdc01714852a6bde8145acb76295bf74e7327b5df9c7a9ba8988b8"
+  },
+  "gate_preflight_receipt": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_gate_preflight_2b191d8.json",
+    "sha256": "dd65ec8cac25f48d69ef337193daf6a988ffa0bd9146a60d674414ac9fafeca6",
+    "size_bytes": 2099,
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_gate_preflight_2b191d8_retry_20260810T233535.log",
+    "log_sha256": "b90c23103d57a414a7b107ca7572fd9c5e0b2cbb32e821cf8ef68fd7d19959b9",
+    "log_size_bytes": 6769,
+    "source_commit": "2b191d82cb2a6fd8dafc8b3741ae574b666db291"
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "quality_case_count": 600,
+      "compressed_perturbation_case_count": 480,
+      "case_ids_sha256": "e57251804031e69d16d9223b7d0b4a25fdc9edc86dd9603e89daef1b3177475b"
+    },
+    "kitty_qwen3": {
+      "quality_case_count": 120,
+      "compressed_perturbation_case_count": 120,
+      "case_ids_sha256": "19fae6e3d89c9c6d466a2d96fa1230ee0394beb6c6e821a20f1fb88cb77e2e9c"
+    }
+  },
+  "execution_boundary": {
+    "input_partition": "screen",
+    "screen_documents": 20,
+    "screen_anchors": 40,
+    "continuation_tokens_per_case": 64,
+    "run_partitions_in_isolated_environments": true,
+    "resume_completed_cases": true,
+    "interpret_results_before_both_partitions_finish": false,
+    "pg19_holdout_method_metrics": false,
+    "pg19_test_access": false,
+    "cage_v4_candidate_execution": false,
+    "runtime_latency_throughput_or_real_cuda_memory_claim": false
+  }
+}
