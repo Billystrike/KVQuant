@@ -61,6 +61,11 @@ class CageV4ExecutionTest(unittest.TestCase):
         self.assertNotIn("pg19_test", source.lower())
         self.assertIn("load_screen_execution", source)
         self.assertIn("verify_artifacts=True", source)
+        validator = (
+            REPO_ROOT / "scripts" / "qwen3_validate_cage_v4_metric_screen_execution.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("load_screen_execution", validator)
+        self.assertIn("verify_artifacts=True", validator)
 
 
 if __name__ == "__main__":
