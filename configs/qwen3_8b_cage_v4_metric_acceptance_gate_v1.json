@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "gate_id": "qwen3-8b-cage-v4-pg19-metric-acceptance-gate-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "protocol_sha256": "ebbb974a2d5ef5c3ec249fef5c2e809f603db3937e3a5f799607422dba89dafe",
+  "input_manifest_sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+  "acceptance_source": {
+    "git_commit": "eb186a8cdb7807cd31b054b131abb8f79acd31df",
+    "kitty_commit": "dfd2c07b407d6b407179359207c612ab631f3ed1",
+    "transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178",
+    "source_sha256": {
+      "runner": "4991266a2c7c41e75823f1423c6de60e7ab02ec7e0a0c059afa8763940450209",
+      "comparator": "2cab81f32e7d3b07082887587920ee8d370e5354c8157f7093ad99ae71a46303",
+      "acceptance_utils": "f261a1671b413b5ddd674a1b47937add7d6512177f6f8650ac2717737d3bc88f",
+      "recorder": "f699776de29f779379c4cfc2f6b65c9644503cfa8231606c717b8ff4d7e6ac82"
+    }
+  },
+  "failed_pre_case_attempts": [
+    {
+      "label": "cage-repeat-a-recorder-active-during-quality",
+      "git_commit": "88674841e69b58da9ad3a45b2737abf512080746",
+      "cases_executed": 0,
+      "output_dir": "/root/autodl-tmp/qwen3_cage_v4/metric_acceptance_cage_a_8867484",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_cage_a_8867484.log",
+      "execution_log_sha256": "9bd5aff8ca5a92a899b6008115ef21b976c2702d0c3e678a45215a876b0fc4ae",
+      "execution_log_size_bytes": 8389,
+      "failure_boundary": "first FP16 case before any scientific case file was completed"
+    }
+  ],
+  "partitions": {
+    "cage_qwen3": {
+      "case_count": 15,
+      "case_ids_sha256": "d5e743270f61809dd7d9599e490a1e6c2db5b4311fc732f2c422f88a460680bb",
+      "scientific_payload_sha256": "f1e636838b775748fbbc1f949133234e83f9964906aab9397a47754fce077f54",
+      "repeat_a": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v4/metric_acceptance_cage_a_eb186a8",
+        "run_identity_sha256": "f4746051bf7d0068f9971789cfa3765907c63bfc1797197ab60cab2cc2cf5ed0",
+        "summary_sha256": "b315f4d08d6370c56010dff9267c35f49901e7b07e8c9e360604de29f46687f5",
+        "case_file_manifest_sha256": "baac53203d3927435caee79739f8590684c52a7853fb262cc2cd0b99d2b4ab0d",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_cage_a_eb186a8.log",
+        "execution_log_sha256": "18333a1a552ef26936029d6eff1113de1b32f0f33b59ea5902dabb9b2996d936",
+        "execution_log_size_bytes": 17003
+      },
+      "repeat_b": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v4/metric_acceptance_cage_b_eb186a8",
+        "run_identity_sha256": "f4746051bf7d0068f9971789cfa3765907c63bfc1797197ab60cab2cc2cf5ed0",
+        "summary_sha256": "b315f4d08d6370c56010dff9267c35f49901e7b07e8c9e360604de29f46687f5",
+        "case_file_manifest_sha256": "3c27e16f891a0832be862d1553a726ae159f213e4db568ae66440137e74b2ecc",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_cage_b_eb186a8.log",
+        "execution_log_sha256": "fb24c48e4437ebe04a37f9801fa71abc49f4ab532d75d2f205c941b1b402ead8",
+        "execution_log_size_bytes": 16660
+      },
+      "comparison": {
+        "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_comparison_cage_eb186a8.json",
+        "sha256": "787cf83cc910bb52c39a581774af2f04a3bac3db440f47eb3ce123fa96a02bc0",
+        "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_comparison_cage_eb186a8.log",
+        "log_sha256": "c49f97122620bf821bf10f4a521aff4a57c538f1846b3f2c6140ff6b8601309e",
+        "log_size_bytes": 2955
+      }
+    },
+    "kitty_qwen3": {
+      "case_count": 3,
+      "case_ids_sha256": "842a654274d139b9f853fbf517483f29182df9b90d96bfa8be15f8bf781f967a",
+      "scientific_payload_sha256": "b23ab410c8000dbcd95ffed012913db0bc200fd114d9f4222df27ffa0e73c36f",
+      "repeat_a": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v4/metric_acceptance_kitty_a_eb186a8",
+        "run_identity_sha256": "e5ec6b6e41df1d14178c1cd38fc790f22f2368aa8a17c19c727fa9ea283e4879",
+        "summary_sha256": "54ed086fd6e78b1c779571baf435e88fe5f949c6dbd25b778257c8e79ae1ce0f",
+        "case_file_manifest_sha256": "eacffaba6fd60237b371ea422154bd1f8b624ee6d9de383d40be070fc6aae1c3",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_kitty_a_eb186a8.log",
+        "execution_log_sha256": "c62d503755f78eb0e014df8327edcc5b53fdcaac22d4c48040da7bf7dd0dfd8c",
+        "execution_log_size_bytes": 12396
+      },
+      "repeat_b": {
+        "output_dir": "/root/autodl-tmp/qwen3_cage_v4/metric_acceptance_kitty_b_eb186a8",
+        "run_identity_sha256": "e5ec6b6e41df1d14178c1cd38fc790f22f2368aa8a17c19c727fa9ea283e4879",
+        "summary_sha256": "54ed086fd6e78b1c779571baf435e88fe5f949c6dbd25b778257c8e79ae1ce0f",
+        "case_file_manifest_sha256": "bcc8757e9a02dfb16291264bcb39999e9cbb165f43a8fd9851dbd98f4b8c2440",
+        "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_kitty_b_eb186a8.log",
+        "execution_log_sha256": "dd6037cd9feaefbc911fce6231c530c700c54e1b8e31dc3184cb85c00ab1d5ae",
+        "execution_log_size_bytes": 12396
+      },
+      "comparison": {
+        "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_comparison_kitty_eb186a8.json",
+        "sha256": "cf31ba9baa28d593c835a7d857968504f2b7840a87f106ab20f32361cba6fe97",
+        "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_acceptance_comparison_kitty_eb186a8.log",
+        "log_sha256": "d135be677caab52d5eb6b342bbaa7e27901af6edb71f68e0f1ca29456ee9b5dd",
+        "log_size_bytes": 3001
+      }
+    }
+  },
+  "full_screen_authorization": {
+    "authorization_basis": "both frozen acceptance partitions passed two bitwise scientific-payload repeats",
+    "input_partition": "screen",
+    "screen_documents": 20,
+    "screen_anchors": 40,
+    "cage_quality_case_count": 600,
+    "kitty_quality_case_count": 120,
+    "cage_compressed_perturbation_case_count": 480,
+    "kitty_compressed_perturbation_case_count": 120,
+    "pg19_holdout_method_metrics": false,
+    "pg19_test_access": false,
+    "cage_v4_candidate_execution": false,
+    "claim_eligible": false
+  }
+}
