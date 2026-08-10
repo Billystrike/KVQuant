@@ -3,6 +3,13 @@
   "candidate_id": "qwen3-cage-v4-pg19-validation-source-candidate-v1",
   "purpose": "fresh_document_level_development_data_candidate_for_metric_validity_before_any_cage_v4_design",
   "claim_eligible": false,
+  "pre_download_audit": {
+    "source_commit": "6081d829b2a3628e3dc7b9c91491eedcd5a086e7",
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/pg19_pre_download_audit_6081d82.log",
+    "log_sha256": "c7d7f1b9a6ac30b2b024e3f3287455e6c5759460f4009e4f6a8a0613f5102751",
+    "log_size_bytes": 4976,
+    "status": "pass"
+  },
   "official_source": {
     "repository": "https://github.com/google-deepmind/pg19",
     "benchmark_name": "PG-19 Language Modelling Benchmark",

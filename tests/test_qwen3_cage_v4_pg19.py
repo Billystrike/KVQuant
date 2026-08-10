@@ -38,6 +38,10 @@ class CageV4Pg19Test(unittest.TestCase):
         self.assertEqual(candidate["mirror_snapshot"]["revision"], EXPECTED_SOURCE["revision"])
         self.assertEqual(candidate["official_source"]["license_spdx"], "Apache-2.0")
         self.assertEqual(
+            candidate["pre_download_audit"]["log_sha256"],
+            "c7d7f1b9a6ac30b2b024e3f3287455e6c5759460f4009e4f6a8a0613f5102751",
+        )
+        self.assertEqual(
             candidate["mirror_snapshot"]["license_metadata_status"],
             "absent_in_hugging_face_repo_tags",
         )
@@ -48,6 +52,7 @@ class CageV4Pg19Test(unittest.TestCase):
         for path, value in (
             (("mirror_snapshot", "revision"), "0" * 40),
             (("official_source", "license_spdx"), "unknown"),
+            (("pre_download_audit", "status"), "fail"),
             (("freeze_boundary", "documents_selected"), True),
         ):
             changed = copy.deepcopy(candidate)

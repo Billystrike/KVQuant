@@ -33,6 +33,13 @@ EXPECTED_AUDIT_ENVIRONMENT = {
     "pyarrow": "24.0.0",
     "transformers": "4.53.2",
 }
+EXPECTED_PRE_DOWNLOAD_AUDIT = {
+    "source_commit": "6081d829b2a3628e3dc7b9c91491eedcd5a086e7",
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/pg19_pre_download_audit_6081d82.log",
+    "log_sha256": "c7d7f1b9a6ac30b2b024e3f3287455e6c5759460f4009e4f6a8a0613f5102751",
+    "log_size_bytes": 4976,
+    "status": "pass",
+}
 
 
 def canonical_sha256(value: Any) -> str:
@@ -86,6 +93,8 @@ def validate_source_candidate(payload: Mapping[str, Any]) -> None:
         raise ValueError("PG-19 official license mismatch")
     if mirror.get("license_metadata_status") != "absent_in_hugging_face_repo_tags":
         raise ValueError("PG-19 mirror license metadata status mismatch")
+    if payload.get("pre_download_audit") != EXPECTED_PRE_DOWNLOAD_AUDIT:
+        raise ValueError("PG-19 pre-download audit receipt mismatch")
     thresholds = payload.get("audit", {}).get("full_window_token_thresholds")
     if thresholds != list(AUDIT_FULL_WINDOW_THRESHOLDS):
         raise ValueError("PG-19 audit thresholds mismatch")
@@ -226,6 +235,7 @@ __all__ = [
     "AUDIT_FULL_WINDOW_THRESHOLDS",
     "EXPECTED_AUDIT_ENVIRONMENT",
     "EXPECTED_MODEL",
+    "EXPECTED_PRE_DOWNLOAD_AUDIT",
     "EXPECTED_SOURCE",
     "audit_documents",
     "canonical_sha256",
