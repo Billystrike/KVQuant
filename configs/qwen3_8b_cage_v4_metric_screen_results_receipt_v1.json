@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-v4-pg19-metric-screen-results-receipt-v1",
+  "frozen_on": "2026-08-11",
+  "status": "frozen_after_joint_postrun_audit_before_metric_screen_interpretation",
+  "claim_eligible": false,
+  "interpretation_performed": false,
+  "postrun_audit": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_screen_postrun_6606723.json",
+    "sha256": "bc57164bfb73e76f3eb4e3ec47ad6e3d26169b3f18afc8ffde107d963a877af2",
+    "size_bytes": 3334,
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_screen_postrun_retry_6606723_20260811T223218.log",
+    "execution_log_sha256": "8bb077b9fee6502064a1e82b38b4b91d90ae6bc9b8c571093fa278b0da79dfab",
+    "execution_log_size_bytes": 12779,
+    "source_commit": "6606723113e12c9bcd2c0045a19ad07a167b22da",
+    "validator_sha256": "c56391243a64a5a4e8348075a673d90475deb87fd0537558a690b34a7da915e8",
+    "postrun_utils_sha256": "d09cc68da6044cab16bd9baff13d90806b3028c504d6e358148275ef8789a331",
+    "tests_sha256": "ecf500d25d90f3a3cd34b0b2e93cea47baf5b3eb652b8f99dc982efa08107467",
+    "tests_passed": 32
+  },
+  "frozen_inputs": {
+    "execution_sha256": "3b64089d691f63b8cd544e9574eebf38b25252bd0d6199e17cc11a733849a573",
+    "protocol_sha256": "ebbb974a2d5ef5c3ec249fef5c2e809f603db3937e3a5f799607422dba89dafe",
+    "input_manifest_sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+    "acceptance_gate_sha256": "a443a84af5fdc01714852a6bde8145acb76295bf74e7327b5df9c7a9ba8988b8",
+    "artifact_manifest_sha256": "c310a8a512fa9cec5452854ca2b04154dae34dd67ce05957772c6651a30a9c14",
+    "postrun_attempt_manifest_sha256": "7c62fd63d47881f18306dc66ad006453ecf9dbc5e42850729c1d9cdc9d39f372"
+  },
+  "audit_summary": {
+    "status": "pass",
+    "case_count": 720,
+    "compressed_case_count": 600,
+    "target_token_count": 46080,
+    "layer_record_count": 21600,
+    "failure_count": 0,
+    "failed_postrun_validation_attempt_count": 1,
+    "joint_scientific_payload_sha256": "d2ebfe756a198cf3a67b68daba765f4dcb69e95c1095a24a4a9a3746c03d37c6",
+    "holdout_accessed": false,
+    "cage_v4_candidate_executed": false,
+    "interpretation_performed": false
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v4/metric_screen_full_cage_83479c9",
+      "case_count": 600,
+      "compressed_case_count": 480,
+      "target_token_count": 38400,
+      "layer_record_count": 17280,
+      "failure_count": 0,
+      "case_ids_sha256": "e57251804031e69d16d9223b7d0b4a25fdc9edc86dd9603e89daef1b3177475b",
+      "canonical_case_file_manifest_sha256": "50cc826d946c41e474cf3017f5716645f1241d7c9010a2f3503273ba7344a705",
+      "shell_case_file_manifest_sha256": "ac998aab50def7a2bf5f5f18761c94dd3116b41d3902485cdfa13de0fa2cb668",
+      "model_identity_sha256": "92c8be4d04e0e3ea2cc474dcaf1827f5d890053a18742b66251965860433b540",
+      "scientific_payload_sha256": "d3fab5cf92b314f132dcc8b1e002e784dd7f67797e2a9997d4e7cd19d2dbe170"
+    },
+    "kitty_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v4/metric_screen_full_kitty_83479c9",
+      "case_count": 120,
+      "compressed_case_count": 120,
+      "target_token_count": 7680,
+      "layer_record_count": 4320,
+      "failure_count": 0,
+      "case_ids_sha256": "19fae6e3d89c9c6d466a2d96fa1230ee0394beb6c6e821a20f1fb88cb77e2e9c",
+      "canonical_case_file_manifest_sha256": "d06dbb94b5e8aea14a2ab0f2a15ea0bc157097ab9acc00a2f856bc3ba3ecf7bb",
+      "shell_case_file_manifest_sha256": "fe6a64a9515fc5b3eb455ddca5568203e624041dd5ba3cadb5dc9a0a5920b349",
+      "model_identity_sha256": "e8e15192f671e71400f6604f714ab11eeb2247b2595fb5a8e10f3ca2f8180668",
+      "scientific_payload_sha256": "400f8cdfd3e15dbf76887ae7c445d99b1f5a227b7fa202ba2534f847e4c6e39f"
+    }
+  },
+  "analysis_freeze": {
+    "statistical_unit": "PG-19 document",
+    "anchors_clustered_within_document": true,
+    "lengths_clustered_within_document_for_overall_effect": true,
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260810,
+    "bootstrap_interval": "linear-interpolated percentile 95 percent",
+    "bootstrap_draws_reused_for_every_comparison": true,
+    "relative_ppl_percent": "100 * (exp(candidate_mean_nll_minus_baseline_mean_nll) - 1)",
+    "practical_thresholds_percent": {
+      "negligible_absolute_below": 0.5,
+      "material_absolute_at_least": 1.0,
+      "between": "small_effect_cannot_alone_advance_candidate"
+    },
+    "rank_ties": "average ranks",
+    "directional_ties": "concordant only when both axes tie; a tie on exactly one axis is discordant",
+    "local_proxy_gate": {
+      "minimum_spearman_each_length": 0.8,
+      "minimum_all_method_pair_concordance": 0.8,
+      "minimum_frontier_pair_concordance": 0.8888888888888888,
+      "frontier_pair_count": 9
+    },
+    "report_all_methods_lengths_and_pairwise_comparisons": true,
+    "candidate_selection_performed": false
+  },
+  "authorization": {
+    "metric_screen_interpretation": true,
+    "local_proxy_role_decision": true,
+    "cage_v4_design_after_analysis": true,
+    "maximum_future_cage_v4_candidates": 1,
+    "cage_v4_candidate_execution": false,
+    "holdout_metrics": false,
+    "pg19_test_access": false,
+    "runtime_claims": false
+  }
+}
