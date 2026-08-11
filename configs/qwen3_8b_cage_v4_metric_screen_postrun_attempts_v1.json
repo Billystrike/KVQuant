@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "attempt_set_id": "qwen3-8b-cage-v4-pg19-metric-screen-postrun-attempts-v1",
+  "status": "frozen_failed_validation_attempts_before_successful_postrun_audit",
+  "claim_eligible": false,
+  "interpretation_performed": false,
+  "attempts": [
+    {
+      "attempt_id": "postrun-dcbe363-20260811T222430",
+      "source_commit": "dcbe3636cb9f7a7eed9e4f54e6de3bccc625cffd",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_screen_postrun_dcbe363_20260811T222430.log",
+      "execution_log_sha256": "a27c968a9ec79dd1b355d1ec003deda496e000be4f542b5e53e2b531285e3d46",
+      "execution_log_size_bytes": 5716,
+      "status": "failed_before_output",
+      "output_generated": false,
+      "failure_type": "audit_implementation_log_marker_scope_mismatch",
+      "failure_message": "cage_qwen3 log lacks pass marker",
+      "scientific_artifacts_mutated": false,
+      "interpretation_performed": false
+    }
+  ]
+}

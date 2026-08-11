@@ -8,16 +8,19 @@ from utils.qwen3_cage_v4_postrun import (
     CageV4PostrunError,
     shell_case_manifest_sha256,
     validate_artifact_manifest,
+    validate_attempt_manifest,
 )
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v4_metric_screen_artifacts_v1.json"
+ATTEMPT_PATH = REPO_ROOT / "configs" / "qwen3_8b_cage_v4_metric_screen_postrun_attempts_v1.json"
 
 
 class CageV4PostrunTest(unittest.TestCase):
     def setUp(self):
         self.artifacts = json.loads(ARTIFACT_PATH.read_text(encoding="utf-8"))
+        self.attempts = json.loads(ATTEMPT_PATH.read_text(encoding="utf-8"))
 
     def _validate(self, value):
         validate_artifact_manifest(
@@ -68,6 +71,37 @@ class CageV4PostrunTest(unittest.TestCase):
                 f"{file_sha256(first)}  cases/b.json\n"
             )
             self.assertEqual(observed, hashlib.sha256(lines.encode("utf-8")).hexdigest())
+
+    def test_failed_marker_scope_attempt_is_frozen_without_interpretation(self):
+        validate_attempt_manifest(self.attempts, verify_artifacts=False)
+        attempt = self.attempts["attempts"][0]
+        self.assertFalse(attempt["output_generated"])
+        self.assertFalse(attempt["scientific_artifacts_mutated"])
+        self.assertEqual(
+            attempt["failure_type"],
+            "audit_implementation_log_marker_scope_mismatch",
+        )
+
+    def test_attempt_manifest_rejects_hidden_or_reclassified_failure(self):
+        for field, replacement in (
+            ("failure_type", "scientific_failure"),
+            ("scientific_artifacts_mutated", True),
+            ("interpretation_performed", True),
+        ):
+            changed = copy.deepcopy(self.attempts)
+            changed["attempts"][0][field] = replacement
+            with self.subTest(field=field), self.assertRaisesRegex(
+                CageV4PostrunError, "attempt receipt"
+            ):
+                validate_attempt_manifest(changed, verify_artifacts=False)
+
+    def test_execution_log_check_uses_in_tee_completion_markers(self):
+        source = (REPO_ROOT / "utils" / "qwen3_cage_v4_postrun.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("CAGE-V4 METRIC SCREEN CAGE FULL END", source)
+        self.assertIn("CAGE-V4 METRIC SCREEN KITTY FULL END", source)
+        self.assertNotIn('result_marker = "CAGE_FULL_RESULT=PASS"', source)
 
 
 if __name__ == "__main__":

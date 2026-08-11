@@ -18,6 +18,7 @@ from utils.qwen3_cage_v4_postrun import (
     expected_memory_report,
     load_json,
     validate_artifact_manifest,
+    validate_attempt_manifest,
     validate_partition,
 )
 
@@ -36,6 +37,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Jointly validate the 720-case CAGE-v4 metric screen")
     parser.add_argument("--execution", type=Path, required=True)
     parser.add_argument("--artifact-manifest", type=Path, required=True)
+    parser.add_argument("--attempts", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     output_path = args.output.resolve()
@@ -55,6 +57,8 @@ def main() -> None:
         input_manifest_sha256=execution["input_manifest"]["sha256"],
         gate_sha256=execution["acceptance_gate"]["sha256"],
     )
+    attempts = load_json(args.attempts.resolve())
+    validate_attempt_manifest(attempts, verify_artifacts=True)
 
     reports = {}
     joint_payload = []
@@ -98,6 +102,9 @@ def main() -> None:
         "input_manifest_sha256": execution["input_manifest"]["sha256"],
         "acceptance_gate_sha256": execution["acceptance_gate"]["sha256"],
         "artifact_manifest_sha256": file_sha256(args.artifact_manifest.resolve()),
+        "postrun_attempt_manifest_sha256": file_sha256(args.attempts.resolve()),
+        "failed_postrun_validation_attempt_count": len(attempts["attempts"]),
+        "failed_postrun_validation_attempts": attempts["attempts"],
         "execution_source_commit": artifacts["execution_source_commit"],
         "case_count": sum(report["case_count"] for report in reports.values()),
         "compressed_case_count": sum(

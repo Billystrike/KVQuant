@@ -18,6 +18,7 @@ from utils.qwen3_perturbation_protocol import validate_aggregates, validate_laye
 
 
 ARTIFACT_SET_ID = "qwen3-8b-cage-v4-pg19-metric-screen-artifacts-v1"
+ATTEMPT_SET_ID = "qwen3-8b-cage-v4-pg19-metric-screen-postrun-attempts-v1"
 PARTITIONS = ("cage_qwen3", "kitty_qwen3")
 SCIENTIFIC_FIELDS = (
     "case_id",
@@ -135,6 +136,46 @@ def validate_artifact_manifest(
         },
         "joint artifact expectations mismatch",
     )
+
+
+def validate_attempt_manifest(manifest: dict[str, Any], *, verify_artifacts: bool) -> None:
+    _require(manifest.get("schema_version") == 1, "attempt manifest schema mismatch")
+    _require(manifest.get("attempt_set_id") == ATTEMPT_SET_ID, "attempt set ID mismatch")
+    _require(
+        manifest.get("status")
+        == "frozen_failed_validation_attempts_before_successful_postrun_audit",
+        "attempt manifest status mismatch",
+    )
+    _require(manifest.get("claim_eligible") is False, "failed attempt became claim-eligible")
+    _require(manifest.get("interpretation_performed") is False, "failed attempt interpreted results")
+    attempts = manifest.get("attempts")
+    _require(isinstance(attempts, list) and len(attempts) == 1, "failed attempt count mismatch")
+    attempt = attempts[0]
+    _require(
+        attempt
+        == {
+            "attempt_id": "postrun-dcbe363-20260811T222430",
+            "source_commit": "dcbe3636cb9f7a7eed9e4f54e6de3bccc625cffd",
+            "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_metric_screen_postrun_dcbe363_20260811T222430.log",
+            "execution_log_sha256": "a27c968a9ec79dd1b355d1ec003deda496e000be4f542b5e53e2b531285e3d46",
+            "execution_log_size_bytes": 5716,
+            "status": "failed_before_output",
+            "output_generated": False,
+            "failure_type": "audit_implementation_log_marker_scope_mismatch",
+            "failure_message": "cage_qwen3 log lacks pass marker",
+            "scientific_artifacts_mutated": False,
+            "interpretation_performed": False,
+        },
+        "failed attempt receipt mismatch",
+    )
+    if verify_artifacts:
+        log_path = Path(attempt["execution_log"])
+        _require(file_sha256(log_path) == attempt["execution_log_sha256"], "failed attempt log hash mismatch")
+        _require(log_path.stat().st_size == attempt["execution_log_size_bytes"], "failed attempt log size mismatch")
+        text = log_path.read_text(encoding="utf-8")
+        _require("cage_qwen3 log lacks pass marker" in text, "failed attempt message missing")
+        _require("Traceback (most recent call last)" in text, "failed attempt traceback missing")
+        _require("joint post-run validator failed with status 1" in text, "failed attempt status missing")
 
 
 def shell_case_manifest_sha256(paths: list[Path]) -> str:
@@ -255,9 +296,13 @@ def validate_partition(
     log_text = log_path.read_text(encoding="utf-8")
     _require("Traceback (most recent call last)" not in log_text, f"{partition} log contains traceback")
     _require("ERROR conda.cli.main_run" not in log_text, f"{partition} log contains conda error")
-    result_marker = "CAGE_FULL_RESULT=PASS" if partition == "cage_qwen3" else "KITTY_FULL_RESULT=PASS"
-    _require(result_marker in log_text, f"{partition} log lacks pass marker")
-    _require("RUN_STATUS=0" in log_text and "TEE_STATUS=0" in log_text, f"{partition} log status failed")
+    completion_marker = (
+        "=== CAGE-V4 METRIC SCREEN CAGE FULL END ==="
+        if partition == "cage_qwen3"
+        else "=== CAGE-V4 METRIC SCREEN KITTY FULL END ==="
+    )
+    _require(completion_marker in log_text, f"{partition} log lacks completion marker")
+    _require("=== DIRECT SUMMARY AUDIT ===" in log_text, f"{partition} log lacks direct audit")
 
     identity = load_json(identity_path)
     summary = load_json(summary_path)
@@ -379,6 +424,7 @@ def validate_partition(
 
 __all__ = [
     "ARTIFACT_SET_ID",
+    "ATTEMPT_SET_ID",
     "CageV4PostrunError",
     "EXPECTED_COUNTS",
     "SCIENTIFIC_FIELDS",
@@ -387,5 +433,6 @@ __all__ = [
     "load_json",
     "shell_case_manifest_sha256",
     "validate_artifact_manifest",
+    "validate_attempt_manifest",
     "validate_partition",
 ]
