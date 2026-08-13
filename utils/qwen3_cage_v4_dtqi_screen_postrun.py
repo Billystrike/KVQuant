@@ -6,6 +6,7 @@ from typing import Any, Mapping
 from utils.qwen3_cage_v4_data import canonical_sha256, file_sha256
 from utils.qwen3_cage_v4_dtqi_acceptance import load_json
 from utils.qwen3_cage_v4_dtqi_screen import SCIENTIFIC_FIELDS
+from utils.qwen3_cage_v2 import estimate_qwen3_cage_v2_bytes
 from utils.qwen3_formal import formal_scoring
 
 
@@ -75,6 +76,20 @@ def _validate_log(manifest: Mapping[str, Any]) -> dict[str, bool]:
     return checks
 
 
+def _expected_memory(method: Mapping[str, Any]) -> dict[str, Any]:
+    config = method["config"]
+    report = estimate_qwen3_cage_v2_bytes(
+        seq_len=method["prompt_length"],
+        residual_length=config["residual_length"],
+        one_bit_channels=config["one_bit_channels"],
+        two_bit_channels=config["two_bit_channels"],
+        sink_length=config["sink_length"],
+    )
+    _require(report["model_total_bytes"] == method["packed_bytes"], "screen frozen packed bytes mismatch")
+    _require(report["model_total_bytes"] <= method["kitty_pro_target_bytes"], "screen memory exceeds Kitty-Pro target")
+    return report
+
+
 def validate_screen(manifest: Mapping[str, Any], expected_cases: list[dict[str, Any]]) -> dict[str, Any]:
     root = Path(manifest["root"])
     identity_path = root / "run_identity.json"
@@ -123,10 +138,40 @@ def validate_screen(manifest: Mapping[str, Any], expected_cases: list[dict[str, 
         _require(record.get("status") == "completed" and record.get("stage") == "screen_full", "screen case status mismatch")
         _require(record.get("identity") == identity and record.get("model") == summary["model"], "screen case provenance mismatch")
         _require(record.get("method") == expected["method"] and record.get("input") == expected["input"], "screen case method/input mismatch")
+        _require(record.get("memory") == _expected_memory(expected["method"]), "screen memory report mismatch")
         _require(record.get("scoring") == formal_scoring(record.get("scoring", {}).get("token_nlls", [])), "screen scoring mismatch")
         cache, resume = record.get("cache", {}), record.get("resume", {})
-        _require(cache.get("recent_window_equals_residual") is True and cache.get("key_quantization_triggered") is True and cache.get("value_quantization_triggered") is True, "screen cache mechanics mismatch")
-        _require(resume.get("cache_identity_preserved") is True and resume.get("logits_finite") is True, "screen resume mismatch")
+        prompt_length = expected["input"]["prompt_length"]
+        residual = expected["method"]["config"]["residual_length"]
+        expected_length = prompt_length + 64
+        policies = cache.get("policy_checks", [])
+        _require(
+            cache.get("reported_seq_length") == expected_length
+            and cache.get("expected_seq_length") == expected_length
+            and cache.get("layer_count") == 36
+            and cache.get("tensors_finite") is True
+            and cache.get("recent_window_equals_residual") is True
+            and cache.get("recent_query_window") == residual
+            and cache.get("residual_length") == residual
+            and cache.get("key_quantization_triggered") is True
+            and cache.get("value_quantization_triggered") is True
+            and cache.get("one_bit_channels") == 0
+            and cache.get("two_bit_quota_total") == 1152
+            and cache.get("two_bit_quota_counts") == {"48": 12, "32": 12, "16": 12}
+            and cache.get("value_adaptive") is False
+            and len(policies) == 36
+            and all(policy.get("matches_frozen_quota") is True for policy in policies),
+            "screen cache mechanics mismatch",
+        )
+        _require(
+            resume.get("length_before") == prompt_length + 63
+            and resume.get("length_after") == expected_length
+            and resume.get("expected_length_before") == prompt_length + 63
+            and resume.get("expected_length_after") == expected_length
+            and resume.get("cache_identity_preserved") is True
+            and resume.get("logits_finite") is True,
+            "screen resume mismatch",
+        )
         document = record["input"]["document_id"]
         anchor = record["input"]["anchor_index"]
         length = str(record["input"]["prompt_length"])
