@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-v4-dtqi-single-candidate-v1",
+  "frozen_on": "2026-08-13",
+  "status": "frozen_after_metric_screen_before_any_candidate_metric",
+  "claim_eligible": false,
+  "purpose": "Evaluate one non-tuned CAGE-v4 candidate that changes only prompt-persistent Key-channel ranking by blending complete-prompt and residual-window Query energy.",
+  "metric_screen_evidence": {
+    "results_receipt_sha256": "fdd363b822d3a34e3c6e078410290d792a2ef608c7d48042c42e4d73737c4268",
+    "postrun_audit_sha256": "bc57164bfb73e76f3eb4e3ec47ad6e3d26169b3f18afc8ffde107d963a877af2",
+    "analysis_manifest_sha256": "2a99b30a750686a13330b194864e2e9fa451d920ad028b10d8dc5294af7afb4e",
+    "analysis_json_sha256": "6979a8c42a999d2f9c2ceaf45a76b63273d1c40a4f62848cbf998145fe64ffae",
+    "method_length_summary_sha256": "0aeff603ec75974fe416b235e1c63c9e030cf9942ddde550c00fb688b51ce841",
+    "paired_nll_comparisons_sha256": "37df835dd763f9bfb5e40aaefd925f63bfb8f847724f0f38e6310d5f74bb1fc7",
+    "local_proxy_validity_sha256": "e2bd7f5531c9f9aa2481be7ab7bc55fc463253543db1d8b5136ca9a1f6f08c46",
+    "case_count": 720,
+    "document_count": 20,
+    "target_token_count": 46080,
+    "local_proxy_gate_pass": false,
+    "local_proxy_resulting_role": "coarse_diagnostics_only_future_cage_v4_screen_selection_uses_nll",
+    "candidate_selection_performed": false,
+    "holdout_accessed": false
+  },
+  "design_rationale": {
+    "observed_length_interaction": "CAGE-v3 was materially favorable to Kitty-Pro at 1024, practically equivalent at 2048, and materially unfavorable at 4032 on the frozen PG-19 screen.",
+    "mechanistic_hypothesis": "complete-prompt Query energy can dilute continuation-relevant channel ranking as context grows; blend it with the Query energy over the already-frozen FP16 residual window",
+    "no_result_tuned_window": true,
+    "no_result_tuned_weight": true,
+    "local_mse_used_for_candidate_selection": false
+  },
+  "candidate": {
+    "candidate_id": "cage-v4-dtqi",
+    "only_candidate": true,
+    "key_importance": {
+      "global_query_weight": 0.5,
+      "recent_query_weight": 0.5,
+      "recent_query_window": "equal_to_frozen_residual_length_at_each_point",
+      "key_variance_window": "complete_prefill_prompt",
+      "ranking_scope": "prompt_persistent_per_layer_per_kv_head"
+    },
+    "inherited_storage": {
+      "source": "cage-v3-sr2-sink32-calibrated",
+      "key_base_bits": 2,
+      "key_refinement_bits": 2,
+      "value_bits": 2,
+      "key_base_group_size": 128,
+      "key_refinement_group_size": 128,
+      "value_group_size": 128,
+      "sink_length": 32,
+      "one_bit_channels": 0,
+      "value_adaptive": false,
+      "packed_representation_changed": false
+    },
+    "points": [
+      {
+        "prompt_length": 1024,
+        "residual_length": 176,
+        "recent_query_window": 176,
+        "packed_bytes": 45849600,
+        "kitty_pro_target_bytes": 47890080
+      },
+      {
+        "prompt_length": 2048,
+        "residual_length": 288,
+        "recent_query_window": 288,
+        "packed_bytes": 70050816,
+        "kitty_pro_target_bytes": 71782560
+      },
+      {
+        "prompt_length": 4032,
+        "residual_length": 112,
+        "recent_query_window": 112,
+        "packed_bytes": 110066688,
+        "kitty_pro_target_bytes": 110130336
+      }
+    ]
+  },
+  "quota_plan": {
+    "path": "configs/qwen3_8b_cage_v3_calibrated_quota_plan_v1.json",
+    "sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914",
+    "family_id": "pure-sr2-sink32-uniform32",
+    "matching_prompt_length_required": true,
+    "total_two_bit_channels_across_36_layers_per_kv_head": 1152,
+    "quota_counts": {
+      "48": 12,
+      "32": 12,
+      "16": 12
+    }
+  },
+  "primary_scoring": {
+    "metric": "cache_conditioned_continuation_nll",
+    "target_tokens_per_case": 64,
+    "statistical_unit": "PG-19 document",
+    "anchors_clustered_within_document": true,
+    "lengths_clustered_within_document_for_overall_effect": true,
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260810,
+    "same_inputs_anchors_and_scoring_as_metric_screen": true,
+    "local_mse_role": "coarse_diagnostics_only"
+  },
+  "success_policy": {
+    "primary_external_baseline": "kitty-pro-25pct",
+    "predecessor_baseline": "cage-v3-sr2-sink32-calibrated",
+    "memory": "candidate packed bytes must not exceed Kitty-Pro at all three prompt lengths",
+    "overall_material_superiority_relative_ppl_percent": -1.0,
+    "uncertainty": "paired document-cluster bootstrap 95 percent upper bound for mean NLL delta must be below zero versus both baselines",
+    "per_length_noninferiority_margin_relative_ppl_percent": 0.5,
+    "if_candidate_fails": "close CAGE-v4 as negative; do not access holdout metrics or reinterpret local MSE"
+  },
+  "execution_boundary": {
+    "cpu_acceptance_authorized": true,
+    "gpu_acceptance_authorized": false,
+    "gpu_full_screen_authorized": false,
+    "holdout_method_metrics_authorized": false,
+    "pg19_test_access_authorized": false,
+    "runtime_claims_authorized": false,
+    "paper_claims_authorized": false
+  }
+}
