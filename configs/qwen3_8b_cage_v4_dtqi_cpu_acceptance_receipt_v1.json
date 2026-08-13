@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-v4-dtqi-cpu-acceptance-receipt-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "source_commit": "127a1bc8bde0af79344c4a561877ba303316bf59",
+  "protocol_sha256": "8e5478aa75dd2a8685d1b3839b4260583f44949022df1365678d1f0ee476e549",
+  "artifact": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_cpu_acceptance_127a1bc_20260813T211004.json",
+    "sha256": "bf52007e2c6ba400d88bb28424deadecdcbe83862fbb409e69a3ebbaca537ad6",
+    "size_bytes": 4152
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_cpu_acceptance_127a1bc_20260813T211004.log",
+    "sha256": "f53dc23a296cc9bd8d431812c41f7fa640d0694ab4a91d535a6d62a937b05201",
+    "size_bytes": 10305,
+    "run_status": 0,
+    "tee_status": 0
+  },
+  "verified": {
+    "unit_test_count": 24,
+    "direct_check_count": 13,
+    "memory_point_count": 3,
+    "all_checks_pass": true,
+    "all_memory_points_exact": true,
+    "dtqi_changes_synthetic_ranking": true,
+    "recent_window_bound_to_residual": true,
+    "weights_fixed_half_half": true,
+    "one_bit_path_empty": true,
+    "value_path_uniform": true,
+    "gpu_execution_blocked_during_cpu_acceptance": true,
+    "holdout_and_test_blocked": true
+  },
+  "authorization": {
+    "freeze_gpu_acceptance_execution": true,
+    "gpu_acceptance_repeats": 2,
+    "gpu_full_screen": false,
+    "holdout_method_metrics": false,
+    "pg19_test_access": false,
+    "runtime_claims": false,
+    "paper_claims": false
+  }
+}
