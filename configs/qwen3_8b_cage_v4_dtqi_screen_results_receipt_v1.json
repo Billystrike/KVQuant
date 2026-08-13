@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-v4-dtqi-pg19-screen-results-receipt-v1",
+  "frozen_on": "2026-08-13",
+  "status": "frozen_after_dtqi_screen_postrun_before_joint_interpretation",
+  "claim_eligible": false,
+  "interpretation_performed": false,
+  "baseline_results": {
+    "receipt_path": "configs/qwen3_8b_cage_v4_metric_screen_results_receipt_v1.json",
+    "receipt_sha256": "fdd363b822d3a34e3c6e078410290d792a2ef608c7d48042c42e4d73737c4268",
+    "methods_reused": [
+      "kitty-pro-25pct",
+      "cage-v3-sr2-sink32-calibrated"
+    ],
+    "rerun": false
+  },
+  "dtqi_results": {
+    "postrun_audit_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_screen_postrun_e4d493f.json",
+    "postrun_audit_sha256": "a420ab6d6ea35c4d6d1c44ae0ff94d7328dac9aa4c58ba5d4918ee59d969aa7a",
+    "postrun_audit_size_bytes": 2160,
+    "postrun_log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_screen_postrun_e4d493f_20260813T220650.log",
+    "postrun_log_sha256": "c04540c0579c419f095d7e1769d2b98d389c5e5abf8319780f816adf26a70722",
+    "postrun_log_size_bytes": 8964,
+    "scientific_payload_sha256": "b0e89f7952055992dc1b1fe3e0af46d68800d61520b22a42b9f0ae782d57f2e7",
+    "case_count": 120,
+    "target_token_count": 7680,
+    "document_count": 20,
+    "anchor_count": 40
+  },
+  "analysis_freeze": {
+    "candidate": "cage-v4-dtqi",
+    "baselines": [
+      "kitty-pro-25pct",
+      "cage-v3-sr2-sink32-calibrated"
+    ],
+    "statistical_unit": "PG-19 screen document",
+    "anchors_clustered_within_document": true,
+    "lengths_clustered_within_document_for_overall_effect": true,
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260810,
+    "bootstrap_interval": "linear-interpolated percentile 95 percent",
+    "bootstrap_draws_reused_for_all_comparisons": true,
+    "relative_ppl_percent": "100 * (exp(candidate_mean_nll_minus_baseline_mean_nll) - 1)",
+    "overall_material_superiority_relative_ppl_percent_at_most": -1.0,
+    "overall_bootstrap_upper_bound_below_zero": true,
+    "per_length_noninferiority_relative_ppl_percent_at_most": 0.5,
+    "all_two_baselines_must_pass": true,
+    "local_mse_used": false,
+    "report_unfavorable_results": true
+  },
+  "authorization": {
+    "joint_screen_interpretation": true,
+    "advance_only_if_preregistered_success_policy_passes": true,
+    "holdout_metrics": false,
+    "pg19_test_access": false,
+    "runtime_claims": false,
+    "paper_claims": false
+  }
+}
