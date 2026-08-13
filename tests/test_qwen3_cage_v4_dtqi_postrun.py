@@ -8,6 +8,7 @@ from unittest.mock import patch
 from utils.qwen3_cage_v4_data import canonical_sha256
 from utils.qwen3_cage_v4_dtqi_acceptance import SCIENTIFIC_FIELDS
 from utils.qwen3_cage_v4_dtqi_postrun import (
+    _validate_log,
     build_postrun_audit,
     validate_artifact_manifest,
 )
@@ -30,6 +31,35 @@ class CageV4DTQIPostrunTest(unittest.TestCase):
         changed["execution_boundary"]["gpu_full_screen_authorized"] = True
         with self.assertRaisesRegex(RuntimeError, "execution boundary changed"):
             validate_artifact_manifest(changed)
+
+    def test_execution_log_checks_only_markers_written_inside_tee(self):
+        marker_sets = {
+            "a": [
+                "=== CAGE-V4-DTQI GPU ACCEPTANCE A START ===",
+                "=== DIRECT RESULT AUDIT ===",
+                "=== CAGE-V4-DTQI GPU ACCEPTANCE A END ===",
+            ],
+            "b": [
+                "=== CAGE-V4-DTQI GPU ACCEPTANCE B START ===",
+                "=== REPEAT B DIRECT AUDIT ===",
+                "=== A-B SCIENTIFIC PAYLOAD COMPARISON ===",
+                "=== COMPARISON DIRECT AUDIT ===",
+                "=== CAGE-V4-DTQI GPU ACCEPTANCE B END ===",
+            ],
+        }
+        import hashlib
+        with tempfile.TemporaryDirectory() as temporary:
+            for repeat, markers in marker_sets.items():
+                path = Path(temporary) / f"{repeat}.log"
+                path.write_text("\n".join(markers) + "\n", encoding="utf-8")
+                spec = {
+                    "execution_log_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "execution_log_size_bytes": path.stat().st_size,
+                }
+                checks = _validate_log(path, spec, repeat)
+                self.assertTrue(all(checks.values()))
+                self.assertNotIn("run_status_zero", checks)
+                self.assertNotIn("pass_marker", checks)
 
     def test_build_audit_requires_bitwise_equal_repeat_payloads(self):
         payload = [
@@ -72,6 +102,9 @@ class CageV4DTQIPostrunTest(unittest.TestCase):
             with patch(
                 "utils.qwen3_cage_v4_dtqi_postrun.validate_artifact_manifest"
             ), patch(
+                "utils.qwen3_cage_v4_dtqi_postrun._load_failed_attempts",
+                return_value=([], None),
+            ), patch(
                 "utils.qwen3_cage_v4_dtqi_postrun.validate_repeat",
                 side_effect=[(repeat_record, payload), (repeat_record, payload)],
             ):
@@ -82,6 +115,9 @@ class CageV4DTQIPostrunTest(unittest.TestCase):
             second[0]["scoring"] = {"mean_nll": 2.0}
             with patch(
                 "utils.qwen3_cage_v4_dtqi_postrun.validate_artifact_manifest"
+            ), patch(
+                "utils.qwen3_cage_v4_dtqi_postrun._load_failed_attempts",
+                return_value=([], None),
             ), patch(
                 "utils.qwen3_cage_v4_dtqi_postrun.validate_repeat",
                 side_effect=[(repeat_record, payload), (repeat_record, second)],

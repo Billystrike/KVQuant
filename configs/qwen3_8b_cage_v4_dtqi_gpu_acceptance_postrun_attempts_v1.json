@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "attempt_set_id": "qwen3-8b-cage-v4-dtqi-gpu-acceptance-postrun-attempts-v1",
+  "status": "frozen_failed_validation_attempts_before_successful_postrun_audit",
+  "attempts": [
+    {
+      "attempt_id": "dtqi-postrun-7b1d463-20260813T213720",
+      "source_commit": "7b1d4631d07e316c80eff15a7bc79f54d0bd51f7",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_gpu_acceptance_postrun_7b1d463_20260813T213720.log",
+      "execution_log_sha256": "4430d4a5aa7fe1a6777001f48e671a7b6e23ff00e4a4d1532cdebabd1374ad5c",
+      "execution_log_size_bytes": 4178,
+      "failure_stage": "execution_log_marker_validation",
+      "failure_type": "CageV4DTQIPostrunError",
+      "failure_message": "repeat a execution log checks failed",
+      "scientific_artifacts_mutated": false,
+      "output_created": false,
+      "interpretation_performed": false
+    }
+  ]
+}

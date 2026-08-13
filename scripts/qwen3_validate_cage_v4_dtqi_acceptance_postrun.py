@@ -17,12 +17,16 @@ from utils.qwen3_cage_v4_dtqi_postrun import build_postrun_audit
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate two frozen CAGE-v4-DTQI GPU acceptance repeats")
     parser.add_argument("--artifacts", type=Path, required=True)
+    parser.add_argument("--failed-attempts", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
         raise FileExistsError(f"refusing to overwrite DTQI GPU acceptance postrun audit: {output}")
-    audit = build_postrun_audit(args.artifacts)
+    audit = build_postrun_audit(
+        args.artifacts,
+        failed_attempts_path=args.failed_attempts,
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(audit, indent=2, sort_keys=True, allow_nan=False) + "\n",

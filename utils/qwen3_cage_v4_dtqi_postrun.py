@@ -104,18 +104,26 @@ def _validate_log(path: Path, spec: Mapping[str, Any], repeat: str) -> dict[str,
     _require(file_sha256(path) == spec["execution_log_sha256"], f"repeat {repeat} log hash mismatch")
     _require(path.stat().st_size == spec["execution_log_size_bytes"], f"repeat {repeat} log size mismatch")
     text = path.read_text(encoding="utf-8", errors="replace")
-    expected_result = (
-        "DTQI_GPU_ACCEPTANCE_A_RESULT=PASS"
-        if repeat == "a"
-        else "DTQI_GPU_ACCEPTANCE_B_AND_COMPARISON_RESULT=PASS"
-    )
+    if repeat == "a":
+        required_markers = (
+            "=== CAGE-V4-DTQI GPU ACCEPTANCE A START ===",
+            "=== DIRECT RESULT AUDIT ===",
+            "=== CAGE-V4-DTQI GPU ACCEPTANCE A END ===",
+        )
+    else:
+        required_markers = (
+            "=== CAGE-V4-DTQI GPU ACCEPTANCE B START ===",
+            "=== REPEAT B DIRECT AUDIT ===",
+            "=== A-B SCIENTIFIC PAYLOAD COMPARISON ===",
+            "=== COMPARISON DIRECT AUDIT ===",
+            "=== CAGE-V4-DTQI GPU ACCEPTANCE B END ===",
+        )
     checks = {
         "nonempty": bool(text.strip()),
         "no_traceback": "Traceback (most recent call last)" not in text,
         "no_conda_error": "ERROR conda.cli.main_run" not in text,
-        "run_status_zero": "RUN_STATUS=0" in text,
-        "tee_status_zero": "TEE_STATUS=0" in text,
-        "pass_marker": expected_result in text,
+        "no_explicit_error": "ERROR:" not in text,
+        "required_markers": all(marker in text for marker in required_markers),
     }
     _require(all(checks.values()), f"repeat {repeat} execution log checks failed")
     return checks
@@ -187,10 +195,57 @@ def validate_repeat(spec: Mapping[str, Any], *, repeat: str) -> tuple[dict[str, 
     }, scientific
 
 
-def build_postrun_audit(manifest_path: str | Path) -> dict[str, Any]:
+def _load_failed_attempts(path: str | Path | None) -> tuple[list[dict[str, Any]], str | None]:
+    if path is None:
+        return [], None
+    source = Path(path).resolve()
+    value = load_json(source)
+    _require(value.get("schema_version") == 1, "failed-attempt receipt schema mismatch")
+    _require(
+        value.get("attempt_set_id")
+        == "qwen3-8b-cage-v4-dtqi-gpu-acceptance-postrun-attempts-v1",
+        "failed-attempt receipt identity mismatch",
+    )
+    _require(
+        value.get("status") == "frozen_failed_validation_attempts_before_successful_postrun_audit",
+        "failed-attempt receipt status mismatch",
+    )
+    attempts = value.get("attempts")
+    _require(isinstance(attempts, list) and len(attempts) == 1, "failed-attempt count mismatch")
+    attempt = attempts[0]
+    _require(
+        attempt
+        == {
+            "attempt_id": "dtqi-postrun-7b1d463-20260813T213720",
+            "source_commit": "7b1d4631d07e316c80eff15a7bc79f54d0bd51f7",
+            "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_gpu_acceptance_postrun_7b1d463_20260813T213720.log",
+            "execution_log_sha256": "4430d4a5aa7fe1a6777001f48e671a7b6e23ff00e4a4d1532cdebabd1374ad5c",
+            "execution_log_size_bytes": 4178,
+            "failure_stage": "execution_log_marker_validation",
+            "failure_type": "CageV4DTQIPostrunError",
+            "failure_message": "repeat a execution log checks failed",
+            "scientific_artifacts_mutated": False,
+            "output_created": False,
+            "interpretation_performed": False,
+        },
+        "failed-attempt evidence changed",
+    )
+    log = Path(attempt["execution_log"])
+    _require(log.is_file(), "failed-attempt execution log is missing")
+    _require(file_sha256(log) == attempt["execution_log_sha256"], "failed-attempt log hash mismatch")
+    _require(log.stat().st_size == attempt["execution_log_size_bytes"], "failed-attempt log size mismatch")
+    return attempts, file_sha256(source)
+
+
+def build_postrun_audit(
+    manifest_path: str | Path,
+    *,
+    failed_attempts_path: str | Path | None = None,
+) -> dict[str, Any]:
     source = Path(manifest_path).resolve()
     manifest = load_json(source)
     validate_artifact_manifest(manifest)
+    failed_attempts, failed_attempts_sha256 = _load_failed_attempts(failed_attempts_path)
     repeats = {}
     payloads = {}
     for name in ("a", "b"):
@@ -232,6 +287,9 @@ def build_postrun_audit(manifest_path: str | Path) -> dict[str, Any]:
         "case_count_per_repeat": 3,
         "total_case_file_count": 6,
         "failure_count": 0,
+        "failed_postrun_validation_attempt_count": len(failed_attempts),
+        "failed_postrun_validation_attempts": failed_attempts,
+        "failed_postrun_validation_attempts_sha256": failed_attempts_sha256,
         "scientific_fields": list(SCIENTIFIC_FIELDS),
         "scientific_payload_sha256": repeats["a"]["scientific_payload_sha256"],
         "repeat_payloads_bitwise_equal": True,
