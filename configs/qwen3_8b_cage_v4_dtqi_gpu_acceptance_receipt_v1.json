@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-v4-dtqi-gpu-acceptance-receipt-v1",
+  "status": "frozen_after_gpu_acceptance_postrun_before_full_screen",
+  "claim_eligible": false,
+  "acceptance_source_commit": "5a2cceb95e8975e86246f63a8c555e1da2ce68cb",
+  "acceptance_execution_sha256": "da87398a5870aa5bc49321995901f85e635f558a3c06551bdcd76c316bd8b972",
+  "postrun_audit": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_gpu_acceptance_postrun_6f8829f.json",
+    "sha256": "2cc67b68dd1cbead4ae9cedd3a504937cf1c5a3529af0ef599e3d03e908c0637",
+    "size_bytes": 5796,
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_gpu_acceptance_postrun_6f8829f_20260813T214318.log",
+    "execution_log_sha256": "5e12831169b074d1fac6e3fd413a5ce1ad614f168629b024e3f0b77367aeee1a",
+    "execution_log_size_bytes": 15966
+  },
+  "verified": {
+    "repeat_count": 2,
+    "case_count_per_repeat": 3,
+    "total_case_file_count": 6,
+    "failure_count": 0,
+    "failed_postrun_validation_attempt_count": 1,
+    "repeat_payloads_bitwise_equal": true,
+    "scientific_payload_sha256": "e94f84b8446ab5eda22ef4e0fe9c637cbe69cc5caf7ca65b1a311a529ba2cb73",
+    "comparison_sha256": "a5d2630d285ce8c0bea5ba3a2d143550ff3446740469c5e718b8087c4a506021"
+  },
+  "authorization": {
+    "gpu_full_screen": true,
+    "screen_case_count": 120,
+    "reuse_frozen_baseline_results": true,
+    "holdout_method_metrics": false,
+    "pg19_test_access": false,
+    "interpret_before_full_postrun": false,
+    "runtime_claims": false,
+    "paper_claims": false
+  }
+}

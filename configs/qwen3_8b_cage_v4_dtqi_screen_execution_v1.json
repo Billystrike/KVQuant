@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "execution_id": "qwen3-8b-cage-v4-dtqi-pg19-screen-execution-v1",
+  "status": "frozen_after_gpu_acceptance_before_full_screen",
+  "claim_eligible": false,
+  "gpu_acceptance_receipt": {
+    "path": "configs/qwen3_8b_cage_v4_dtqi_gpu_acceptance_receipt_v1.json",
+    "sha256": "060c4129c05b5562228f328929a73bbf9af76d77d2c4b1a75e049079e3ba0aa6"
+  },
+  "dtqi_protocol": {
+    "path": "configs/qwen3_8b_cage_v4_dtqi_protocol_v1.json",
+    "sha256": "8e5478aa75dd2a8685d1b3839b4260583f44949022df1365678d1f0ee476e549"
+  },
+  "data_protocol": {
+    "path": "configs/qwen3_8b_cage_v4_pg19_data_protocol_v1.json",
+    "sha256": "b5405e6bb9acf964047d0c7e033acdd90b6affac73c28805902de07df024b544"
+  },
+  "metric_protocol": {
+    "path": "configs/qwen3_8b_cage_v4_metric_validity_protocol_v1.json",
+    "sha256": "ebbb974a2d5ef5c3ec249fef5c2e809f603db3937e3a5f799607422dba89dafe"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_pg19_input_manifest_1ac723c.json",
+    "sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d"
+  },
+  "quota_plan": {
+    "path": "configs/qwen3_8b_cage_v3_calibrated_quota_plan_v1.json",
+    "sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914"
+  },
+  "model": {
+    "path": "/root/autodl-tmp/models/Qwen3-8B",
+    "hf_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "parameter_count": 8190735360,
+    "dtype": "torch.float16",
+    "device": "cuda:0",
+    "attention_implementation": "flash_attention_2",
+    "config_sha256": "f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30",
+    "model_index_sha256": "f9fdbcb91c23971c13ec5d5f2573d2349e8f61f2f049371ec699281748fdb1bc"
+  },
+  "environment": {
+    "conda_prefix": "/root/autodl-tmp/conda-envs/cage-qwen3",
+    "python": "3.10.20",
+    "torch": "2.4.1+cu121",
+    "transformers": "4.53.2",
+    "cuda": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4090 D"
+  },
+  "screen": {
+    "partition": "screen",
+    "documents": 20,
+    "anchors_per_document": 2,
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "case_count": 120,
+    "candidate_count": 1,
+    "reuse_frozen_baseline_results": true,
+    "local_mse_computed": false,
+    "resume_completed_cases": true
+  },
+  "execution_boundary": {
+    "gpu_full_screen_authorized": true,
+    "holdout_method_metrics_authorized": false,
+    "pg19_test_access_authorized": false,
+    "interpret_before_full_postrun_authorized": false,
+    "runtime_claims_authorized": false,
+    "paper_claims_authorized": false
+  },
+  "source_files": {
+    "runner": {"path": "scripts/qwen3_run_cage_v4_dtqi_screen.py", "sha256": "af22c37fc95f4c58430da25a903dd79091e269d771575ff38d4096e02f8dba1a"},
+    "screen_utils": {"path": "utils/qwen3_cage_v4_dtqi_screen.py", "sha256": "0a4bf21e4d32765a9c9cb11ddc52bc5da30b3df15cde3b93ad7446b750b68690"},
+    "accepted_runtime": {"path": "scripts/qwen3_run_cage_v4_dtqi_acceptance.py", "sha256": "78bee5f0c41c906eaf06dda90537ef9079f77182bf0d1918c39139dcd52d9cbd"},
+    "dtqi_runtime": {"path": "models/qwen3_cage_v4.py", "sha256": "d6cc692bd58851c5eceb2945215ece19d0d0c425d960a5d6dcb62ed8ed42ed0f"},
+    "cage_v2_runtime": {"path": "models/qwen3_cage_v2.py", "sha256": "a183da805e9acec7ab8af3c733a447bf27ba42d26a13377f86718550553a7367"},
+    "cage_v2_quant": {"path": "models/cage_v2_quant.py", "sha256": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a"},
+    "qwen3_attention_adapter": {"path": "models/qwen3_cage.py", "sha256": "d9aff2e539961b118d2b9e8375f5ed615d1fe4fa18ea929250bda8b617a2d439"},
+    "memory_accounting": {"path": "utils/qwen3_cage_v2.py", "sha256": "aa5f6e9259d3eaf635e07614241c0d0aa1e95cac4d9bc342079dde80679ef0d0"},
+    "formal_scoring": {"path": "utils/qwen3_formal.py", "sha256": "f6eb875c5e95c45790fdedd73750d1ecf90eb9866f284e3041619d8444794a60"},
+    "model_identity_runtime": {"path": "scripts/qwen3_run_cage_v2_round1.py", "sha256": "3dc1528a2cfff9a84f7e0bd8cd1f1d740c6e264295803bcfdfba8767344010b8"}
+  }
+}
