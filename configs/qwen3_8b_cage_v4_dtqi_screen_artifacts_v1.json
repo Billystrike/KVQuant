@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "manifest_id": "qwen3-8b-cage-v4-dtqi-pg19-screen-artifacts-v1",
+  "status": "declared_from_completed_screen_before_postrun_audit",
+  "claim_eligible": false,
+  "execution_source_commit": "b0c81baa6536b55787a1ded052aa55f720e5c71c",
+  "execution_sha256": "6b8daeaea2b65efb73cc79fed3ffe8e8882ae9fecd8773ca770736fe248c13d9",
+  "root": "/root/autodl-tmp/qwen3_cage_v4/dtqi_screen_full_b0c81ba",
+  "run_identity_sha256": "f010f9cc88e3272e4ac0ac669aafc02190a5c6e3c28da44b96cc1184258196e2",
+  "summary_sha256": "808c11b02e1122d906253b8cb269c100bb4f7f844eb417be7db2f535ebfce852",
+  "case_file_manifest_sha256": "7e4b4e4ca7d3d7cc94029ededc86dcaa087b5f57c4716bf8cd3052ff76767f03",
+  "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_screen_full_b0c81ba_20260813T215453.log",
+  "execution_log_sha256": "05074a50d7e95540ca19e0618418555a6257b18ce5c36142db5b4d42eba58f24",
+  "execution_log_size_bytes": 38096,
+  "expected": {
+    "case_count": 120,
+    "target_token_count": 7680,
+    "document_count": 20,
+    "anchor_count": 40,
+    "length_counts": {
+      "1024": 40,
+      "2048": 40,
+      "4032": 40
+    },
+    "failure_count": 0,
+    "new_cases": 120,
+    "resumed_cases": 0
+  },
+  "execution_boundary": {
+    "interpretation_performed": false,
+    "holdout_accessed": false,
+    "pg19_test_accessed": false,
+    "runtime_claims_authorized": false,
+    "paper_claims_authorized": false
+  }
+}
