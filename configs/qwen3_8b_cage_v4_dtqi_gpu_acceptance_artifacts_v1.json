@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "manifest_id": "qwen3-8b-cage-v4-dtqi-gpu-acceptance-artifacts-v1",
+  "status": "declared_from_two_completed_gpu_acceptance_repeats_before_postrun_audit",
+  "claim_eligible": false,
+  "artifact_source_commit": "5a2cceb95e8975e86246f63a8c555e1da2ce68cb",
+  "execution_sha256": "da87398a5870aa5bc49321995901f85e635f558a3c06551bdcd76c316bd8b972",
+  "expected_case_ids": [
+    "7a6850c57f3f9f1965cb0f0e",
+    "6844fac8cfc19bc9be5f43f8",
+    "0543d4c8d6a20c1add196159"
+  ],
+  "scientific_fields": [
+    "case_id",
+    "method",
+    "input",
+    "memory",
+    "scoring",
+    "cache",
+    "resume"
+  ],
+  "repeats": {
+    "a": {
+      "root": "/root/autodl-tmp/qwen3_cage_v4/dtqi_gpu_acceptance_a_5a2cceb",
+      "run_identity_sha256": "ee831268a0e82818cf249a64b6bfbd091456ed9d433e253c084a733d6fb7118b",
+      "summary_sha256": "61fde69ded44ff44072d3a4a93c3915c1f459f376e993efc6baf7da084be5f4f",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_gpu_acceptance_a_5a2cceb_20260813T212652.log",
+      "execution_log_sha256": "c26ca9bd9a1210a2d1d3353e0d8140bacafc5bc61f22c2d17f683de34108589b",
+      "execution_log_size_bytes": 12319
+    },
+    "b": {
+      "root": "/root/autodl-tmp/qwen3_cage_v4/dtqi_gpu_acceptance_b_5a2cceb",
+      "run_identity_sha256": "ee831268a0e82818cf249a64b6bfbd091456ed9d433e253c084a733d6fb7118b",
+      "summary_sha256": "61fde69ded44ff44072d3a4a93c3915c1f459f376e993efc6baf7da084be5f4f",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_gpu_acceptance_b_5a2cceb_20260813T212917.log",
+      "execution_log_sha256": "b963484fdc91c4ed0ed286e489ab1905a4297c11cc48bcc477d43ba8c983d24b",
+      "execution_log_size_bytes": 10959
+    }
+  },
+  "comparison": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_gpu_acceptance_comparison_5a2cceb.json",
+    "sha256": "a5d2630d285ce8c0bea5ba3a2d143550ff3446740469c5e718b8087c4a506021",
+    "size_bytes": 787,
+    "scientific_payload_sha256": "e94f84b8446ab5eda22ef4e0fe9c637cbe69cc5caf7ca65b1a311a529ba2cb73",
+    "comparator_sha256": "3a5206ff5340f40533d23651d9d45cf745fcdde6acd351f51e67c4001851bb38"
+  },
+  "execution_boundary": {
+    "gpu_acceptance_completed": true,
+    "gpu_full_screen_authorized": false,
+    "holdout_method_metrics_authorized": false,
+    "pg19_test_access_authorized": false,
+    "interpretation_authorized": false,
+    "runtime_claims_authorized": false,
+    "paper_claims_authorized": false
+  }
+}
