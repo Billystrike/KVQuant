@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "execution_id": "qwen3-8b-cage-v3-promotion-full-holdout-v1",
+  "frozen_on": "2026-08-16",
+  "status": "frozen_after_passed_gate_preflight_before_full_holdout_gpu_execution",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/qwen3_8b_cage_v3_promotion_protocol_v1.json",
+    "sha256": "bc5d3811c0483433feef883c5511d350e8e4cbc48e12f0e4804bc2ccecf31f18"
+  },
+  "acceptance_gate": {
+    "path": "configs/qwen3_8b_cage_v3_promotion_acceptance_gate_v1.json",
+    "sha256": "c6c0d54abc1b0fdbd9ecaffc6d243fee9f66b391a626a56de4245eb47c091819"
+  },
+  "gate_preflight": {
+    "output_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_gate_preflight_505922d.json",
+    "output_sha256": "72656bce038939b575140465ba848364816451500fed350ffdefd1c906696377",
+    "output_size_bytes": 2578,
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_gate_preflight_505922d_20260816T141406.log",
+    "log_sha256": "00d7b4e0e9144ae9344e634fe0995fc49e7cee7d67adda0067fa60a9b52ea4f8",
+    "log_size_bytes": 7950
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_pg19_input_manifest_1ac723c.json",
+    "sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+    "size_bytes": 5880826,
+    "partition": "holdout"
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "case_count": 480,
+      "case_ids_sha256": "d378919e78e09d0e484b953cdee3dbb91a3de347f671a9204b97483eb9bec96a",
+      "method_counts": {
+        "fp16": 120,
+        "kivi-kittypro-matched": 120,
+        "cage-v1-kittypro-matched": 120,
+        "cage-v3-sr2-sink32-calibrated": 120
+      }
+    },
+    "kitty_qwen3": {
+      "case_count": 120,
+      "case_ids_sha256": "fca71e59bb93d589f26f00f1d842baa82f038e08539e1c0a9402589c7b69711f",
+      "method_counts": {
+        "kitty-pro-25pct": 120
+      }
+    }
+  },
+  "execution_order": [
+    "kitty_qwen3",
+    "cage_qwen3"
+  ],
+  "source_paths": {
+    "runner": "scripts/qwen3_run_cage_v3_promotion_full.py",
+    "full_utils": "utils/qwen3_cage_v3_promotion_full.py",
+    "gate_utils": "utils/qwen3_cage_v3_promotion_gate.py",
+    "quality_runtime": "scripts/qwen3_run_cage_v4_metric_acceptance.py",
+    "round1_runtime": "scripts/qwen3_run_cage_v2_round1.py"
+  },
+  "source_sha256": {
+    "runner": "84da671efab351fedd7d7d6cc8349e1605f9b433ce1247c73697757702125187",
+    "full_utils": "6ea2610cc9354fe0963e39b67ddd63fb2aebcaa3f11193b217ea7ee426e1619f",
+    "gate_utils": "b67c729915a9e75ccabe28d1d485ecc6a6072da076eb4f2c0184843b0b379a3a",
+    "quality_runtime": "4991266a2c7c41e75823f1423c6de60e7ab02ec7e0a0c059afa8763940450209",
+    "round1_runtime": "3dc1528a2cfff9a84f7e0bd8cd1f1d740c6e264295803bcfdfba8767344010b8"
+  },
+  "scientific_payload_fields": [
+    "case_id",
+    "partition",
+    "method",
+    "input",
+    "memory",
+    "scoring",
+    "quality_cache"
+  ],
+  "resume_policy": {
+    "enabled": true,
+    "existing_case_must_pass_full_identity_schema_scoring_memory_and_cache_validation": true,
+    "failed_case_records_block_completion": true,
+    "cross_partition_output_reuse": false
+  },
+  "authorization": {
+    "gpu_full_holdout_execution": true,
+    "resume": true,
+    "holdout_interpretation": false,
+    "pg19_test": false,
+    "llama2_execution": false,
+    "kitty_llama_port": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
