@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -28,6 +29,7 @@ def main() -> None:
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--input-manifest", type=Path, required=True)
     parser.add_argument("--acceptance-gate", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     protocol, protocol_sha256 = load_promotion_protocol(args.protocol.resolve())
     manifest_path = args.input_manifest.resolve()
@@ -86,7 +88,15 @@ def main() -> None:
         "llama2_execution_authorized": False,
         "kitty_llama_port_authorized": False,
     }
-    print(json.dumps(report, indent=2, sort_keys=True, allow_nan=False))
+    output = args.output.resolve()
+    if output.exists():
+        raise FileExistsError(f"refusing to overwrite promotion gate preflight: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(output.name + ".tmp")
+    rendered = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    temporary.write_text(rendered, encoding="utf-8")
+    os.replace(temporary, output)
+    print(rendered, end="")
 
 
 if __name__ == "__main__":
