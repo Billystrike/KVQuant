@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "artifact_manifest_id": "qwen3-8b-cage-v3-promotion-full-artifacts-v1",
+  "status": "frozen_after_both_full_partitions_before_joint_postrun_and_interpretation",
+  "claim_eligible": false,
+  "execution_source_commit": "a2fe881b4531b9874ae8880c16fab6960453e68f",
+  "execution_sha256": "c7da6f2389e64c4471ef876722a6c37e22276f0ce97ee5d8b0bd8fde58375805",
+  "gate_sha256": "c6c0d54abc1b0fdbd9ecaffc6d243fee9f66b391a626a56de4245eb47c091819",
+  "protocol_sha256": "bc5d3811c0483433feef883c5511d350e8e4cbc48e12f0e4804bc2ccecf31f18",
+  "input_manifest_sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+  "source_sha256": {
+    "runner": "84da671efab351fedd7d7d6cc8349e1605f9b433ce1247c73697757702125187",
+    "full_utils": "6ea2610cc9354fe0963e39b67ddd63fb2aebcaa3f11193b217ea7ee426e1619f",
+    "gate_utils": "b67c729915a9e75ccabe28d1d485ecc6a6072da076eb4f2c0184843b0b379a3a",
+    "quality_runtime": "4991266a2c7c41e75823f1423c6de60e7ab02ec7e0a0c059afa8763940450209",
+    "round1_runtime": "3dc1528a2cfff9a84f7e0bd8cd1f1d740c6e264295803bcfdfba8767344010b8"
+  },
+  "execution_preflight": {
+    "output_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_full_execution_preflight_a2fe881.json",
+    "output_sha256": "40da9977f52b3077406f56334995c3cd137293cb4e1e2bd028dab1bfbabacdf4",
+    "output_size_bytes": 1423,
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_full_execution_preflight_a2fe881_20260816T142359.log",
+    "log_sha256": "95c24e433a932fb32bb07510df61df6bd9557116e4d68d33f15df03c00b08212",
+    "log_size_bytes": 7384
+  },
+  "failed_pre_case_attempts": [
+    {
+      "label": "duplicate-passed-execution-preflight-blocked-by-fresh-output-guard",
+      "git_commit": "a2fe881b4531b9874ae8880c16fab6960453e68f",
+      "cases_executed": 0,
+      "gpu_model_loaded": false,
+      "holdout_method_metrics_read": false,
+      "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_full_execution_preflight_a2fe881_20260816T142645.log",
+      "log_sha256": "545ac924dcee1ff2e93b7fc1995e2272ec7390cf74fd992a3052fea135dd9818",
+      "log_size_bytes": 4911
+    }
+  ],
+  "partitions": {
+    "kitty_qwen3": {
+      "output_dir": "/root/autodl-tmp/qwen3_cage_v3/promotion_full_kitty_a2fe881",
+      "case_count": 120,
+      "case_ids_sha256": "fca71e59bb93d589f26f00f1d842baa82f038e08539e1c0a9402589c7b69711f",
+      "method_counts": {
+        "kitty-pro-25pct": 120
+      },
+      "run_identity_sha256": "78c81e2546519ba230f8b6ef4dd11b0f72cf9f35492603d3850e3964e3f89315",
+      "summary_sha256": "173572d2905ab64bc4f19cd553c27cfcf1dddfb8c1223e94da424b7e23bcef4c",
+      "case_file_manifest_sha256": "c448494bce03646dc55c79994a5cbf177fdc24455880b768928ee36f27706f53",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_full_kitty_a2fe881_20260816T142806.log",
+      "execution_log_sha256": "2e06c5e7ec6c866b0bc31efc40f29bf62c3394187ac7a679a1256f00cbbf503c",
+      "execution_log_size_bytes": 27753
+    },
+    "cage_qwen3": {
+      "output_dir": "/root/autodl-tmp/qwen3_cage_v3/promotion_full_cage_a2fe881",
+      "case_count": 480,
+      "case_ids_sha256": "d378919e78e09d0e484b953cdee3dbb91a3de347f671a9204b97483eb9bec96a",
+      "method_counts": {
+        "fp16": 120,
+        "kivi-kittypro-matched": 120,
+        "cage-v1-kittypro-matched": 120,
+        "cage-v3-sr2-sink32-calibrated": 120
+      },
+      "run_identity_sha256": "1d177e923e7aec938de04e6230636eef1c9533b2dbf847ba5d739c9d8aec4561",
+      "summary_sha256": "4c3a21f3f0cc278d27cfbd70854f2892507126599aff84ea80393a221edfac8a",
+      "case_file_manifest_sha256": "0669191b859e8a43739b98d48eb2dc50dcd6e690b99d5e00b65891dbd37ceebd",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_full_cage_a2fe881_20260816T222848.log",
+      "execution_log_sha256": "bddf45ec540b78d9bd0f2a1437bc27a49c9df122f4a0024a4ecd2970e76892c5",
+      "execution_log_size_bytes": 91082
+    }
+  },
+  "scientific_payload_fields": [
+    "case_id",
+    "partition",
+    "method",
+    "input",
+    "memory",
+    "scoring",
+    "quality_cache"
+  ],
+  "postrun_boundary": {
+    "full_execution_completed": true,
+    "interpretation_authorized_before_postrun": false,
+    "analysis_authorized_by_manifest": false,
+    "pg19_test_access": false,
+    "llama2_execution": false,
+    "kitty_llama_port": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
