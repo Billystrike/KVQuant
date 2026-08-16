@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "protocol_id": "qwen3-8b-cage-v3-pg19-promotion-v1",
+  "frozen_on": "2026-08-16",
+  "status": "frozen_before_any_pg19_holdout_method_metric",
+  "claim_eligible": false,
+  "purpose": "Decide whether the already frozen CAGE-v3 candidate merits promotion to a cross-architecture main-method candidate before any Llama-2 reimplementation or Kitty-Llama port.",
+  "prior_boundary": {
+    "cage_v4_dtqi_outcome": "close_cage_v4_as_negative",
+    "closeout_json": {
+      "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_negative_closeout_e656016.json",
+      "sha256": "62207ff61aa4dbbd727751c3c84e8416b298444229a59f75828c2ace0003e7cb",
+      "size_bytes": 2645
+    },
+    "closeout_log": {
+      "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_dtqi_negative_closeout_e656016_20260813T222537.log",
+      "sha256": "82f689febc4423ae782fc046a49d7b8b57e20a9d45415293764b764d7aecb395",
+      "size_bytes": 7529
+    },
+    "no_dtqi_reopening": true,
+    "no_additional_tuning_on_metric_screen": true
+  },
+  "input_receipt": {
+    "data_protocol_path": "configs/qwen3_8b_cage_v4_pg19_data_protocol_v1.json",
+    "data_protocol_sha256": "b5405e6bb9acf964047d0c7e033acdd90b6affac73c28805902de07df024b544",
+    "input_manifest_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_pg19_input_manifest_1ac723c.json",
+    "input_manifest_sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+    "input_manifest_size_bytes": 5880826,
+    "case_ids_sha256": "2077fbfffd6e36273dedf4bf69922a984a533d2a7add76eff0596ed052e42416",
+    "partition": "holdout",
+    "document_count": 20,
+    "anchors_per_document": 2,
+    "anchor_count": 40,
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "statistical_unit": "document"
+  },
+  "frozen_sources": {
+    "matched_memory_protocol": {
+      "path": "configs/qwen3_8b_matched_memory_protocol_v1.json",
+      "sha256": "f8ca2f107126f926395f4db96fb3d827860ebae4a9801f83f8d622636e489c80"
+    },
+    "formal_quality_protocol": {
+      "path": "configs/qwen3_8b_formal_quality_protocol_v1.json",
+      "sha256": "78f33126ace6822649c623b6a2535abc23262728e51818d74b0d14b92fe10e92"
+    },
+    "cage_v3_protocol": {
+      "path": "configs/qwen3_8b_cage_v3_development_protocol_v1.json",
+      "sha256": "c92e452b5eac99c7a015da21a82080cf61ddd070e677cc3664ed78bf657cbfe9"
+    },
+    "cage_v3_quota_plan": {
+      "path": "configs/qwen3_8b_cage_v3_calibrated_quota_plan_v1.json",
+      "sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914"
+    },
+    "metric_screen_results_receipt": {
+      "path": "configs/qwen3_8b_cage_v4_metric_screen_results_receipt_v1.json",
+      "sha256": "fdd363b822d3a34e3c6e078410290d792a2ef608c7d48042c42e4d73737c4268"
+    },
+    "negative_closeout_artifact_manifest": {
+      "path": "configs/qwen3_8b_cage_v4_dtqi_screen_analysis_artifacts_v1.json",
+      "sha256": "9e0beb99e6d32a50eb2899edbad3042c9f08397be7380352028a0672b09b5bbb"
+    },
+    "kitty_commit": "dfd2c07b407d6b407179359207c612ab631f3ed1",
+    "kitty_transformers_commit": "37f8b0b53512e6aae0cfd15746c133c101783178"
+  },
+  "model": {
+    "reference": "/root/autodl-tmp/models/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "dtype": "float16",
+    "native_context": 40960
+  },
+  "scoring": {
+    "metric": "cache_conditioned_continuation_nll",
+    "target_tokens_per_case": 64,
+    "boundary_target": "score continuation token 0 from final prompt-position logits",
+    "decode_targets": "teacher-force continuation tokens 0 through 62 and score tokens 1 through 63",
+    "case_value": "arithmetic mean of all 64 token NLL values",
+    "document_value": "arithmetic mean over both anchors and all 128 continuation-token NLL values for each method and prompt length",
+    "overall_length_aggregation": "equal-weight arithmetic mean of the three per-document prompt-length mean NLL values",
+    "relative_ppl_percent": "100 * (exp(candidate_mean_nll_minus_baseline_mean_nll) - 1)",
+    "same_inputs_and_rule_for_all_methods": true,
+    "local_perturbation_used_for_selection": false,
+    "canonical_full_corpus_ppl_claim": false
+  },
+  "method_grid": [
+    {
+      "method_id": "fp16",
+      "family": "fp16",
+      "partition": "cage_qwen3",
+      "role": "quality reference",
+      "points": [
+        {"prompt_length": 1024, "packed_bytes": 150994944},
+        {"prompt_length": 2048, "packed_bytes": 301989888},
+        {"prompt_length": 4032, "packed_bytes": 594542592}
+      ]
+    },
+    {
+      "method_id": "kivi-kittypro-matched",
+      "family": "kivi",
+      "partition": "cage_qwen3",
+      "role": "matched-memory uniform-quantization baseline",
+      "points": [
+        {"prompt_length": 1024, "point_id": "kivi-g64-r320", "group_size": 64, "residual_length": 320, "packed_bytes": 47480832},
+        {"prompt_length": 2048, "point_id": "kivi-g32-r224", "group_size": 32, "residual_length": 224, "packed_bytes": 71958528},
+        {"prompt_length": 4032, "point_id": "kivi-g128-r256", "group_size": 128, "residual_length": 256, "packed_bytes": 111992832}
+      ]
+    },
+    {
+      "method_id": "cage-v1-kittypro-matched",
+      "family": "cage_v1",
+      "partition": "cage_qwen3",
+      "role": "original-CAGE predecessor",
+      "points": [
+        {"prompt_length": 1024, "point_id": "cage-r224", "residual_length": 224, "packed_bytes": 48253824},
+        {"prompt_length": 2048, "point_id": "cage-r288", "residual_length": 288, "packed_bytes": 72518400},
+        {"prompt_length": 4032, "point_id": "cage-r96", "residual_length": 96, "packed_bytes": 110040192}
+      ]
+    },
+    {
+      "method_id": "cage-v3-sr2-sink32-calibrated",
+      "family": "cage_v3",
+      "partition": "cage_qwen3",
+      "role": "single frozen promotion candidate",
+      "method_boundary": "all-channel INT2 Key backbone plus prompt-adaptive sparse INT2 Key residual; uniform INT2 Value; 32 FP16 sink tokens; frozen calibrated per-layer quota",
+      "points": [
+        {"prompt_length": 1024, "residual_length": 176, "sink_length": 32, "packed_bytes": 45849600},
+        {"prompt_length": 2048, "residual_length": 288, "sink_length": 32, "packed_bytes": 70050816},
+        {"prompt_length": 4032, "residual_length": 112, "sink_length": 32, "packed_bytes": 110066688}
+      ]
+    },
+    {
+      "method_id": "kitty-pro-25pct",
+      "family": "kitty",
+      "partition": "kitty_qwen3",
+      "role": "primary official external baseline",
+      "boosted_channels": 32,
+      "points": [
+        {"prompt_length": 1024, "packed_bytes": 47890080},
+        {"prompt_length": 2048, "packed_bytes": 71782560},
+        {"prompt_length": 4032, "packed_bytes": 110130336}
+      ]
+    }
+  ],
+  "memory_gate": {
+    "representation": "complete active logical packed paper estimate; not realized CUDA allocation",
+    "candidate_total_bytes": 225967104,
+    "cage_v1_total_bytes": 230812416,
+    "candidate_relative_total_bytes_vs_cage_v1": -0.02099242356182429,
+    "minimum_total_memory_reduction_vs_cage_v1_for_pareto_track": 0.02,
+    "maximum_per_length_relative_overhead_vs_cage_v1": 0.001,
+    "candidate_must_not_exceed_kitty_pro_at_any_length": true
+  },
+  "promotion_gate": {
+    "candidate": "cage-v3-sr2-sink32-calibrated",
+    "predecessor": "cage-v1-kittypro-matched",
+    "uniform_baseline": "kivi-kittypro-matched",
+    "external_baseline": "kitty-pro-25pct",
+    "per_length_noninferiority_relative_ppl_percent_at_most": 0.5,
+    "overall_material_superiority_relative_ppl_percent_at_most": -1.0,
+    "overall_noninferiority_relative_ppl_percent_at_most": 0.5,
+    "bootstrap_interval": "paired document-cluster percentile 95 percent interval",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260816,
+    "versus_predecessor": {
+      "quality_superiority_track": "overall relative PPL at most -1.0 percent, 95 percent NLL-delta upper bound below zero, and every per-length relative PPL at most +0.5 percent",
+      "memory_quality_pareto_track": "candidate total packed bytes at least 2.0 percent below predecessor, overall relative PPL at most +0.5 percent, 95 percent NLL-delta upper bound below log(1.005), and every per-length relative PPL at most +0.5 percent",
+      "pass_rule": "quality_superiority_track OR memory_quality_pareto_track"
+    },
+    "versus_uniform_baseline": "overall relative PPL at most -1.0 percent, 95 percent NLL-delta upper bound below zero, and every per-length relative PPL at most +0.5 percent",
+    "versus_external_baseline": "overall relative PPL at most +0.5 percent, 95 percent NLL-delta upper bound below log(1.005), and every per-length relative PPL at most +0.5 percent",
+    "all_three_comparison_gates_must_pass": true,
+    "decimal_direction_alone_is_never_a_pass": true
+  },
+  "statistics": {
+    "paired_unit": "document",
+    "anchors_clustered_within_document": true,
+    "lengths_clustered_within_document_for_overall_effect": true,
+    "bootstrap": "resample the 20 holdout documents with replacement and retain all anchors, lengths, methods, and target tokens from each sampled document",
+    "inference_scope": "promotion decision over a frozen development holdout; not a population-level significance or final paper claim"
+  },
+  "execution_stages": {
+    "static_preflight": {
+      "reads_holdout_method_metrics": false,
+      "authorizes_gpu": false
+    },
+    "gpu_acceptance": {
+      "document_id": "pg19-validation-13-4bff8b8c6d7def9e",
+      "anchor_index": 0,
+      "fresh_repeats_required": 2,
+      "cage_partition_cases_per_repeat": 12,
+      "kitty_partition_cases_per_repeat": 3,
+      "required_consistency": "bitwise_equal_json_numeric_payload",
+      "full_holdout_authorized_before_joint_gate": false
+    },
+    "full_holdout": {
+      "authorized_only_after_joint_acceptance_gate": true,
+      "cage_partition_case_count": 480,
+      "kitty_partition_case_count": 120,
+      "total_case_count": 600
+    }
+  },
+  "decision_boundary": {
+    "pg19_validation_holdout_is_development_only": true,
+    "pg19_test_access_authorized": false,
+    "llama2_v3_implementation_authorized_before_promotion_pass": false,
+    "kitty_llama_port_authorized_before_promotion_pass": false,
+    "additional_v3_tuning_after_holdout": false,
+    "if_pass": "authorize design freeze for an architecture-normalized CAGE-v3 and staged Llama-2 CPU/GPU acceptance; do not automatically authorize final paper claims or PG-19 test access",
+    "if_fail": "retain original CAGE as the paper method, close CAGE-v3 promotion, and do not rerun Llama-2 or port Kitty to Llama-2 for CAGE-v3"
+  },
+  "reporting_requirements": {
+    "report_all_methods_lengths_and_unfavorable_results": true,
+    "preserve_case_level_results": true,
+    "resume_requires_exact_protocol_source_and_input_identity": true,
+    "runtime_latency_throughput_or_real_cuda_memory_claim": false
+  }
+}
