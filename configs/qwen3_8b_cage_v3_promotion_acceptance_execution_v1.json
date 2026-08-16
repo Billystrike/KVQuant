@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "execution_id": "qwen3-8b-cage-v3-promotion-acceptance-v1",
+  "frozen_on": "2026-08-16",
+  "status": "frozen_after_static_preflight_before_any_promotion_holdout_metric",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/qwen3_8b_cage_v3_promotion_protocol_v1.json",
+    "sha256": "bc5d3811c0483433feef883c5511d350e8e4cbc48e12f0e4804bc2ccecf31f18"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v4_pg19_input_manifest_1ac723c.json",
+    "sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+    "size_bytes": 5880826,
+    "partition": "holdout"
+  },
+  "static_preflight": {
+    "output_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_protocol_preflight_retry1_636d463.json",
+    "output_sha256": "fd232d737c086c3152e9c9db53d51458f38b15ea6c98d574a5b9f607aff3d8f7",
+    "output_size_bytes": 3577,
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_protocol_preflight_retry1_636d463_20260816T123209.log",
+    "log_sha256": "9ae6101fbdeb4b327de31c50618956d0a18d1048825f64d535a577365c7d2690",
+    "log_size_bytes": 9497,
+    "status": "pass",
+    "reads_holdout_method_metrics": false
+  },
+  "acceptance_input": {
+    "document_id": "pg19-validation-13-4bff8b8c6d7def9e",
+    "anchor_index": 0,
+    "anchor_id": "488b54983110dcced7930feb",
+    "input_case_ids": [
+      "b98d890bb1b518f9ff0df3e1",
+      "cf82d3c29777a225fb2871ad",
+      "e1727485ff7f26880b644544"
+    ],
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "method_ids": [
+        "fp16",
+        "kivi-kittypro-matched",
+        "cage-v1-kittypro-matched",
+        "cage-v3-sr2-sink32-calibrated"
+      ],
+      "case_count_per_repeat": 12
+    },
+    "kitty_qwen3": {
+      "method_ids": ["kitty-pro-25pct"],
+      "case_count_per_repeat": 3
+    }
+  },
+  "repeat_policy": {
+    "fresh_repeats_required": 2,
+    "required_consistency": "bitwise_equal_json_numeric_payload",
+    "resume_within_a_repeat": true,
+    "reuse_one_repeat_as_the_other": false
+  },
+  "scientific_payload_fields": [
+    "case_id",
+    "partition",
+    "method",
+    "input",
+    "memory",
+    "scoring",
+    "quality_cache"
+  ],
+  "authorization": {
+    "gpu_acceptance": true,
+    "full_holdout": false,
+    "holdout_interpretation": false,
+    "pg19_test": false,
+    "llama2_execution": false,
+    "kitty_llama_port": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
