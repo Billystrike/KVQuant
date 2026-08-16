@@ -11,6 +11,7 @@ from utils.qwen3_cage_v3_promotion_acceptance import (
     expand_acceptance_cases,
     expand_promotion_methods,
     load_acceptance_execution,
+    validate_static_preflight_receipt,
 )
 
 
@@ -73,6 +74,45 @@ class CageV3PromotionAcceptanceTest(unittest.TestCase):
         )
         self.assertEqual(self.execution["static_preflight"]["status"], "pass")
         self.assertFalse(self.execution["static_preflight"]["reads_holdout_method_metrics"])
+
+    def test_real_static_preflight_schema_does_not_require_failures_field(self):
+        receipt = {
+            "schema_version": 1,
+            "status": "pass",
+            "claim_eligible": False,
+            "protocol_sha256": self.protocol_sha256,
+            "input_manifest_sha256": self.execution["input_manifest"]["sha256"],
+            "acceptance_input": {
+                key: copy.deepcopy(self.execution["acceptance_input"][key])
+                for key in ("anchor_id", "anchor_index", "document_id", "input_case_ids")
+            },
+            "full_case_counts": {
+                "cage_qwen3": 480,
+                "kitty_qwen3": 120,
+                "total": 600,
+            },
+            "boundary": {
+                "full_holdout_authorized": False,
+                "gpu_acceptance_authorized_by_this_preflight": False,
+                "kitty_llama_port_authorized": False,
+                "llama2_execution_authorized": False,
+                "pg19_test_access_authorized": False,
+                "reads_holdout_method_metrics": False,
+            },
+        }
+        self.assertNotIn("failures", receipt)
+        validate_static_preflight_receipt(
+            receipt,
+            execution=self.execution,
+            protocol_sha256=self.protocol_sha256,
+        )
+        receipt["boundary"]["reads_holdout_method_metrics"] = True
+        with self.assertRaises(RuntimeError):
+            validate_static_preflight_receipt(
+                receipt,
+                execution=self.execution,
+                protocol_sha256=self.protocol_sha256,
+            )
 
     def test_method_expansion_is_exact_and_memory_frozen(self):
         cage = expand_promotion_methods(

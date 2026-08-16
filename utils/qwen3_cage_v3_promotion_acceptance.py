@@ -51,6 +51,46 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
+def validate_static_preflight_receipt(
+    value: Mapping[str, Any], *, execution: Mapping[str, Any], protocol_sha256: str
+) -> None:
+    _require(value.get("schema_version") == 1, "static preflight schema mismatch")
+    _require(value.get("status") == "pass", "static preflight did not pass")
+    _require(value.get("claim_eligible") is False, "static preflight claim boundary changed")
+    _require(value.get("protocol_sha256") == protocol_sha256, "static preflight protocol mismatch")
+    _require(
+        value.get("input_manifest_sha256") == execution["input_manifest"]["sha256"],
+        "static preflight manifest mismatch",
+    )
+    frozen_input = execution["acceptance_input"]
+    expected_input = {
+        key: frozen_input[key]
+        for key in ("anchor_id", "anchor_index", "document_id", "input_case_ids")
+    }
+    _require(value.get("acceptance_input") == expected_input, "static preflight input changed")
+    _require(
+        value.get("full_case_counts") == {
+            "cage_qwen3": 480,
+            "kitty_qwen3": 120,
+            "total": 600,
+        },
+        "static preflight full-case boundary changed",
+    )
+    boundary = value.get("boundary", {})
+    _require(
+        boundary
+        == {
+            "full_holdout_authorized": False,
+            "gpu_acceptance_authorized_by_this_preflight": False,
+            "kitty_llama_port_authorized": False,
+            "llama2_execution_authorized": False,
+            "pg19_test_access_authorized": False,
+            "reads_holdout_method_metrics": False,
+        },
+        "static preflight authorization boundary changed",
+    )
+
+
 def load_acceptance_execution(
     path: Path,
     *,
@@ -128,8 +168,11 @@ def load_acceptance_execution(
         )
         _require(all(checks), "server-side preflight or manifest artifact mismatch")
         preflight_value = _load(Path(preflight["output_path"]))
-        _require(preflight_value.get("status") == "pass", "static preflight did not pass")
-        _require(preflight_value.get("failures") == {}, "static preflight contains failures")
+        validate_static_preflight_receipt(
+            preflight_value,
+            execution=execution,
+            protocol_sha256=protocol_sha256,
+        )
     return execution, file_sha256(path), protocol, protocol_sha256
 
 
@@ -336,4 +379,5 @@ __all__ = [
     "expand_acceptance_cases",
     "expand_promotion_methods",
     "load_acceptance_execution",
+    "validate_static_preflight_receipt",
 ]
