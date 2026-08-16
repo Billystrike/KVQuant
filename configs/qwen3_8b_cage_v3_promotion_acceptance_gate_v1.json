@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "gate_id": "qwen3-8b-cage-v3-promotion-acceptance-gate-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "protocol_sha256": "bc5d3811c0483433feef883c5511d350e8e4cbc48e12f0e4804bc2ccecf31f18",
+  "input_manifest_sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+  "acceptance_source_commit": "cc72bf72d206a94b39535415cf43394cc7b65dfa",
+  "postrun_source_commit": "7a9df420497215206b8016f794fde9b7eb181881",
+  "frozen_source_sha256": {
+    "artifact_manifest": "f10ce80bbb77a9547e1861afeed9fd8eff83e5e61c3911ea2946ea77e82fadd7",
+    "postrun_validator": "033d4aafbe29a596012d3f3021efedc47cdecd5fc6bccb3929b7667451a235ce",
+    "postrun_utils": "0665ef13151bc7be293123eccf37e1b941ea3b2d01e15a2c3b031c26a302c640",
+    "acceptance_runner": "8c9462ac029e14bcb40c31573f3fc0442d9629b68d0aefd5e86252e0e5bf3296",
+    "acceptance_comparator": "0c9c727240cb0b8a488fb3d456c0d5d53f9282ccaccbd27d6d830d7777534031",
+    "acceptance_utils": "e59656cf2b368d8d9073fb1a837ed71f7e509d47559d6792c5a39109b20a42fa",
+    "quality_runtime": "4991266a2c7c41e75823f1423c6de60e7ab02ec7e0a0c059afa8763940450209"
+  },
+  "joint_postrun": {
+    "output_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_acceptance_postrun_7a9df42.json",
+    "output_sha256": "f3535bf47d1e82865151c20e3e66d6f8dbe9ccf5ff59cd2416da8cf8babe23c0",
+    "output_size_bytes": 10245,
+    "log_path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_acceptance_postrun_7a9df42_20260816T140344.log",
+    "log_sha256": "6cdd4974376f574f16daf23bed40769a92aba5ba5c0be656b1e70e1ba1177896",
+    "log_size_bytes": 14942,
+    "failed_pre_case_attempt_count": 2,
+    "total_case_file_count": 30
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "acceptance_case_count_per_repeat": 12,
+      "repeat_count": 2,
+      "acceptance_total_case_file_count": 24,
+      "scientific_payload_sha256": "d2e4e8868f504b6aac1d37e96ef548b2ed2cb36418e3cb8c8474471afa3f4e54",
+      "case_ids_sha256": "19b42a51933358033f52e15c066d47dc0ec97ec9ac8632ddb7f6a242fd23e8b4",
+      "comparison_sha256": "6bc4747bb524ac02dfa61f8abbcd15fd581d68e271ff2b4567665fb34b6d526f",
+      "full_holdout_case_count": 480
+    },
+    "kitty_qwen3": {
+      "acceptance_case_count_per_repeat": 3,
+      "repeat_count": 2,
+      "acceptance_total_case_file_count": 6,
+      "scientific_payload_sha256": "2611d43afe699b10f70b3f2c694a96b3bd93fb0cd5c0beb2cda76db84838c26d",
+      "case_ids_sha256": "10da77aa70bbfe3f8f9aa77fa0cd4be5a29b2e6711e125737430beee2f448df1",
+      "comparison_sha256": "1dba6226cb3fdfadf249e7988f60cce4620ac8caa60db28a6b033b5086eda336",
+      "full_holdout_case_count": 120
+    }
+  },
+  "full_holdout_authorization": {
+    "authorization_basis": "joint acceptance post-run passed after two fresh bitwise-equal scientific-payload repeats for both partitions",
+    "input_partition": "holdout",
+    "development_only": true,
+    "document_count": 20,
+    "anchors_per_document": 2,
+    "anchor_count": 40,
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "cage_qwen3_case_count": 480,
+    "kitty_qwen3_case_count": 120,
+    "total_case_count": 600,
+    "gpu_full_holdout_execution": true,
+    "resume_requires_exact_identity": true,
+    "holdout_interpretation_before_complete_postrun": false,
+    "pg19_test_access": false,
+    "llama2_execution": false,
+    "kitty_llama_port": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
