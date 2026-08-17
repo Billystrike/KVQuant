@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "protocol_id": "llama2-7b-cage-v3-production-gpu-acceptance-v1",
+  "frozen_on": "2026-08-17",
+  "status": "frozen_after_cpu_acceptance_before_any_production_weight_gpu_execution",
+  "claim_eligible": false,
+  "purpose": "Define a minimal synthetic-input production-model GPU acceptance for Llama-2 CAGE-v3 without reading corpus data or computing a paper quality metric.",
+  "cpu_acceptance_receipt": {
+    "path": "configs/llama2_7b_cage_v3_cpu_acceptance_postrun_receipt_v1.json",
+    "sha256": "ef92e1afe81c1837e79f0741d3006549ea6d3e93f65887f000c192f4eb7129b1",
+    "server_original_path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_cpu_acceptance_postrun_f72f4e5_.log",
+    "server_size_bytes": 3116,
+    "cpu_implementation_acceptance_pass": true,
+    "broad_environment_package_check_pass": false
+  },
+  "preserved_scientific_boundary": {
+    "qwen3_promotion_pass": false,
+    "qwen3_conclusion_reopened": false,
+    "llama2_quality_metrics_consumed": false,
+    "cpu_scientific_rerun_required": false,
+    "environment_repair_authorized": false
+  },
+  "production_model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "config_sha256": "9242e7db1bc2a17873e66084c3b1c6ed10883076e156b338fd6a7775748e2e3c",
+    "model_type": "llama",
+    "torch_dtype": "float16",
+    "num_hidden_layers": 32,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 32,
+    "head_dim": 128,
+    "max_position_embeddings": 4096,
+    "weight_files": [
+      {
+        "name": "model-00001-of-00002.safetensors",
+        "sha256": "4ec71fd53e99766de38f24753b30c9e8942630e9e576a1ba27b0ec531e87be41",
+        "size_bytes": 9976578928
+      },
+      {
+        "name": "model-00002-of-00002.safetensors",
+        "sha256": "41780b5dac322ac35598737e99208d90bdc632a1ba3389ebedbb46a1d8385a7f",
+        "size_bytes": 3500297344
+      }
+    ]
+  },
+  "expected_environment": {
+    "python": "3.10.20",
+    "torch": "2.4.1+cu121",
+    "transformers": "4.43.1",
+    "environment": "/root/miniconda3/envs/cage-kv",
+    "minimum_gpu_memory_mib": 24000,
+    "expected_gpu_name": "NVIDIA GeForce RTX 4090 D",
+    "known_broad_pip_check_pass": false,
+    "broad_pip_check_is_not_an_acceptance_gate": true
+  },
+  "candidate": {
+    "method_id": "cage-v3-llama2-depth-normalized-r176",
+    "prompt_length": 1024,
+    "continuation_tokens": 2,
+    "residual_length": 176,
+    "sink_length": 32,
+    "key_backbone_bits": 2,
+    "key_sparse_refinement_bits": 2,
+    "value_bits": 2,
+    "key_base_group_size": 128,
+    "key_refinement_group_size": 128,
+    "value_group_size": 128,
+    "quota_plan_path": "configs/llama2_7b_cage_v3_transfer_quota_plan_v1.json",
+    "quota_plan_sha256": "6fc7e33a63db5ed4b1e303edd50c306cf91ab07b99dc981b1d6ea91a58f845e8",
+    "packed_paper_estimate_bytes": 163020800
+  },
+  "synthetic_input": {
+    "corpus_accessed": false,
+    "tokenizer_used": false,
+    "generator": "token_i = 3 + ((i * 7919 + 17) mod 31997) for i in [0,1025]",
+    "serialization": "compact JSON integer array encoded as UTF-8",
+    "prompt_token_count": 1024,
+    "continuation_token_count": 2,
+    "prompt_ids_sha256": "153a3b94c632846e3414bca42a8e55079b101acf10a61a2489b49a434871482d",
+    "continuation_ids_sha256": "70575b1540d938978c3f7ddf36c2bb6263e126ede049adf20bd8d1c21119729d",
+    "all_ids_sha256": "3cbd5c342f03f20da3c6ccb396b701609d34827ca717479a83417059050f753b"
+  },
+  "acceptance_design": {
+    "repeat_count": 2,
+    "repeat_policy": "two fresh processes with bitwise-equal JSON scientific payload excluding timing and allocator telemetry",
+    "model_load": "LlamaForCausalLM_KIVI.from_pretrained with local files, float16, low_cpu_mem_usage, then cuda:0",
+    "prefill": "one 1024-token synthetic forward with use_cache true",
+    "decode": "two separate single-token continuation forwards using returned cache",
+    "quality_metric_computed": false,
+    "reference_baseline_run": false,
+    "runtime_claim_supported": false
+  },
+  "required_checks": [
+    "exact model config and frozen weight identities before load",
+    "model parameters are float16 and exclusively on cuda:0",
+    "all 32 attention layers install the frozen CAGE-v3 plan",
+    "1024-token prefill completes without OOM and returns finite logits",
+    "all layers materialize FP16 sink sparse Key indices quantized Key backbone and uniform quantized Value state",
+    "per-layer sparse channel counts equal the frozen 16 32 48 quotas",
+    "first single-token continuation is finite and reports cache length 1025",
+    "second single-token continuation is finite and reports cache length 1026",
+    "sparse indices persist and sampled old quantized prefixes are bitwise unchanged",
+    "unsupported multi-token continuation remains fail closed",
+    "two fresh-process scientific payloads are bitwise equal"
+  ],
+  "telemetry_boundary": {
+    "cuda_peak_allocator_bytes_recorded_as_diagnostic": true,
+    "elapsed_seconds_recorded_as_diagnostic": true,
+    "telemetry_excluded_from_repeat_equality": true,
+    "real_packed_cuda_cache_allocated": false,
+    "latency_claim_authorized": false,
+    "throughput_claim_authorized": false,
+    "realized_cuda_memory_claim_authorized": false
+  },
+  "execution_boundary": {
+    "static_preflight_authorized": true,
+    "gpu_acceptance_implementation_authorized_after_preflight_pass": true,
+    "gpu_acceptance_execution_authorized_by_this_protocol_alone": false,
+    "formal_transfer_experiment_authorized": false,
+    "corpus_access_authorized": false,
+    "llama2_quality_metric_authorized": false,
+    "kitty_llama_port_authorized": false,
+    "paper_main_method_change_authorized": false,
+    "runtime_claims_authorized": false
+  },
+  "next_step": "Run a read-only static preflight and freeze its receipt before implementing and authorizing the two-repeat production GPU acceptance."
+}
