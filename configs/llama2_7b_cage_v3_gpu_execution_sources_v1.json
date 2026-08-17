@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "manifest_id": "llama2-7b-cage-v3-production-gpu-acceptance-execution-sources-v1",
+  "frozen_on": "2026-08-17",
+  "status": "frozen_after_static_preflight_before_any_production_weight_gpu_execution",
+  "claim_eligible": false,
+  "protocol_sha256": "d4e3e0468f0719f00632ddc6e0b40e04cc97c459fa2352cd9fe27cb8585273ba",
+  "preflight_receipt_sha256": "63f1473f02a7628ebe677e6e65b7001870514c6f81a630ffb1e3131b155b2d25",
+  "sources": {
+    "acceptance_runner": {
+      "path": "scripts/llama2_run_cage_v3_gpu_acceptance.py",
+      "sha256": "167d5422e68549b26a9678dad161d5dfa911050236ea5f01dd96007e02ee6dd7"
+    },
+    "repeat_comparator": {
+      "path": "scripts/llama2_compare_cage_v3_gpu_acceptance.py",
+      "sha256": "7d601f555cdc222e1ee9a1f6d5ec001c66a43f9703054b6559cbbe5083367650"
+    },
+    "execution_util": {
+      "path": "utils/llama2_cage_v3_gpu_execution.py",
+      "sha256": "35ef6cf2fdc3e7e3f1e8dd7c06fc2fc6a3807864f977a5fb691b9db41a7e1400"
+    },
+    "protocol_util": {
+      "path": "utils/llama2_cage_v3_gpu_acceptance_protocol.py",
+      "sha256": "fdb6f22e60c1a2d2c4034538d01634e167613ec5d79a35a312351387dec3c777"
+    },
+    "llama_cage_v3_runtime": {
+      "path": "models/llama_cage_v3.py",
+      "sha256": "3633c702596c3223b52be7999f00f40179679a89be6ef27e6620e5f903ce7aa8"
+    },
+    "llama_model_adapter": {
+      "path": "models/llama_kivi.py",
+      "sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4"
+    },
+    "key_importance": {
+      "path": "models/cage_importance.py",
+      "sha256": "d6df97061cae0cb402520a8c802bd4eb2e9cd9f4919b413994651b65fdc18a9b"
+    },
+    "sparse_refinement_quant": {
+      "path": "models/cage_v2_quant.py",
+      "sha256": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a"
+    },
+    "base_fake_quant": {
+      "path": "models/cage_quant.py",
+      "sha256": "273d9fd8dc2de33de9912cae862c7f01eceb7004fc08fd2011945cc877611fe8"
+    },
+    "hash_util": {
+      "path": "utils/qwen3_cage_v4_data.py",
+      "sha256": "bf4b445f6ab1c77acbf7dd5418fc00e919ccdfed6cb25b72626d8b2e55d33db3"
+    }
+  },
+  "execution_boundary": {
+    "gpu_acceptance_execution_authorized_by_manifest_alone": false,
+    "corpus_access_authorized": false,
+    "quality_metric_authorized": false,
+    "formal_transfer_authorized": false,
+    "runtime_claims_authorized": false
+  }
+}
