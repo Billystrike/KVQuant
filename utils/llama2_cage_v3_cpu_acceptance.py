@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -8,7 +9,7 @@ from utils.qwen3_cage_v4_data import canonical_sha256, file_sha256
 
 
 PROTOCOL_ID = "llama2-7b-cage-v3-cpu-implementation-acceptance-v1"
-EXPECTED_PROTOCOL_SHA256 = "7a3fa34f58b3722255868a5048a9838d47d8cbe9a3218d6735e89ea6a41e9e81"
+EXPECTED_PROTOCOL_SHA256 = "ea5299d08d0dbceabd701fcdd063ec3ab04b8fa5ad4c0ad6573f161c0649f6f1"
 
 
 class Llama2CageV3CPUAcceptanceError(RuntimeError):
@@ -29,11 +30,41 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
+def _lf_normalized_sha256(path: Path) -> str:
+    """Hash tracked text in its Linux/Git LF representation."""
+
+    try:
+        payload = path.read_bytes().replace(b"\r\n", b"\n")
+    except OSError as error:
+        raise Llama2CageV3CPUAcceptanceError(f"cannot read frozen source {path}: {error}") from error
+    return hashlib.sha256(payload).hexdigest()
+
+
 def validate_cpu_protocol(protocol: Mapping[str, Any], *, repo_root: Path) -> None:
     _require(protocol.get("schema_version") == 1, "CPU protocol schema mismatch")
     _require(protocol.get("protocol_id") == PROTOCOL_ID, "CPU protocol identity mismatch")
     _require(protocol.get("status") == "frozen_before_llama2_cage_v3_cpu_acceptance", "CPU protocol status mismatch")
     _require(protocol.get("claim_eligible") is False, "CPU protocol claim boundary changed")
+    _require(
+        protocol.get("source_identity_mode") == "sha256_after_deterministic_crlf_to_lf_normalization",
+        "CPU source identity mode changed",
+    )
+    repair = protocol.get("administrative_repair", {})
+    _require(
+        repair
+        == {
+            "reason": "The first attempt exposed two Windows-worktree CRLF hashes that did not equal the Linux checkout bytes; no direct acceptance or quality computation had started.",
+            "failed_attempt_receipt_path": "configs/llama2_7b_cage_v3_cpu_acceptance_failed_attempt_v1.json",
+            "failed_attempt_receipt_sha256": "01d49b918ee9e662a7f06c4e5f0674dc3f3d34ad63dc03b1d3b8b70f6ea33e86",
+            "candidate_algorithm_changed": False,
+            "quota_plan_changed": False,
+            "metric_changed": False,
+            "authorization_changed": False,
+        },
+        "CPU administrative repair receipt changed",
+    )
+    repair_path = repo_root / repair["failed_attempt_receipt_path"]
+    _require(file_sha256(repair_path) == repair["failed_attempt_receipt_sha256"], "failed-attempt receipt hash mismatch")
     transfer = protocol.get("transfer_boundary", {})
     _require(transfer.get("qwen3_promotion_pass") is False, "Qwen3 promotion failure changed")
     _require(transfer.get("qwen3_conclusion_reopened") is False, "Qwen3 conclusion was reopened")
@@ -70,7 +101,7 @@ def validate_cpu_protocol(protocol: Mapping[str, Any], *, repo_root: Path) -> No
     sources = protocol.get("frozen_sources", {})
     for name, spec in sources.items():
         path = repo_root / spec["path"]
-        _require(file_sha256(path) == spec["sha256"], f"frozen source changed: {name}")
+        _require(_lf_normalized_sha256(path) == spec["sha256"], f"frozen source changed: {name}")
     fixture = protocol.get("cpu_fixture", {})
     _require(
         fixture

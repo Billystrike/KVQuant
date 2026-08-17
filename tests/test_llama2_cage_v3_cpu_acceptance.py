@@ -25,7 +25,7 @@ class Llama2CageV3CPUAcceptanceProtocolTest(unittest.TestCase):
     def test_checked_in_cpu_protocol_and_static_receipts_are_frozen(self):
         loaded, digest = load_cpu_protocol(PROTOCOL_PATH, repo_root=REPO_ROOT)
         self.assertEqual(loaded, self.protocol)
-        self.assertEqual(digest, "7a3fa34f58b3722255868a5048a9838d47d8cbe9a3218d6735e89ea6a41e9e81")
+        self.assertEqual(digest, "ea5299d08d0dbceabd701fcdd063ec3ab04b8fa5ad4c0ad6573f161c0649f6f1")
         quota, preflight = validate_static_preflight_payloads(loaded, repo_root=REPO_ROOT)
         self.assertFalse(quota["llama2_metrics_consumed"])
         self.assertEqual(preflight["status"], "pass")
@@ -39,6 +39,19 @@ class Llama2CageV3CPUAcceptanceProtocolTest(unittest.TestCase):
             self.assertEqual(path.stat().st_size, spec["server_size_bytes"] + 1)
             self.assertEqual(canonical_sha256(payload), spec["canonical_sha256"])
             self.assertIn("terminal LF", spec["normalization"])
+
+    def test_failed_cross_platform_hash_attempt_is_preserved_without_scientific_change(self):
+        repair = self.protocol["administrative_repair"]
+        receipt_path = REPO_ROOT / repair["failed_attempt_receipt_path"]
+        self.assertEqual(file_sha256(receipt_path), repair["failed_attempt_receipt_sha256"])
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["source_commit"], "277cfadc0d03d30e29b7f9dff621673864e3286e")
+        self.assertFalse(receipt["test_summary"]["direct_cpu_acceptance_invoked"])
+        self.assertFalse(receipt["repair_boundary"]["candidate_algorithm_changed"])
+        self.assertFalse(repair["candidate_algorithm_changed"])
+        self.assertFalse(repair["quota_plan_changed"])
+        self.assertFalse(repair["metric_changed"])
+        self.assertFalse(repair["authorization_changed"])
 
     def test_protocol_rejects_target_metric_or_authorization_mutation(self):
         mutated = copy.deepcopy(self.protocol)

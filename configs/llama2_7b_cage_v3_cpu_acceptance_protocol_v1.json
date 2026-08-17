@@ -4,7 +4,17 @@
   "frozen_on": "2026-08-17",
   "status": "frozen_before_llama2_cage_v3_cpu_acceptance",
   "claim_eligible": false,
+  "source_identity_mode": "sha256_after_deterministic_crlf_to_lf_normalization",
   "purpose": "Validate the Llama-2 CAGE-v3 fake-quant cache implementation on deterministic CPU fixtures without loading production weights or consuming any Llama-2 quality metric.",
+  "administrative_repair": {
+    "reason": "The first attempt exposed two Windows-worktree CRLF hashes that did not equal the Linux checkout bytes; no direct acceptance or quality computation had started.",
+    "failed_attempt_receipt_path": "configs/llama2_7b_cage_v3_cpu_acceptance_failed_attempt_v1.json",
+    "failed_attempt_receipt_sha256": "01d49b918ee9e662a7f06c4e5f0674dc3f3d34ad63dc03b1d3b8b70f6ea33e86",
+    "candidate_algorithm_changed": false,
+    "quota_plan_changed": false,
+    "metric_changed": false,
+    "authorization_changed": false
+  },
   "transfer_boundary": {
     "qwen3_promotion_pass": false,
     "qwen3_conclusion_reopened": false,
@@ -45,7 +55,7 @@
     },
     "llama_kivi_adapter": {
       "path": "models/llama_kivi.py",
-      "sha256": "ca1ce3c1ce1db11b13a392f9962d4c2fa0583467ba07f6239b43ff0fd6abb98f"
+      "sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4"
     },
     "cage_v2_sparse_quant": {
       "path": "models/cage_v2_quant.py",
@@ -53,7 +63,7 @@
     },
     "cage_uniform_value_quant": {
       "path": "models/cage_quant.py",
-      "sha256": "32617d7b9434699adc331d4dcfba6b333cdeccb578f030e175c413bce466e533"
+      "sha256": "273d9fd8dc2de33de9912cae862c7f01eceb7004fc08fd2011945cc877611fe8"
     }
   },
   "production_model_receipt": {

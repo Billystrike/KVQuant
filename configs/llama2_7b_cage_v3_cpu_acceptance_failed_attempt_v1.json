@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "receipt_id": "llama2-7b-cage-v3-cpu-acceptance-failed-attempt-277cfad-v1",
+  "status": "preserved_non_scientific_pre_execution_failure",
+  "claim_eligible": false,
+  "attempted_on": "2026-08-17",
+  "source_commit": "277cfadc0d03d30e29b7f9dff621673864e3286e",
+  "protocol_sha256": "7a3fa34f58b3722255868a5048a9838d47d8cbe9a3218d6735e89ea6a41e9e81",
+  "execution_log": {
+    "server_path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_cpu_acceptance_277cfad_20260817T213326.log",
+    "sha256": "24ad989dbf79c243481803031c76d2df0cea55766845d538ff5df24fd1bab830",
+    "size_bytes": 10168
+  },
+  "observed_environment": {
+    "python": "3.10.20",
+    "torch": "2.4.1+cu121",
+    "transformers": "4.43.1",
+    "cuda_available_observed_only": true
+  },
+  "test_summary": {
+    "tests_run": 28,
+    "failures": 2,
+    "errors": 1,
+    "llama_cage_v3_runtime_tests_passed": 5,
+    "existing_cage_kivi_integration_tests_passed": true,
+    "failure_stage": "frozen source identity validation before direct CPU acceptance",
+    "direct_cpu_acceptance_invoked": false,
+    "new_result_json_generated_by_attempt": false
+  },
+  "root_cause": {
+    "category": "cross_platform_text_line_ending_identity_error",
+    "description": "The protocol recorded SHA-256 values from a Windows CRLF worktree for two pre-existing text files, while the Linux server checked out LF bytes from the same Git content.",
+    "mismatches": {
+      "models/llama_kivi.py": {
+        "incorrect_windows_worktree_sha256": "ca1ce3c1ce1db11b13a392f9962d4c2fa0583467ba07f6239b43ff0fd6abb98f",
+        "correct_lf_checkout_sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4"
+      },
+      "models/cage_quant.py": {
+        "incorrect_windows_worktree_sha256": "32617d7b9434699adc331d4dcfba6b333cdeccb578f030e175c413bce466e533",
+        "correct_lf_checkout_sha256": "273d9fd8dc2de33de9912cae862c7f01eceb7004fc08fd2011945cc877611fe8"
+      }
+    }
+  },
+  "repair_boundary": {
+    "allowed": "replace the two incorrect platform-dependent hashes with SHA-256 after deterministic CRLF-to-LF normalization and repair shell PIPESTATUS capture",
+    "candidate_algorithm_changed": false,
+    "quota_plan_changed": false,
+    "model_identity_changed": false,
+    "quality_metric_read": false,
+    "gpu_computation_performed": false,
+    "full_model_weights_loaded": false,
+    "gpu_acceptance_authorized": false,
+    "full_transfer_authorized": false,
+    "paper_claim_authorized": false
+  }
+}
