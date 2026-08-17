@@ -1,0 +1,192 @@
+{
+  "boundary": {
+    "cpu_implementation_acceptance_authorized_by_this_artifact": false,
+    "full_transfer_authorized": false,
+    "gpu_acceptance_authorized": false,
+    "gpu_used": false,
+    "kitty_llama_port_authorized": false,
+    "llama2_baseline_quality_metrics_read": false,
+    "llama2_candidate_quality_metrics_read": false,
+    "paper_main_method_change_authorized": false,
+    "runtime_claims_authorized": false
+  },
+  "checks": {
+    "cage_v1_byte_tolerance": true,
+    "deterministic_depth_mapping": true,
+    "full_weight_file_hashes": true,
+    "kivi_memory_asymmetry_disclosed": true,
+    "model_and_tokenizer_identity": true,
+    "protocol": true,
+    "qwen3_negative_result_preserved": true,
+    "qwen3_quota_plan": true,
+    "target_quota_counts": true
+  },
+  "claim_eligible": false,
+  "derived_quota_plan": {
+    "canonical_sha256": "bc454ce0b00fd6adc22b36e656ff5f32b22b76a1b6d6e77f791b711dff2cd454",
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quota_plan_13e6592.json",
+    "plan_id": "llama2-7b-cage-v3-depth-normalized-quota-plan-v1",
+    "sha256": "630644ab0608ad9c59909b95976c1daa4e56669152a43ed5a9a925d3605aceaa",
+    "size_bytes": 11112
+  },
+  "model_receipt": {
+    "architecture": {
+      "architectures": [
+        "LlamaForCausalLM"
+      ],
+      "head_dim": 128,
+      "hidden_size": 4096,
+      "max_position_embeddings": 4096,
+      "model_type": "llama",
+      "num_attention_heads": 32,
+      "num_hidden_layers": 32,
+      "num_key_value_heads": 32,
+      "torch_dtype": "float16"
+    },
+    "checks": {
+      "head_dim": true,
+      "max_position_embeddings": true,
+      "model_type": true,
+      "num_attention_heads": true,
+      "num_hidden_layers": true,
+      "num_key_value_heads": true
+    },
+    "metadata": {
+      "config.json": {
+        "sha256": "9242e7db1bc2a17873e66084c3b1c6ed10883076e156b338fd6a7775748e2e3c",
+        "size_bytes": 609
+      },
+      "generation_config.json": {
+        "sha256": "11e70f5fd0a1a47346b5a941ff0049d226b353a1647735d9ec171a2b1521e881",
+        "size_bytes": 188
+      },
+      "model.safetensors.index.json": {
+        "sha256": "217d527037a95cd5cd30384afb425987824373b94cc7206beb48ec0c9499c98f",
+        "size_bytes": 26788
+      },
+      "pytorch_model.bin.index.json": {
+        "sha256": "aca3c1facc89d12311a667c32e85ac86e625990992ea8a189e3b036ba371b931",
+        "size_bytes": 26788
+      },
+      "special_tokens_map.json": {
+        "sha256": "6fa06efa2785e450051989a6f8fb4416b10149ded485ddd3f127a40734f5cfd0",
+        "size_bytes": 414
+      },
+      "tokenizer.json": {
+        "sha256": "bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e",
+        "size_bytes": 1842767
+      },
+      "tokenizer.model": {
+        "sha256": "9e556afd44213b6bd1be2b850ebbbd98f5481437a8021afaf58ee7fb1818d347",
+        "size_bytes": 499723
+      },
+      "tokenizer_config.json": {
+        "sha256": "f514e7c3008881b6ba7e6a0cdb44c71ce47dc335920dac143ae7bc788197e53a",
+        "size_bytes": 776
+      }
+    },
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "weight_file_count": 2,
+    "weight_files": [
+      {
+        "name": "model-00001-of-00002.safetensors",
+        "sha256": "4ec71fd53e99766de38f24753b30c9e8942630e9e576a1ba27b0ec531e87be41",
+        "size_bytes": 9976578928
+      },
+      {
+        "name": "model-00002-of-00002.safetensors",
+        "sha256": "41780b5dac322ac35598737e99208d90bdc632a1ba3389ebedbb46a1d8385a7f",
+        "size_bytes": 3500297344
+      }
+    ],
+    "weight_total_size_bytes": 13476876272
+  },
+  "next_step": "check in this exact preflight receipt and quota plan before defining the CPU implementation-acceptance gate",
+  "packed_memory_points": [
+    {
+      "cage_v1_closest": {
+        "packed_bytes": 163106816,
+        "point_id": "cage-r237",
+        "relative_byte_delta_vs_candidate": 0.0005276381909547739,
+        "residual_length": 237,
+        "within_frozen_tolerance": true
+      },
+      "candidate": {
+        "packed_bytes": 163020800,
+        "point_id": "cage-v3-llama2-depth-normalized-r176",
+        "residual_length": 176,
+        "sink_length": 32
+      },
+      "kivi_closest_feasible": {
+        "candidate_uses_no_more_bytes": true,
+        "equal_memory_claim_allowed": false,
+        "group_size": 64,
+        "packed_bytes": 168820736,
+        "point_id": "kivi-g64-r320",
+        "relative_byte_delta_vs_candidate": 0.03557788944723618,
+        "residual_length": 320
+      },
+      "prompt_length": 1024
+    },
+    {
+      "cage_v1_closest": {
+        "packed_bytes": 248725504,
+        "point_id": "cage-r253",
+        "relative_byte_delta_vs_candidate": -0.0013813971845809763,
+        "residual_length": 253,
+        "within_frozen_tolerance": true
+      },
+      "candidate": {
+        "packed_bytes": 249069568,
+        "point_id": "cage-v3-llama2-depth-normalized-r288",
+        "residual_length": 288,
+        "sink_length": 32
+      },
+      "kivi_closest_feasible": {
+        "candidate_uses_no_more_bytes": true,
+        "equal_memory_claim_allowed": false,
+        "group_size": 32,
+        "packed_bytes": 255852544,
+        "point_id": "kivi-g32-r224",
+        "relative_byte_delta_vs_candidate": 0.027233258781739246,
+        "residual_length": 224
+      },
+      "prompt_length": 2048
+    },
+    {
+      "cage_v1_closest": {
+        "packed_bytes": 391254016,
+        "point_id": "cage-r96",
+        "relative_byte_delta_vs_candidate": -0.00024072678556476596,
+        "residual_length": 96,
+        "within_frozen_tolerance": true
+      },
+      "candidate": {
+        "packed_bytes": 391348224,
+        "point_id": "cage-v3-llama2-depth-normalized-r112",
+        "residual_length": 112,
+        "sink_length": 32
+      },
+      "kivi_closest_feasible": {
+        "candidate_uses_no_more_bytes": true,
+        "equal_memory_claim_allowed": false,
+        "group_size": 128,
+        "packed_bytes": 398196736,
+        "point_id": "kivi-g128-r256",
+        "relative_byte_delta_vs_candidate": 0.017499790672360377,
+        "residual_length": 256
+      },
+      "prompt_length": 4032
+    }
+  ],
+  "preflight_id": "llama2-7b-cage-v3-cross-architecture-transfer-static-preflight-v1",
+  "protocol_deviation_disclosed": true,
+  "protocol_id": "llama2-7b-cage-v3-cross-architecture-transfer-v1",
+  "protocol_sha256": "f0007dde3967ba1495a14602df6791a60eab6e5fb82b5742078aa1e3037ded07",
+  "qwen3_conclusion_reopened": false,
+  "qwen3_promotion_pass": false,
+  "qwen3_quota_plan_sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914",
+  "schema_version": 1,
+  "status": "pass"
+}
+

@@ -25,6 +25,16 @@ from models.cage_importance import (
     fixed_random_importance_like,
 )
 from models.cage_quant import fake_quant_k_by_channel_buckets, fake_quant_v_by_channel_buckets
+from models.llama_cage_v3 import (
+    append_decode_token as append_llama_cage_v3_decode_token,
+    build_prefill_cache as build_llama_cage_v3_prefill_cache,
+    config_from_model_config as llama_cage_v3_config_from_model_config,
+    is_llama_cage_v3_cache,
+    pack_cache as pack_llama_cage_v3_cache,
+    reconstruct_key as reconstruct_llama_cage_v3_key,
+    reconstruct_value as reconstruct_llama_cage_v3_value,
+    unpack_cache as unpack_llama_cage_v3_cache,
+)
 from utils.cage_metrics import collect_cage_perturbation_metrics, compute_cage_perturbation_metrics
 from utils.kv_cache_reconstruction import reconstruct_kivi_cache
 
@@ -55,6 +65,7 @@ class LlamaAttention_KIVI(nn.Module):
         super().__init__()
         self.config = config
         self.cage_config = get_cage_config(config)
+        self.cage_v3_config = llama_cage_v3_config_from_model_config(config)
         self.layer_idx = int(layer_idx)
         self.attention_dropout = config.attention_dropout
         self.hidden_size = config.hidden_size
@@ -394,6 +405,70 @@ class LlamaAttention_KIVI(nn.Module):
             )
         return attn_output, next_cache
 
+    def _cage_v3_fake_forward(
+        self,
+        query_states: torch.Tensor,
+        key_states: torch.Tensor,
+        value_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor],
+        past_key_value: Optional[Tuple[torch.Tensor]],
+        bsz: int,
+        q_len: int,
+        kv_seq_len: int,
+        use_cache: bool,
+    ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor]]]:
+        if self.cage_v3_config is None:
+            raise RuntimeError("Llama CAGE-v3 forward called without a frozen config")
+        if past_key_value is None:
+            cache = build_llama_cage_v3_prefill_cache(
+                self.cage_v3_config,
+                query_states=query_states,
+                key_states=key_states,
+                value_states=value_states,
+                layer_idx=self.layer_idx,
+            )
+            key_states_for_attention = key_states
+            value_states_for_attention = value_states
+        else:
+            if not is_llama_cage_v3_cache(past_key_value):
+                raise ValueError("Llama CAGE-v3 received a non-v3 past_key_value")
+            if q_len != 1:
+                raise ValueError(
+                    f"Llama CAGE-v3 continuation supports one token at a time, got q_len={q_len}"
+                )
+            previous = unpack_llama_cage_v3_cache(past_key_value)
+            previous_key_states = reconstruct_llama_cage_v3_key(previous)
+            previous_value_states = reconstruct_llama_cage_v3_value(previous)
+            self._capture_kv_experiment_decode_metrics(
+                current_key_states=key_states,
+                current_value_states=value_states,
+                reconstructed_key_history=previous_key_states,
+                reconstructed_value_history=previous_value_states,
+                attention_mask=attention_mask,
+            )
+            key_states_for_attention = torch.cat((previous_key_states, key_states), dim=2)
+            value_states_for_attention = torch.cat((previous_value_states, value_states), dim=2)
+            cache = append_llama_cage_v3_decode_token(
+                self.cage_v3_config,
+                previous,
+                key_states=key_states,
+                value_states=value_states,
+            )
+        if cache.kv_seq_len != kv_seq_len:
+            raise ValueError(
+                f"Llama CAGE-v3 cache length {cache.kv_seq_len} differs from attention length {kv_seq_len}"
+            )
+        attn_output = self._cage_compute_attention(
+            query_states=query_states,
+            key_states=key_states_for_attention,
+            value_states=value_states_for_attention,
+            attention_mask=attention_mask,
+            bsz=bsz,
+            q_len=q_len,
+            kv_seq_len=kv_seq_len,
+        )
+        return attn_output, pack_llama_cage_v3_cache(cache) if use_cache else None
+
     def _cage_assignment_scores(
         self,
         importance: torch.Tensor,
@@ -630,6 +705,20 @@ class LlamaAttention_KIVI(nn.Module):
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
         self._capture_kv_experiment_inputs(query_states, key_states, value_states, past_key_value)
+        if self.cage_v3_config is not None:
+            attn_output, past_key_value = self._cage_v3_fake_forward(
+                query_states=query_states,
+                key_states=key_states,
+                value_states=value_states,
+                attention_mask=attention_mask,
+                past_key_value=past_key_value,
+                bsz=bsz,
+                q_len=q_len,
+                kv_seq_len=kv_seq_len,
+                use_cache=use_cache,
+            )
+            attn_output = self._project_attention_output(attn_output, bsz, q_len)
+            return attn_output, None, past_key_value
         if self.cage_config.cage_enable:
             attn_output, past_key_value = self._cage_fake_forward(
                 query_states=query_states,
@@ -868,6 +957,20 @@ class LlamaFlashAttention_KIVI(LlamaAttention_KIVI):
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
         self._capture_kv_experiment_inputs(query_states, key_states, value_states, past_key_value)
+        if self.cage_v3_config is not None:
+            attn_output, past_key_value = self._cage_v3_fake_forward(
+                query_states=query_states,
+                key_states=key_states,
+                value_states=value_states,
+                attention_mask=attention_mask,
+                past_key_value=past_key_value,
+                bsz=bsz,
+                q_len=q_len,
+                kv_seq_len=kv_seq_len,
+                use_cache=use_cache,
+            )
+            attn_output = self._project_attention_output(attn_output, bsz, q_len)
+            return attn_output, None, past_key_value
         if self.cage_config.cage_enable:
             attn_output, past_key_value = self._cage_fake_forward(
                 query_states=query_states,

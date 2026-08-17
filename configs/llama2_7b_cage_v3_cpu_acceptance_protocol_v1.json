@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "protocol_id": "llama2-7b-cage-v3-cpu-implementation-acceptance-v1",
+  "frozen_on": "2026-08-17",
+  "status": "frozen_before_llama2_cage_v3_cpu_acceptance",
+  "claim_eligible": false,
+  "purpose": "Validate the Llama-2 CAGE-v3 fake-quant cache implementation on deterministic CPU fixtures without loading production weights or consuming any Llama-2 quality metric.",
+  "transfer_boundary": {
+    "qwen3_promotion_pass": false,
+    "qwen3_conclusion_reopened": false,
+    "llama2_quality_metrics_consumed": false,
+    "cross_architecture_transfer_protocol": "configs/llama2_7b_cage_v3_cross_arch_transfer_protocol_v1.json",
+    "cross_architecture_transfer_protocol_sha256": "f0007dde3967ba1495a14602df6791a60eab6e5fb82b5742078aa1e3037ded07"
+  },
+  "static_preflight_artifacts": {
+    "quota": {
+      "server_path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quota_plan_13e6592.json",
+      "server_sha256": "630644ab0608ad9c59909b95976c1daa4e56669152a43ed5a9a925d3605aceaa",
+      "server_size_bytes": 11112,
+      "canonical_sha256": "bc454ce0b00fd6adc22b36e656ff5f32b22b76a1b6d6e77f791b711dff2cd454",
+      "checked_in_path": "configs/llama2_7b_cage_v3_transfer_quota_plan_v1.json",
+      "checked_in_sha256": "6fc7e33a63db5ed4b1e303edd50c306cf91ab07b99dc981b1d6ea91a58f845e8",
+      "checked_in_size_bytes": 11113,
+      "normalization": "identical JSON payload with one terminal LF added by repository text normalization"
+    },
+    "preflight": {
+      "server_path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_static_preflight_13e6592.json",
+      "server_sha256": "9b8209d4d41bb599a96e36c756fcb8b23ff6065f694f5fb3f7b8a8fad2934c85",
+      "server_size_bytes": 6613,
+      "canonical_sha256": "d7accd7f9b9d4279bf166693b4a51e246a8c13227411af8229aa61e519163d65",
+      "checked_in_path": "configs/llama2_7b_cage_v3_transfer_static_preflight_receipt_v1.json",
+      "checked_in_sha256": "b25ec8acc4d7e23195e1d9f5dd45bdeba6312e405b2e929e978136cb9dcdd417",
+      "checked_in_size_bytes": 6614,
+      "normalization": "identical JSON payload with one terminal LF added by repository text normalization"
+    }
+  },
+  "frozen_sources": {
+    "cross_architecture_transfer_protocol": {
+      "path": "configs/llama2_7b_cage_v3_cross_arch_transfer_protocol_v1.json",
+      "sha256": "f0007dde3967ba1495a14602df6791a60eab6e5fb82b5742078aa1e3037ded07"
+    },
+    "llama_cage_v3_runtime": {
+      "path": "models/llama_cage_v3.py",
+      "sha256": "3633c702596c3223b52be7999f00f40179679a89be6ef27e6620e5f903ce7aa8"
+    },
+    "llama_kivi_adapter": {
+      "path": "models/llama_kivi.py",
+      "sha256": "ca1ce3c1ce1db11b13a392f9962d4c2fa0583467ba07f6239b43ff0fd6abb98f"
+    },
+    "cage_v2_sparse_quant": {
+      "path": "models/cage_v2_quant.py",
+      "sha256": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a"
+    },
+    "cage_uniform_value_quant": {
+      "path": "models/cage_quant.py",
+      "sha256": "32617d7b9434699adc331d4dcfba6b333cdeccb578f030e175c413bce466e533"
+    }
+  },
+  "production_model_receipt": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "config_sha256": "9242e7db1bc2a17873e66084c3b1c6ed10883076e156b338fd6a7775748e2e3c",
+    "model_type": "llama",
+    "hidden_size": 4096,
+    "num_hidden_layers": 32,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 32,
+    "head_dim": 128,
+    "max_position_embeddings": 4096,
+    "weight_file_count": 2,
+    "weight_total_size_bytes": 13476876272,
+    "weights_are_identity_only_and_must_not_be_loaded": true
+  },
+  "cpu_fixture": {
+    "batch_size": 1,
+    "prompt_length": 7,
+    "continuation_tokens": 2,
+    "num_attention_heads": 4,
+    "num_key_value_heads": 2,
+    "head_dim": 8,
+    "num_hidden_layers": 1,
+    "sink_length": 1,
+    "residual_length": 4,
+    "two_bit_channels": 2,
+    "group_size": 4,
+    "seed": 20260817
+  },
+  "required_checks": [
+    "exact production quota installation and architecture rejection",
+    "prefill logits/output identical with and without cache materialization",
+    "persistent prompt-adaptive sparse Key indices",
+    "all-channel INT2 Key backbone plus sparse INT2 refinement",
+    "uniform INT2 Value path without Value adaptivity",
+    "FP16 sink preservation",
+    "single-token continuation and deterministic Key flush",
+    "rolling Value residual",
+    "old quantized prefix is not requantized",
+    "finite reconstructed cache and attention output",
+    "unsupported prompt length batch size and multi-token continuation fail closed"
+  ],
+  "execution_boundary": {
+    "gpu_used": false,
+    "full_model_weights_loaded": false,
+    "llama2_quality_metrics_read": false,
+    "gpu_acceptance_authorized": false,
+    "full_transfer_authorized": false,
+    "kitty_llama_port_authorized": false,
+    "paper_main_method_change_authorized": false,
+    "runtime_claims_authorized": false
+  },
+  "success_rule": "Every frozen source and artifact identity must match and every required CPU implementation check must pass.",
+  "next_step_if_pass": "Check in the exact CPU result receipt, then prospectively define a separate GPU acceptance gate; do not start full Llama-2 transfer experiments yet."
+}
