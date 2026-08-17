@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "protocol_id": "llama2-7b-cage-v3-cross-architecture-transfer-quality-v1",
+  "frozen_on": "2026-08-17",
+  "status": "frozen_after_production_gpu_acceptance_before_any_llama2_v3_quality_metric",
+  "claim_eligible": false,
+  "parent_transfer_protocol": {
+    "path": "configs/llama2_7b_cage_v3_cross_arch_transfer_protocol_v1.json",
+    "sha256": "f0007dde3967ba1495a14602df6791a60eab6e5fb82b5742078aa1e3037ded07"
+  },
+  "gpu_acceptance_postrun_receipt": {
+    "path": "configs/llama2_7b_cage_v3_gpu_acceptance_postrun_receipt_v1.json",
+    "sha256": "e76dcab6ee54e8e28fd5a552707248208897e65ace5f869384f8e8bfc9d9653f",
+    "production_gpu_acceptance_pass": true,
+    "scientific_payload_sha256": "55c72774342885664f7fa388f7a1c0b996cbb864d7cb9f2678eb20fb3c6cce23"
+  },
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "device": "cuda:0",
+    "config_sha256": "9242e7db1bc2a17873e66084c3b1c6ed10883076e156b338fd6a7775748e2e3c",
+    "num_hidden_layers": 32,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 32,
+    "head_dim": 128,
+    "max_position_embeddings": 4096
+  },
+  "input": {
+    "corpus_id": "Salesforce/wikitext",
+    "corpus_config": "wikitext-2-raw-v1",
+    "split": "test",
+    "revision": "00aa25585682d4957f9e86edc73f59be7419af99",
+    "join_separator": "\n\n",
+    "add_special_tokens": false,
+    "expected_rows": 4358,
+    "expected_nonempty_rows": 2891,
+    "expected_joined_utf8_bytes": 1296370,
+    "expected_joined_text_sha256": "696cca6b65a171b0a358a4be6732cdfdf2dd6164a32e20fd70e3c13fc4dfae83",
+    "expected_token_count": 341468,
+    "expected_token_ids_sha256": "8163e5b39c668be8eec1e4d82eaecb1ee2a09d958f81873773e93bf4a4484f10",
+    "selection_id": "interior-51sts-v1",
+    "anchor_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "all_windows_must_fit_native_context": true,
+    "all_windows_must_be_nonoverlapping": true
+  },
+  "scoring": {
+    "primary_metric": "cache-conditioned teacher-forced mean NLL over all 64 continuation targets",
+    "boundary_target_count": 1,
+    "single_token_decode_target_count": 63,
+    "primary_target_count_per_case": 64,
+    "relative_ppl_percent": "100 * (exp(candidate_mean_nll_minus_baseline_mean_nll) - 1)",
+    "paired_unit": "anchor",
+    "fp16_incremental_cache_path_is_primary": true,
+    "fp16_one_shot_reference_is_diagnostic_only": true,
+    "same_token_ids_targets_order_and_reduction_for_all_methods": true
+  },
+  "quota_plan": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quota_plan_v1.json",
+    "sha256": "6fc7e33a63db5ed4b1e303edd50c306cf91ab07b99dc981b1d6ea91a58f845e8"
+  },
+  "method_length_matrix": [
+    {
+      "prompt_length": 1024,
+      "packed_memory": {
+        "candidate_bytes": 163020800,
+        "cage_v1_bytes": 163106816,
+        "cage_v1_relative_delta_vs_candidate": 0.0005276381909547739,
+        "kivi_bytes": 168820736,
+        "kivi_relative_delta_vs_candidate": 0.03557788944723618
+      },
+      "methods": [
+        {"role": "quality_reference", "id": "fp16-l1024", "method": "fp16"},
+        {"role": "transfer_candidate", "id": "cage-v3-r176-l1024", "method": "cage_v3", "residual_length": 176, "sink_length": 32},
+        {"role": "primary_predecessor", "id": "cage-v1-r237-l1024", "method": "cage_v1", "residual_length": 237, "key_group_sizes": [32, 64, 128], "value_group_sizes": [32, 64, 128], "key_clip_percentiles": [0.999, 0.995, 0.99], "value_clip_percentiles": [0.999, 0.995, 0.99]},
+        {"role": "primary_uniform_baseline", "id": "kivi-g64-r320-l1024", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 64, "residual_length": 320}
+      ]
+    },
+    {
+      "prompt_length": 2048,
+      "packed_memory": {
+        "candidate_bytes": 249069568,
+        "cage_v1_bytes": 248725504,
+        "cage_v1_relative_delta_vs_candidate": -0.0013813971845809763,
+        "kivi_bytes": 255852544,
+        "kivi_relative_delta_vs_candidate": 0.027233258781739246
+      },
+      "methods": [
+        {"role": "quality_reference", "id": "fp16-l2048", "method": "fp16"},
+        {"role": "transfer_candidate", "id": "cage-v3-r288-l2048", "method": "cage_v3", "residual_length": 288, "sink_length": 32},
+        {"role": "primary_predecessor", "id": "cage-v1-r253-l2048", "method": "cage_v1", "residual_length": 253, "key_group_sizes": [32, 64, 128], "value_group_sizes": [32, 64, 128], "key_clip_percentiles": [0.999, 0.995, 0.99], "value_clip_percentiles": [0.999, 0.995, 0.99]},
+        {"role": "primary_uniform_baseline", "id": "kivi-g32-r224-l2048", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 32, "residual_length": 224}
+      ]
+    },
+    {
+      "prompt_length": 4032,
+      "packed_memory": {
+        "candidate_bytes": 391348224,
+        "cage_v1_bytes": 391254016,
+        "cage_v1_relative_delta_vs_candidate": -0.00024072678556476596,
+        "kivi_bytes": 398196736,
+        "kivi_relative_delta_vs_candidate": 0.017499790672360377
+      },
+      "methods": [
+        {"role": "quality_reference", "id": "fp16-l4032", "method": "fp16"},
+        {"role": "transfer_candidate", "id": "cage-v3-r112-l4032", "method": "cage_v3", "residual_length": 112, "sink_length": 32},
+        {"role": "primary_predecessor", "id": "cage-v1-r96-l4032", "method": "cage_v1", "residual_length": 96, "key_group_sizes": [32, 64, 128], "value_group_sizes": [32, 64, 128], "key_clip_percentiles": [0.999, 0.995, 0.99], "value_clip_percentiles": [0.999, 0.995, 0.99]},
+        {"role": "primary_uniform_baseline", "id": "kivi-g128-r256-l4032", "method": "kivi", "k_bits": 2, "v_bits": 2, "group_size": 128, "residual_length": 256}
+      ]
+    }
+  ],
+  "case_matrix": {
+    "method_length_points": 12,
+    "anchors_per_point": 50,
+    "full_case_count": 600,
+    "acceptance_anchor_indices": [0],
+    "acceptance_case_count_per_repeat": 12,
+    "acceptance_repeat_count": 2,
+    "full_execution_repeat_count": 1,
+    "resume_key": "deterministic case_id bound to protocol input method length anchor and target hashes"
+  },
+  "primary_transfer_gate": {
+    "comparisons": ["transfer_candidate_vs_primary_predecessor", "transfer_candidate_vs_primary_uniform_baseline"],
+    "per_length_noninferiority_relative_ppl_percent_at_most": 0.5,
+    "overall_material_superiority_relative_ppl_percent_at_most": -1.0,
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260817,
+    "bootstrap_interval": "paired-anchor percentile 95 percent interval",
+    "ci95_upper_bound_must_be_below_zero": true,
+    "both_primary_comparisons_must_pass": true,
+    "decimal_direction_alone_is_never_a_pass": true,
+    "no_threshold_or_candidate_change_after_any_quality_result": true
+  },
+  "reporting": {
+    "report_qwen3_promotion_failure": true,
+    "report_all_llama2_lengths_and_unfavorable_results": true,
+    "canonical_full_corpus_perplexity_claim": false,
+    "memory_representation": "complete active logical packed paper estimate only",
+    "latency_throughput_or_real_cuda_memory_claim": false,
+    "kitty_llama_included": false,
+    "kitty_requires_separate_nonofficial_port_fidelity_protocol": true
+  },
+  "staged_execution": {
+    "static_protocol_preflight_authorized": true,
+    "input_manifest_build_authorized_only_after_static_preflight_pass": true,
+    "two_repeat_quality_acceptance_authorized_only_after_input_manifest_freeze": true,
+    "full_600_case_execution_authorized_only_after_acceptance_postrun_gate": true
+  },
+  "current_boundary": {
+    "corpus_access_authorized": false,
+    "quality_acceptance_execution_authorized": false,
+    "full_transfer_execution_authorized": false,
+    "quality_metrics_read": false,
+    "candidate_tuning_authorized": false,
+    "kitty_llama_port_authorized": false,
+    "paper_main_method_change_authorized": false,
+    "runtime_claims_authorized": false
+  },
+  "next_step": "run a read-only static protocol preflight, then freeze an exact 50-anchor input manifest before implementing quality acceptance"
+}
