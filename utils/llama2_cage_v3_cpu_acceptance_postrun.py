@@ -37,6 +37,21 @@ def validate_artifact_manifest(manifest: Mapping[str, Any], *, repo_root: Path) 
     )
     _require(manifest.get("claim_eligible") is False, "artifact claim boundary changed")
     _require(manifest.get("source_commit") == "8d45f5628180a49106a274fa4c1ce8ff1c2667b5", "source commit mismatch")
+    repair = manifest.get("postrun_administrative_repair", {})
+    _require(
+        repair.get("failed_attempt_receipt_path") == "configs/llama2_7b_cage_v3_cpu_postrun_failed_attempt_v1.json",
+        "postrun failed-attempt receipt path changed",
+    )
+    _require(
+        repair.get("failed_attempt_receipt_sha256") == "153d0844382767b8d86bec46673ef27773b3df1e3cdb7bd6f5a5d5981f65148f",
+        "postrun failed-attempt receipt hash changed",
+    )
+    _require(repair.get("scientific_result_changed") is False, "postrun repair changed the scientific result")
+    _require(repair.get("authorization_changed") is False, "postrun repair changed authorization")
+    _require(
+        file_sha256(repo_root / repair["failed_attempt_receipt_path"]) == repair["failed_attempt_receipt_sha256"],
+        "postrun failed-attempt receipt file changed",
+    )
     protocol = manifest.get("protocol", {})
     _require(
         protocol
@@ -53,6 +68,9 @@ def validate_artifact_manifest(manifest: Mapping[str, Any], *, repo_root: Path) 
     _require(wrapper.get("package_check_pass") is False, "package-check failure was hidden")
     _require(wrapper.get("environment_mutation_authorized") is False, "environment mutation was authorized")
     _require(wrapper.get("rerun_scientific_acceptance_required") is False, "scientific rerun boundary changed")
+    _require("outside the persisted tee log" in wrapper.get("evidence_scope", ""), "wrapper evidence scope changed")
+    execution_log = manifest.get("execution_log", {})
+    _require(execution_log.get("post_pipeline_status_lines_included") is False, "tee-log scope changed")
     boundary = manifest.get("postrun_boundary", {})
     _require(boundary.get("gpu_acceptance_gate_definition_authorized_if_audit_passes") is True, "gate-definition boundary changed")
     for key, value in boundary.items():
@@ -96,9 +114,7 @@ def _validate_log(text: str, manifest: Mapping[str, Any]) -> dict[str, bool]:
         "OK\nTEST_STATUS=0",
         "ACCEPTANCE_STATUS=0",
         "AUDIT_STATUS=0",
-        "RUN_STATUS=1",
-        "TEE_STATUS=0",
-        "LLAMA2_CAGE_V3_CPU_ACCEPTANCE_RESULT=FAIL",
+        "=== PACKAGE CHECK ===",
     ]
     checks = {
         "nonempty": bool(text),
@@ -108,6 +124,14 @@ def _validate_log(text: str, manifest: Mapping[str, Any]) -> dict[str, bool]:
             line in text for line in manifest["wrapper_outcome"]["observed_unrelated_requirements"]
         ),
         "scientific_result_precedes_package_check": text.find("ACCEPTANCE_STATUS=0") < text.find("=== PACKAGE CHECK ==="),
+        "post_pipeline_status_correctly_outside_log": all(
+            marker not in text
+            for marker in (
+                "RUN_STATUS=1",
+                "TEE_STATUS=0",
+                "LLAMA2_CAGE_V3_CPU_ACCEPTANCE_RESULT=FAIL",
+            )
+        ),
     }
     _require(all(checks.values()), "execution log validation failed")
     return checks

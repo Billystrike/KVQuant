@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "receipt_id": "llama2-7b-cage-v3-cpu-postrun-failed-attempt-77bf2fd-v1",
+  "status": "preserved_audit_scope_failure",
+  "claim_eligible": false,
+  "source_commit": "77bf2fd4267b7a5522fa1b3697aa10be846832bc",
+  "attempted_on": "2026-08-17",
+  "artifact_manifest_sha256": "556126ce1b79983ca0d9b788a9f6724ae8df594dded4560df6392f3f102f1875",
+  "execution_log": {
+    "server_path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_cpu_acceptance_postrun_77bf2fd_20260817T214715.log",
+    "sha256": "a76a682b86bfd39d36c3f906eaa59183cce36e18fad6f6e5535f20f703254232",
+    "size_bytes": 3990
+  },
+  "postrun_output_generated": false,
+  "root_cause": {
+    "category": "persisted_log_scope_mismatch",
+    "description": "The validator required RUN_STATUS, TEE_STATUS, and the final wrapper label inside the tee-captured log even though the shell prints those fields only after the tee pipeline has closed.",
+    "scientific_result_or_artifact_failure": false,
+    "source_result_hash_changed": false
+  },
+  "repair_boundary": {
+    "allowed": "validate only run-body markers inside the persisted tee log and identify post-pipeline wrapper fields as user-supplied terminal-transcript evidence",
+    "cpu_computation_rerun": false,
+    "candidate_algorithm_changed": false,
+    "quota_plan_changed": false,
+    "metric_changed": false,
+    "quality_metric_read": false,
+    "gpu_execution_authorized": false,
+    "full_transfer_authorized": false
+  }
+}

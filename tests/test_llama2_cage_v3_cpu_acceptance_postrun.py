@@ -24,10 +24,15 @@ class Llama2CageV3CPUAcceptancePostrunTest(unittest.TestCase):
         validate_artifact_manifest(self.manifest, repo_root=REPO_ROOT)
         self.assertEqual(
             file_sha256(MANIFEST_PATH),
-            "556126ce1b79983ca0d9b788a9f6724ae8df594dded4560df6392f3f102f1875",
+            "1dde892fa6f057a827773c263e1cb1e82eb94355a4a338229399e7b444a6152e",
         )
         self.assertTrue(self.manifest["wrapper_outcome"]["scientific_acceptance_completed_before_failure"])
         self.assertFalse(self.manifest["wrapper_outcome"]["package_check_pass"])
+        repair = self.manifest["postrun_administrative_repair"]
+        self.assertEqual(
+            file_sha256(REPO_ROOT / repair["failed_attempt_receipt_path"]),
+            repair["failed_attempt_receipt_sha256"],
+        )
 
     def test_manifest_rejects_hiding_package_failure_or_authorizing_gpu_execution(self):
         mutated = copy.deepcopy(self.manifest)

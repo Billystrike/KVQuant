@@ -4,6 +4,13 @@
   "status": "frozen_after_direct_acceptance_before_gpu_gate_definition",
   "claim_eligible": false,
   "source_commit": "8d45f5628180a49106a274fa4c1ce8ff1c2667b5",
+  "postrun_administrative_repair": {
+    "failed_attempt_receipt_path": "configs/llama2_7b_cage_v3_cpu_postrun_failed_attempt_v1.json",
+    "failed_attempt_receipt_sha256": "153d0844382767b8d86bec46673ef27773b3df1e3cdb7bd6f5a5d5981f65148f",
+    "reason": "The first post-run validator exceeded the persisted tee-log evidence scope; no CPU computation or source result changed.",
+    "scientific_result_changed": false,
+    "authorization_changed": false
+  },
   "protocol": {
     "path": "configs/llama2_7b_cage_v3_cpu_acceptance_protocol_v1.json",
     "sha256": "ea5299d08d0dbceabd701fcdd063ec3ab04b8fa5ad4c0ad6573f161c0649f6f1"
@@ -16,7 +23,9 @@
   "execution_log": {
     "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_cpu_acceptance_8d45f56_20260817T214103.log",
     "sha256": "2091a469fdbd7533bac8406266df94d59fd4b5ccc2a6b41e210cbb523c0a8f61",
-    "size_bytes": 12481
+    "size_bytes": 12481,
+    "scope": "tee-captured run body ending after package-check output",
+    "post_pipeline_status_lines_included": false
   },
   "expected_acceptance": {
     "acceptance_id": "llama2-7b-cage-v3-cpu-implementation-acceptance-v1",
@@ -57,7 +66,8 @@
       "tox 4.56.4 has requirement packaging>=26, but you have packaging 24.0."
     ],
     "environment_mutation_authorized": false,
-    "rerun_scientific_acceptance_required": false
+    "rerun_scientific_acceptance_required": false,
+    "evidence_scope": "user-supplied complete terminal transcript; post-pipeline status lines are outside the persisted tee log"
   },
   "postrun_boundary": {
     "qwen3_conclusion_reopened": false,
