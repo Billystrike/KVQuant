@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "receipt_id": "qwen3-8b-cage-v3-promotion-results-receipt-v1",
+  "frozen_on": "2026-08-17",
+  "status": "frozen_after_joint_full_postrun_before_promotion_interpretation",
+  "claim_eligible": false,
+  "interpretation_performed": false,
+  "postrun_audit": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_full_postrun_81d120f.json",
+    "sha256": "09ffa0cb34f1038ce39b7ba562ec900efbdc2dde9e854a95d3b81a97e772f2d0",
+    "size_bytes": 5240,
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/qwen3_cage_v3_promotion_full_postrun_81d120f_20260817T201732.log",
+    "execution_log_sha256": "132b20537504d603d8379b412b746f343f3bc3385d2e3b822b73cdb651e2b494",
+    "execution_log_size_bytes": 17589,
+    "source_commit": "81d120fbd2472948348b195bf81cb05ffff1f869",
+    "artifact_manifest_sha256": "ea23ec02dd2abaeda9d17a6933b08fcb76ff3b092868d48e36b20ca76858609d",
+    "validator_sha256": "ed2b5f79f62f5428d6ecbbe04b173b6a8e1a820a39330e53fa7321c5c60ac9fd",
+    "postrun_utils_sha256": "bab6588e7d6525fa2c3889e062a1de6839ffbd55180e5650bd8ec4dd1b77ca42",
+    "tests_sha256": "95131906f1be3881a4cb0d53cd120da9229ad19d99d63e4700e3b0c43f2a9e29",
+    "tests_passed": 32
+  },
+  "frozen_inputs": {
+    "execution_source_commit": "a2fe881b4531b9874ae8880c16fab6960453e68f",
+    "execution_sha256": "c7da6f2389e64c4471ef876722a6c37e22276f0ce97ee5d8b0bd8fde58375805",
+    "protocol_sha256": "bc5d3811c0483433feef883c5511d350e8e4cbc48e12f0e4804bc2ccecf31f18",
+    "input_manifest_sha256": "7c662aecd392f91f8d4a674af6af01496deba952820babd29045e3193dc5300d",
+    "acceptance_gate_sha256": "c6c0d54abc1b0fdbd9ecaffc6d243fee9f66b391a626a56de4245eb47c091819",
+    "full_artifact_manifest_sha256": "ea23ec02dd2abaeda9d17a6933b08fcb76ff3b092868d48e36b20ca76858609d"
+  },
+  "audit_summary": {
+    "status": "pass",
+    "case_count": 600,
+    "target_token_count": 38400,
+    "failure_count": 0,
+    "failed_pre_case_attempt_count": 1,
+    "joint_scientific_payload_sha256": "acde4ad3b5e90051b86a5e52c5ab871edae0a477ff406bbf98bb79420eb1f262",
+    "interpretation_performed": false,
+    "pg19_test_accessed": false,
+    "llama2_execution_performed": false,
+    "kitty_llama_port_performed": false
+  },
+  "partitions": {
+    "cage_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v3/promotion_full_cage_a2fe881",
+      "case_count": 480,
+      "target_token_count": 30720,
+      "failure_count": 0,
+      "case_ids_sha256": "d378919e78e09d0e484b953cdee3dbb91a3de347f671a9204b97483eb9bec96a",
+      "case_file_manifest_sha256": "0669191b859e8a43739b98d48eb2dc50dcd6e690b99d5e00b65891dbd37ceebd",
+      "run_identity_sha256": "1d177e923e7aec938de04e6230636eef1c9533b2dbf847ba5d739c9d8aec4561",
+      "summary_sha256": "4c3a21f3f0cc278d27cfbd70854f2892507126599aff84ea80393a221edfac8a",
+      "scientific_payload_sha256": "d6d1241855c8d40817f7ded16c328d9a738c5b3cd10c487a16e834fd53a561a1"
+    },
+    "kitty_qwen3": {
+      "directory": "/root/autodl-tmp/qwen3_cage_v3/promotion_full_kitty_a2fe881",
+      "case_count": 120,
+      "target_token_count": 7680,
+      "failure_count": 0,
+      "case_ids_sha256": "fca71e59bb93d589f26f00f1d842baa82f038e08539e1c0a9402589c7b69711f",
+      "case_file_manifest_sha256": "c448494bce03646dc55c79994a5cbf177fdc24455880b768928ee36f27706f53",
+      "run_identity_sha256": "78c81e2546519ba230f8b6ef4dd11b0f72cf9f35492603d3850e3964e3f89315",
+      "summary_sha256": "173572d2905ab64bc4f19cd553c27cfcf1dddfb8c1223e94da424b7e23bcef4c",
+      "scientific_payload_sha256": "d64c9ce08f77575071ef052f702947d9257913136d6277d3476031bb039fde20"
+    }
+  },
+  "analysis_freeze": {
+    "candidate": "cage-v3-sr2-sink32-calibrated",
+    "predecessor": "cage-v1-kittypro-matched",
+    "uniform_baseline": "kivi-kittypro-matched",
+    "external_baseline": "kitty-pro-25pct",
+    "quality_reference": "fp16",
+    "statistical_unit": "PG-19 document",
+    "anchors_clustered_within_document": true,
+    "lengths_clustered_within_document_for_overall_effect": true,
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260816,
+    "bootstrap_interval": "linear-interpolated paired document-cluster percentile 95 percent",
+    "bootstrap_draws_reused_for_every_comparison": true,
+    "per_length_noninferiority_relative_ppl_percent_at_most": 0.5,
+    "overall_material_superiority_relative_ppl_percent_at_most": -1.0,
+    "overall_noninferiority_relative_ppl_percent_at_most": 0.5,
+    "report_all_methods_lengths_and_unfavorable_results": true,
+    "decimal_direction_alone_is_never_a_pass": true
+  },
+  "authorization": {
+    "promotion_interpretation": true,
+    "promotion_decision": true,
+    "additional_v3_tuning": false,
+    "pg19_test_access": false,
+    "llama2_v3_implementation_before_decision": false,
+    "kitty_llama_port": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
