@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "receipt_id": "llama2-7b-cage-v3-gpu-acceptance-postrun-failed-attempt-v1",
+  "status": "preserved_wrapper_validation_failure",
+  "claim_eligible": false,
+  "source_commit": "5eafa61d8ff139f5e5271cd64577d85edec80e44",
+  "attempted_on": "2026-08-17",
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_gpu_acceptance_postrun_5eafa61_20260817T224325.log",
+    "sha256": "f462aeed249670aa6593abd4896409a9a9bc6e2576ac8799ae5388106ef6b3e7",
+    "size_bytes": 5073
+  },
+  "requested_output": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_gpu_acceptance_postrun_5eafa61.json",
+  "failure": {
+    "type": "postrun_log_marker_scope_mismatch",
+    "repeat": "a",
+    "message": "execution log checks failed",
+    "root_cause": "The validator required RUN_STATUS, TEE_STATUS, and final RESULT markers that the safe shell wrapper emits after the tee pipeline closes, so those terminal-only markers cannot exist in the frozen execution log."
+  },
+  "scientific_artifacts_changed": false,
+  "gpu_acceptance_rerun_required": false,
+  "postrun_read_only_retry_authorized": true,
+  "boundary": {
+    "formal_transfer_execution_authorized": false,
+    "corpus_access_authorized": false,
+    "quality_metric_execution_authorized": false,
+    "runtime_claims_authorized": false
+  }
+}

@@ -81,10 +81,9 @@ def _validate_repeat(
         spec["execution_log"],
         required_markers=(
             f"=== LLAMA2 CAGE-V3 GPU ACCEPTANCE {upper} START ===",
-            f"LLAMA2_CAGE_V3_GPU_ACCEPTANCE_{upper}_RESULT=PASS",
+            "ACCEPTANCE_STATUS=0",
             "AUDIT_STATUS=0",
-            "RUN_STATUS=0",
-            "TEE_STATUS=0",
+            f"=== LLAMA2 CAGE-V3 GPU ACCEPTANCE {upper} END ===",
         ),
     )
     return result, science, log_checks
@@ -122,11 +121,9 @@ def build_postrun_audit(manifest_path: Path) -> dict[str, Any]:
         manifest["comparison"]["execution_log"],
         required_markers=(
             "=== LLAMA2 CAGE-V3 GPU ACCEPTANCE A-B COMPARISON START ===",
-            "LLAMA2_CAGE_V3_GPU_ACCEPTANCE_AB_COMPARISON_RESULT=PASS",
             "COMPARATOR_STATUS=0",
             "AUDIT_STATUS=0",
-            "RUN_STATUS=0",
-            "TEE_STATUS=0",
+            "=== LLAMA2 CAGE-V3 GPU ACCEPTANCE A-B COMPARISON END ===",
         ),
     )
 
