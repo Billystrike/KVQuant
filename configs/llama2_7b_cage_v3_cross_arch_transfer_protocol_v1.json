@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "protocol_id": "llama2-7b-cage-v3-cross-architecture-transfer-v1",
+  "frozen_on": "2026-08-17",
+  "status": "prospectively_frozen_after_qwen3_promotion_failure_before_any_llama2_cage_v3_metric",
+  "claim_eligible": false,
+  "study_type": "transparent_post_promotion_followup_with_prospective_llama2_freeze",
+  "scientific_question": "Does the CAGE-v3 improvement over original CAGE and matched KIVI observed on Qwen3-8B transfer to Llama-2-7B without Llama-specific metric tuning?",
+  "original_promotion_outcome": {
+    "protocol_path": "configs/qwen3_8b_cage_v3_promotion_protocol_v1.json",
+    "protocol_sha256": "bc5d3811c0483433feef883c5511d350e8e4cbc48e12f0e4804bc2ccecf31f18",
+    "results_receipt_path": "configs/qwen3_8b_cage_v3_promotion_results_receipt_v1.json",
+    "results_receipt_sha256": "ea8a4a3fe5158e8fd20cdc79f4618464f90d90c09f805e6ffef231ef1bd29066",
+    "analysis_manifest_path": "/root/autodl-tmp/qwen3_cage_v3/promotion_analysis_v1_14b7767/qwen3_cage_v3_promotion_analysis_manifest_v1.json",
+    "analysis_manifest_sha256": "1b530f2c8a722b51eaa2671bc72eddf0442a5847496ebcdffbc9834349be5c65",
+    "analysis_sha256": "91ce43167424588373ff8fa19a8db15eb714488afb5ca04ba41282ae0455574d",
+    "promotion_pass": false,
+    "candidate_outcome": "retain_original_cage_and_close_cage_v3_promotion",
+    "versus_cage_v1_relative_ppl_percent": -1.4994444010026036,
+    "versus_kivi_relative_ppl_percent": -2.200460517053506,
+    "versus_kitty_pro_relative_ppl_percent": -0.3229788024998175,
+    "kitty_pro_4032_relative_ppl_percent": 1.1904321873860653,
+    "kitty_pro_gate_pass": false,
+    "qwen3_conclusion_is_not_reopened": true
+  },
+  "protocol_deviation_disclosure": {
+    "original_stop_rule_acknowledged": true,
+    "original_stop_rule_would_not_authorize_llama2_v3": true,
+    "old_protocol_is_not_edited_or_reinterpreted": true,
+    "followup_was_defined_after_observing_qwen3_promotion_results": true,
+    "followup_is_frozen_before_any_llama2_v3_metric": true,
+    "justification": "The frozen candidate showed material gains over original CAGE and matched KIVI plus a 2.099 percent packed-memory reduction versus original CAGE, while failing only the separate Kitty-Pro all-length noninferiority gate. Cross-architecture transfer of the former effect is a distinct scientific question.",
+    "forbidden_claim": "This follow-up cannot be described as a preregistered pass of the original Qwen3 promotion gate or as evidence that CAGE-v3 beats Kitty-Pro on Qwen3."
+  },
+  "source_candidate": {
+    "method_id": "cage-v3-sr2-sink32-calibrated",
+    "qwen3_quota_plan_path": "configs/qwen3_8b_cage_v3_calibrated_quota_plan_v1.json",
+    "qwen3_quota_plan_sha256": "01a1063651d4565a732474b9f27f7a674f434750e7aea2f55429f619bed91914",
+    "key_backbone": "all-channel symmetric INT2 fake quantization",
+    "key_refinement": "prompt-adaptive sparse symmetric INT2 residual on frozen per-layer channel counts",
+    "value_policy": "uniform symmetric INT2; no Value adaptivity",
+    "sink_length": 32,
+    "key_base_group_size": 128,
+    "key_refinement_group_size": 128,
+    "value_group_size": 128,
+    "one_bit_channels": 0,
+    "qwen3_residual_lengths": {
+      "1024": 176,
+      "2048": 288,
+      "4032": 112
+    },
+    "no_llama_specific_candidate_search": true,
+    "no_llama_metric_calibration": true
+  },
+  "target_model_preflight": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "model_type": "llama",
+    "expected_num_hidden_layers": 32,
+    "expected_num_attention_heads": 32,
+    "expected_num_key_value_heads": 32,
+    "expected_head_dim": 128,
+    "expected_native_context": 4096,
+    "exact_model_and_tokenizer_hashes_must_be_frozen_before_implementation": true,
+    "existing_paired_ppl_config_path": "configs/cage_ppl_paired_llama2_7b.json",
+    "existing_paired_ppl_config_sha256": "ddcab3869eef0c6b1c9892f15c2257c4dafed583e0cc3073a7410356e15e350d",
+    "existing_acceptance_config_path": "configs/cage_ppl_paired_llama2_7b_acceptance.json",
+    "existing_acceptance_config_sha256": "e19187a8a743cc7286ae0895246d29f2be654508201dbf931b7ba32444fc6b7d"
+  },
+  "architecture_normalization": {
+    "head_dim_requirement": "Llama head_dim must equal the frozen Qwen3 head_dim of 128",
+    "per_kv_head_rule": "Apply the same channel count independently to every target KV head; do not scale channel count by the 8-to-32 KV-head ratio.",
+    "layer_score_transfer": {
+      "source_layers": 36,
+      "target_layers": 32,
+      "source_score": "frozen Qwen3 sink32 calibration layer score for the same prompt length",
+      "target_layer_center": "u_j = (j + 0.5) / 32 for target layer j in [0,31]",
+      "source_layer_index": "i_j = min(35, floor(36 * u_j))",
+      "mapped_score": "source layer score at i_j",
+      "ranking": "descending mapped score with smaller target layer index as the deterministic tie break"
+    },
+    "target_quota_rule": {
+      "top_ranked_11_layers": 48,
+      "middle_ranked_10_layers": 32,
+      "bottom_ranked_11_layers": 16,
+      "total_two_bit_channels_across_32_layers_per_kv_head": 1024,
+      "mean_two_bit_channels_per_layer_per_kv_head": 32
+    },
+    "sink_length_transfer": "retain 32 tokens",
+    "residual_length_transfer": "retain the frozen Qwen3 residual length independently at 1024, 2048, and 4032 tokens",
+    "no_target_metric_used_by_mapping": true
+  },
+  "input_and_scoring": {
+    "corpus": "the exact frozen Salesforce/wikitext wikitext-2-raw-v1 test token stream already used by the Llama-2 paired-PPL experiment",
+    "token_ids_sha256": "8163e5b39c668be8eec1e4d82eaecb1ee2a09d958f81873773e93bf4a4484f10",
+    "anchor_rule": "reuse the exact frozen 50 interior-51sts anchors",
+    "anchor_count": 50,
+    "prompt_lengths": [1024, 2048, 4032],
+    "continuation_tokens": 64,
+    "primary_metric": "cache-conditioned teacher-forced continuation mean NLL over exactly 64 target tokens",
+    "relative_ppl_percent": "100 * (exp(candidate_mean_nll_minus_baseline_mean_nll) - 1)",
+    "paired_unit": "anchor",
+    "same_inputs_lengths_targets_and_scoring_for_every_method": true,
+    "known_baseline_results_do_not_authorize_candidate_or_threshold_changes": true,
+    "local_perturbation_is_secondary_diagnostic_only": true
+  },
+  "method_roles": {
+    "quality_reference": "fp16",
+    "transfer_candidate": "cage-v3-llama2-depth-normalized",
+    "primary_predecessor": "cage-v1-closest-packed-byte",
+    "primary_uniform_baseline": "kivi-closest-feasible-int2",
+    "existing_fixed_operating_points": ["cage-r64", "cage-r128", "kivi-g64-r64", "kivi-g32-r128"],
+    "byte_only_selection": "CPU-only packed-byte selection from the exact grids below before any Llama-v3 metric; minimize absolute byte difference at each length, then prefer the lower-byte point, then lexicographic point ID",
+    "cage_v1_match_tolerance_relative_to_candidate": 0.0025,
+    "kivi_feasibility_boundary": "KIVI remains symmetric INT2 with supported group sizes and residual divisibility. If no legal KIVI point is within the CAGE-v1 tolerance, retain the closest legal point, require that it uses at least the candidate bytes, report the exact memory surplus, and do not call the comparison equal-memory.",
+    "kitty_pro_role": "secondary external transfer track only after a separate non-official Llama port fidelity protocol; not part of the primary transfer gate"
+  },
+  "frozen_packed_memory_preflight": {
+    "representation": "complete active logical packed paper estimate; not realized CUDA allocation",
+    "model_shape": {
+      "batch_size": 1,
+      "num_hidden_layers": 32,
+      "num_key_value_heads": 32,
+      "head_dim": 128,
+      "bytes_per_meta": 2,
+      "bytes_per_full_precision": 2
+    },
+    "candidate_formula": "all-channel INT2 K/V backbone plus frozen sparse INT2 Key refinement, one byte per persistent refinement-channel index, 32-token FP16 sink, and frozen per-length residual",
+    "cage_v1_grid": {
+      "residual_length_min": 1,
+      "residual_length_max": 512,
+      "residual_length_step": 1,
+      "key_bucket_sizes": [42, 43, 43],
+      "value_bucket_sizes": [42, 43, 43],
+      "key_group_sizes": [32, 64, 128],
+      "value_group_sizes": [32, 64, 128],
+      "bits": 2,
+      "bytes_per_bucket_index": 8
+    },
+    "kivi_grid": {
+      "bits": 2,
+      "group_sizes": [32, 64, 128],
+      "residual_length_rule": "positive multiples of group_size at most 512",
+      "sink_length": 0
+    },
+    "selection_rule": "minimize absolute model-wide packed-byte difference from the candidate independently at each prompt length, then prefer lower packed bytes, then lexicographic point_id",
+    "quality_metrics_consumed": false,
+    "grid_change_after_preflight": false
+  },
+  "primary_transfer_gate": {
+    "candidate": "cage-v3-llama2-depth-normalized",
+    "comparisons": ["cage-v1-closest-packed-byte", "kivi-closest-feasible-int2"],
+    "per_length_noninferiority_relative_ppl_percent_at_most": 0.5,
+    "overall_material_superiority_relative_ppl_percent_at_most": -1.0,
+    "bootstrap_interval": "paired anchor percentile 95 percent interval",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260817,
+    "cage_v1_pass_rule": "overall relative PPL at most -1.0 percent, NLL-delta CI95 upper bound below zero, every length relative PPL at most +0.5 percent, and closest CAGE-v1 packed-byte difference within 0.25 percent",
+    "kivi_pass_rule": "overall relative PPL at most -1.0 percent, NLL-delta CI95 upper bound below zero, every length relative PPL at most +0.5 percent, candidate packed bytes no greater than closest legal KIVI at every length, and exact memory surplus reported",
+    "both_primary_comparisons_must_pass": true,
+    "decimal_direction_alone_is_never_a_pass": true
+  },
+  "statistics": {
+    "paired_unit": "anchor",
+    "anchor_windows": "the 50 deterministic interior-51sts windows are nonoverlapping at the frozen token count and retain all methods and lengths within each resampled anchor",
+    "overall_bootstrap": "resample the 50 anchors with replacement and retain all methods, prompt lengths, and 64 target tokens from each selected anchor",
+    "per_length_bootstrap": "resample the same 50 paired anchors independently for each prompt length",
+    "inference_scope": "deterministic protocol-level uncertainty on one concatenated WikiText-2 test stream; not document-clustered or population-level significance",
+    "canonical_full_corpus_perplexity_claim": false
+  },
+  "kitty_secondary_track": {
+    "included_in_primary_transfer_decision": false,
+    "current_execution_authorized": false,
+    "requires_separate_source_and_kernel_fidelity_audit": true,
+    "requires_two_repeat_cpu_and_gpu_acceptance": true,
+    "must_report_qwen3_4032_failure_alongside_any_llama_result": true,
+    "cannot_reopen_qwen3_promotion": true
+  },
+  "staged_execution": {
+    "stage_0_static_preflight": {
+      "authorized": true,
+      "gpu": false,
+      "reads_llama_v3_metrics": false,
+      "outputs": ["exact model/tokenizer identity receipt", "32-layer transferred quota plan", "packed-memory candidate and frozen comparison grids"]
+    },
+    "stage_1_cpu_implementation_acceptance": {
+      "authorized_only_after_stage_0_pass": true,
+      "full_model_weights": false,
+      "checks": ["cache continuation", "sink preservation", "sparse Key selection", "uniform Value path", "memory accounting", "fail-closed behavior"]
+    },
+    "stage_2_gpu_acceptance": {
+      "authorized_only_after_stage_1_pass_and_checked_in_gate": true,
+      "fresh_repeats": 2,
+      "full_transfer_execution_authorized": false
+    },
+    "stage_3_full_transfer": {
+      "authorized_only_after_stage_2_joint_postrun_and_checked_in_gate": true,
+      "cases_per_method": 150,
+      "current_authorized": false
+    }
+  },
+  "reporting_and_boundaries": {
+    "report_qwen3_promotion_failure_and_all_llama_results": true,
+    "report_unfavorable_lengths": true,
+    "additional_v3_tuning_after_any_llama_metric": false,
+    "pg19_test_access": false,
+    "kitty_llama_port_currently_authorized": false,
+    "llama2_full_gpu_execution_currently_authorized": false,
+    "paper_main_method_change_currently_authorized": false,
+    "runtime_latency_throughput_or_real_cuda_memory_claim": false,
+    "memory_representation": "complete logical packed paper estimate only",
+    "if_primary_gate_passes": "CAGE-v3 may be considered a cross-architecture successor to original CAGE, subject to complete reporting and a separately frozen paper-integration decision.",
+    "if_primary_gate_fails": "Retain original CAGE as the paper method and close this transfer study without target-specific tuning."
+  }
+}
