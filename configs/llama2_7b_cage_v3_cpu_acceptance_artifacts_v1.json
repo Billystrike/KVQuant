@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "manifest_id": "llama2-7b-cage-v3-cpu-acceptance-artifacts-v1",
+  "status": "frozen_after_direct_acceptance_before_gpu_gate_definition",
+  "claim_eligible": false,
+  "source_commit": "8d45f5628180a49106a274fa4c1ce8ff1c2667b5",
+  "protocol": {
+    "path": "configs/llama2_7b_cage_v3_cpu_acceptance_protocol_v1.json",
+    "sha256": "ea5299d08d0dbceabd701fcdd063ec3ab04b8fa5ad4c0ad6573f161c0649f6f1"
+  },
+  "result": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_cpu_acceptance_8d45f56.json",
+    "sha256": "1479ceee94d402e4d27f7253394bc39661ed193abdbbce3cd0038f321032a187",
+    "size_bytes": 4086
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_cpu_acceptance_8d45f56_20260817T214103.log",
+    "sha256": "2091a469fdbd7533bac8406266df94d59fd4b5ccc2a6b41e210cbb523c0a8f61",
+    "size_bytes": 12481
+  },
+  "expected_acceptance": {
+    "acceptance_id": "llama2-7b-cage-v3-cpu-implementation-acceptance-v1",
+    "protocol_sha256": "ea5299d08d0dbceabd701fcdd063ec3ab04b8fa5ad4c0ad6573f161c0649f6f1",
+    "status": "pass",
+    "check_count": 18,
+    "required_checks": [
+      "all_channel_int2_key_backbone_with_sparse_refinement",
+      "attention_cache_length_exact",
+      "attention_output_finite",
+      "fp16_sink_preserved",
+      "multitoken_continuation_rejected",
+      "old_quantized_prefix_not_requantized",
+      "persistent_prompt_adaptive_sparse_key_indices",
+      "prefill_attention_exact",
+      "production_architecture_exact",
+      "production_quota_installation_exact",
+      "reconstructed_cache_finite",
+      "rolling_value_residual",
+      "single_token_continuation_and_key_flush",
+      "sparse_indices_persist_across_decode",
+      "uniform_int2_value_without_adaptive_state",
+      "unsupported_batch_size_rejected",
+      "unsupported_prompt_length_rejected",
+      "wrong_architecture_rejected"
+    ]
+  },
+  "wrapper_outcome": {
+    "run_status": 1,
+    "tee_status": 0,
+    "overall_label": "fail_due_to_broad_environment_package_check_after_scientific_acceptance",
+    "scientific_acceptance_completed_before_failure": true,
+    "package_check_pass": false,
+    "observed_unrelated_requirements": [
+      "kivi 0.1.0 requires fastchat, which is not installed.",
+      "datasets 5.0.0 has requirement huggingface-hub<2.0,>=0.25.0, but you have huggingface-hub 0.24.7.",
+      "pyproject-api 1.10.1 has requirement packaging>=25, but you have packaging 24.0.",
+      "tox 4.56.4 has requirement packaging>=26, but you have packaging 24.0."
+    ],
+    "environment_mutation_authorized": false,
+    "rerun_scientific_acceptance_required": false
+  },
+  "postrun_boundary": {
+    "qwen3_conclusion_reopened": false,
+    "llama2_quality_metrics_read": false,
+    "full_model_weights_loaded": false,
+    "gpu_computation_performed": false,
+    "gpu_acceptance_gate_definition_authorized_if_audit_passes": true,
+    "gpu_acceptance_execution_authorized": false,
+    "full_transfer_authorized": false,
+    "kitty_llama_port_authorized": false,
+    "paper_main_method_change_authorized": false,
+    "runtime_claims_authorized": false
+  }
+}
