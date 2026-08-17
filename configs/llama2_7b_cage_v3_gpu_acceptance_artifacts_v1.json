@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "manifest_id": "llama2-7b-cage-v3-production-gpu-acceptance-artifacts-v1",
+  "frozen_on": "2026-08-17",
+  "status": "frozen_after_two_repeat_comparison_before_postrun_interpretation",
+  "claim_eligible": false,
+  "execution_source_commit": "9dafb91d994004f2dee888527de0d510e7f1489f",
+  "protocol_sha256": "d4e3e0468f0719f00632ddc6e0b40e04cc97c459fa2352cd9fe27cb8585273ba",
+  "preflight_receipt_sha256": "63f1473f02a7628ebe677e6e65b7001870514c6f81a630ffb1e3131b155b2d25",
+  "gate_receipt_sha256": "24054c0018578e6b8eb07e69bd931f89b49871476b4ef397243ceff607d2daff",
+  "expected_scientific_payload_sha256": "55c72774342885664f7fa388f7a1c0b996cbb864d7cb9f2678eb20fb3c6cce23",
+  "repeat_a": {
+    "result": {
+      "path": "/root/autodl-tmp/llama2_cage_v3/gpu_acceptance_a_9dafb91/result.json",
+      "sha256": "2309379bda5f831ed39f7bb59845b2f1fad5bfe649d93518ded00c70afe77fd5",
+      "size_bytes": 36239
+    },
+    "execution_log": {
+      "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_gpu_acceptance_a_9dafb91_20260817T222514.log",
+      "sha256": "9b1d196c5e89a4aba93f81ae3ee301d1e17bef0aababd85967a58c1481f5a20d",
+      "size_bytes": 41842
+    }
+  },
+  "repeat_b": {
+    "result": {
+      "path": "/root/autodl-tmp/llama2_cage_v3/gpu_acceptance_b_9dafb91/result.json",
+      "sha256": "5fecc87fee28b81d43d2140c868fa463c0c1b46fe46799c8f95bb2cffc994a7f",
+      "size_bytes": 36239
+    },
+    "execution_log": {
+      "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_gpu_acceptance_b_9dafb91_20260817T222807.log",
+      "sha256": "54536f4fb5776498521cea32c996e1841a4ed22954dcf0855b09e83112d4d7c6",
+      "size_bytes": 40328
+    }
+  },
+  "comparison": {
+    "result": {
+      "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_gpu_acceptance_comparison_9dafb91.json",
+      "sha256": "98e900dd9c1b07372031edd1db3457057755f5c2243cc73b31855458d89ada11",
+      "size_bytes": 504
+    },
+    "execution_log": {
+      "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_gpu_acceptance_comparison_9dafb91_20260817T223104.log",
+      "sha256": "1a8ed7c735f89433c25361e247bc108f7d0d1929edad5a52247a43696f082c19",
+      "size_bytes": 2566
+    }
+  },
+  "preserved_boundary": {
+    "synthetic_acceptance_only": true,
+    "corpus_accessed": false,
+    "quality_metric_computed": false,
+    "formal_transfer_authorized": false,
+    "runtime_claims_authorized": false,
+    "real_packed_cuda_cache_allocated": false
+  }
+}
