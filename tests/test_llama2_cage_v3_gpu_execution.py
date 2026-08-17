@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import json
 import unittest
 from pathlib import Path
 
@@ -27,6 +28,15 @@ class Llama2CageV3GPUExecutionTest(unittest.TestCase):
         self.assertEqual(file_sha256(path), "63f1473f02a7628ebe677e6e65b7001870514c6f81a630ffb1e3131b155b2d25")
         self.assertTrue(all(receipt["checks"].values()))
         self.assertFalse(any(receipt["execution_boundary"].values()))
+
+    def test_checked_in_execution_gate_receipt_matches_server_artifact(self) -> None:
+        path = REPO_ROOT / "configs/llama2_7b_cage_v3_gpu_execution_gate_receipt_v1.json"
+        self.assertEqual(file_sha256(path), "24054c0018578e6b8eb07e69bd931f89b49871476b4ef397243ceff607d2daff")
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["status"], "pass")
+        self.assertTrue(receipt["decision"]["gpu_acceptance_execution_authorized"])
+        self.assertFalse(receipt["decision"]["formal_transfer_authorized"])
+        self.assertFalse(receipt["decision"]["quality_metric_authorized"])
 
     def test_gate_is_read_only_and_does_not_import_torch_or_load_model(self) -> None:
         source = (REPO_ROOT / "scripts/llama2_validate_cage_v3_gpu_execution_gate.py").read_text(encoding="utf-8")

@@ -1,0 +1,111 @@
+{
+  "checks": {
+    "all_execution_sources_frozen": true,
+    "no_corpus_or_quality_metric": true,
+    "no_cuda_computation": true,
+    "no_model_weights_loaded": true,
+    "production_model_config_identity": true,
+    "production_weight_full_sha256_identity": true,
+    "protocol_frozen": true,
+    "repository_clean": true,
+    "single_expected_gpu_with_sufficient_memory": true,
+    "source_manifest_frozen": true,
+    "static_preflight_receipt_frozen_and_passed": true,
+    "weight_identity_matches_static_preflight": true
+  },
+  "claim_eligible": false,
+  "decision": {
+    "corpus_access_authorized": false,
+    "formal_transfer_authorized": false,
+    "gpu_acceptance_execution_authorized": true,
+    "quality_metric_authorized": false,
+    "runtime_claims_authorized": false
+  },
+  "diagnostic_telemetry": {
+    "weight_full_sha256_seconds": 11.998861372470856
+  },
+  "frozen_sources": {
+    "acceptance_runner": {
+      "path": "scripts/llama2_run_cage_v3_gpu_acceptance.py",
+      "sha256": "167d5422e68549b26a9678dad161d5dfa911050236ea5f01dd96007e02ee6dd7"
+    },
+    "base_fake_quant": {
+      "path": "models/cage_quant.py",
+      "sha256": "273d9fd8dc2de33de9912cae862c7f01eceb7004fc08fd2011945cc877611fe8"
+    },
+    "execution_util": {
+      "path": "utils/llama2_cage_v3_gpu_execution.py",
+      "sha256": "35ef6cf2fdc3e7e3f1e8dd7c06fc2fc6a3807864f977a5fb691b9db41a7e1400"
+    },
+    "hash_util": {
+      "path": "utils/qwen3_cage_v4_data.py",
+      "sha256": "bf4b445f6ab1c77acbf7dd5418fc00e919ccdfed6cb25b72626d8b2e55d33db3"
+    },
+    "key_importance": {
+      "path": "models/cage_importance.py",
+      "sha256": "d6df97061cae0cb402520a8c802bd4eb2e9cd9f4919b413994651b65fdc18a9b"
+    },
+    "llama_cage_v3_runtime": {
+      "path": "models/llama_cage_v3.py",
+      "sha256": "3633c702596c3223b52be7999f00f40179679a89be6ef27e6620e5f903ce7aa8"
+    },
+    "llama_model_adapter": {
+      "path": "models/llama_kivi.py",
+      "sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4"
+    },
+    "protocol_util": {
+      "path": "utils/llama2_cage_v3_gpu_acceptance_protocol.py",
+      "sha256": "fdb6f22e60c1a2d2c4034538d01634e167613ec5d79a35a312351387dec3c777"
+    },
+    "repeat_comparator": {
+      "path": "scripts/llama2_compare_cage_v3_gpu_acceptance.py",
+      "sha256": "7d601f555cdc222e1ee9a1f6d5ec001c66a43f9703054b6559cbbe5083367650"
+    },
+    "sparse_refinement_quant": {
+      "path": "models/cage_v2_quant.py",
+      "sha256": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a"
+    }
+  },
+  "gate_id": "llama2-7b-cage-v3-production-gpu-acceptance-execution-gate-v1",
+  "gpu_inventory": {
+    "driver_version": "550.67",
+    "memory_total_mib": 24564,
+    "name": "NVIDIA GeForce RTX 4090 D",
+    "visible_gpu_count": 1
+  },
+  "model_config_sha256": "9242e7db1bc2a17873e66084c3b1c6ed10883076e156b338fd6a7775748e2e3c",
+  "model_reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+  "next_step": "freeze this passing gate receipt before running repeat A and repeat B in fresh processes",
+  "preflight_receipt_sha256": "63f1473f02a7628ebe677e6e65b7001870514c6f81a630ffb1e3131b155b2d25",
+  "protocol_sha256": "d4e3e0468f0719f00632ddc6e0b40e04cc97c459fa2352cd9fe27cb8585273ba",
+  "schema_version": 1,
+  "source_checks": {
+    "acceptance_runner": true,
+    "base_fake_quant": true,
+    "execution_util": true,
+    "hash_util": true,
+    "key_importance": true,
+    "llama_cage_v3_runtime": true,
+    "llama_model_adapter": true,
+    "protocol_util": true,
+    "repeat_comparator": true,
+    "sparse_refinement_quant": true
+  },
+  "source_commit": "83f9849de92d81d39d6fd2d0fb862fb608bf6fde",
+  "sources_manifest_sha256": "5a67eb0aeef944cc2ccda7516e6b88d9ddd803cd0bdabfa1385799aa6d604f4d",
+  "status": "pass",
+  "weight_receipts": [
+    {
+      "identity_match": true,
+      "name": "model-00001-of-00002.safetensors",
+      "sha256": "4ec71fd53e99766de38f24753b30c9e8942630e9e576a1ba27b0ec531e87be41",
+      "size_bytes": 9976578928
+    },
+    {
+      "identity_match": true,
+      "name": "model-00002-of-00002.safetensors",
+      "sha256": "41780b5dac322ac35598737e99208d90bdc632a1ba3389ebedbb46a1d8385a7f",
+      "size_bytes": 3500297344
+    }
+  ]
+}
