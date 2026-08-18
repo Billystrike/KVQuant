@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "execution_id": "llama2-7b-cage-v3-transfer-quality-acceptance-v1",
+  "status": "frozen_before_any_llama2_v3_quality_metric",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_protocol_v1.json",
+    "sha256": "355d73629dece9015288d10acdd7c95e08da0cff941a38395d54e1868380b654"
+  },
+  "input_artifacts": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_input_artifacts_v1.json",
+    "sha256": "6e81ca1741cabd3268983013d99d2434099992ccd0e6f4bdb79f47dafabaac86"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_input_manifest_68d8bef.json",
+    "sha256": "ef6b3e9c48e219ab09d35dadca4026f2cd99f47c3c922d8a8e1d2b5c4db19d04",
+    "size_bytes": 5160675,
+    "anchor_count": 50,
+    "input_record_count": 150
+  },
+  "quota_plan": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quota_plan_v1.json",
+    "sha256": "6fc7e33a63db5ed4b1e303edd50c306cf91ab07b99dc981b1d6ea91a58f845e8"
+  },
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "config_sha256": "9242e7db1bc2a17873e66084c3b1c6ed10883076e156b338fd6a7775748e2e3c",
+    "weight_files": [
+      {
+        "name": "model-00001-of-00002.safetensors",
+        "sha256": "4ec71fd53e99766de38f24753b30c9e8942630e9e576a1ba27b0ec531e87be41",
+        "size_bytes": 9976578928
+      },
+      {
+        "name": "model-00002-of-00002.safetensors",
+        "sha256": "41780b5dac322ac35598737e99208d90bdc632a1ba3389ebedbb46a1d8385a7f",
+        "size_bytes": 3500297344
+      }
+    ],
+    "dtype": "float16",
+    "device": "cuda:0"
+  },
+  "environment": {
+    "python_major_minor": "3.10",
+    "torch": "2.4.1+cu121",
+    "transformers": "4.43.1",
+    "gpu": "NVIDIA GeForce RTX 4090 D"
+  },
+  "acceptance": {
+    "anchor_indices": [0],
+    "prompt_lengths": [1024, 2048, 4032],
+    "method_roles": [
+      "quality_reference",
+      "transfer_candidate",
+      "primary_predecessor",
+      "primary_uniform_baseline"
+    ],
+    "case_count_per_repeat": 12,
+    "repeats": ["a", "b"],
+    "required_repeat_consistency": "bitwise_equal_json_scientific_payload",
+    "telemetry_excluded_from_repeat_comparison": true
+  },
+  "scoring": {
+    "primary_metric": "cache-conditioned teacher-forced mean NLL over all 64 continuation targets",
+    "boundary_target_count": 1,
+    "single_token_decode_target_count": 63,
+    "primary_target_count_per_case": 64,
+    "fp16_one_shot_reference": "diagnostic_only",
+    "same_token_ids_targets_order_and_reduction_for_all_methods": true
+  },
+  "determinism": {
+    "seed": 20260817,
+    "torch_deterministic_algorithms": true,
+    "cuda_matmul_allow_tf32": false,
+    "cudnn_allow_tf32": false,
+    "batch_size": 1
+  },
+  "source_manifest": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_sources_v1.json",
+    "sha256": "6d35dc1b7ecb54f0eb4d5689a0523f2f1eb457586fbdfa0a1b2983882a693425"
+  },
+  "output": {
+    "repeat_a": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_a",
+    "repeat_b": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_b",
+    "resume": true,
+    "fresh_directory_required_for_first_attempt": true
+  },
+  "current_boundary": {
+    "quality_acceptance_execution_authorized": false,
+    "full_600_case_execution_authorized": false,
+    "candidate_tuning_authorized": false,
+    "paper_main_method_change_authorized": false,
+    "runtime_claims_authorized": false
+  },
+  "next_step": "run a read-only acceptance execution gate preflight and check in its exact receipt before either repeat"
+}

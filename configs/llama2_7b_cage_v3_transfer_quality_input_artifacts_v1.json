@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "artifact_id": "llama2-7b-cage-v3-transfer-quality-input-artifacts-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "execution_source_commit": "68d8befb56ab08f64ca0b3332866f2725eaf971d",
+  "protocol_sha256": "355d73629dece9015288d10acdd7c95e08da0cff941a38395d54e1868380b654",
+  "static_preflight_sha256": "238508a3a1dbaaf3d81bc1d353c848e46d653c093c3972c4048c19e27c7a22e2",
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_input_manifest_68d8bef.json",
+    "sha256": "ef6b3e9c48e219ab09d35dadca4026f2cd99f47c3c922d8a8e1d2b5c4db19d04",
+    "size_bytes": 5160675,
+    "anchor_count": 50,
+    "input_record_count": 150,
+    "expanded_method_case_count": 600
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_input_manifest_68d8bef_20260818T205908.log",
+    "sha256": "d90f9e425eb56d567fd471b55dedf27bd8c9c1785a324a599f6602f818057c55",
+    "size_bytes": 9880
+  },
+  "decision": {
+    "input_manifest_pass": true,
+    "quality_acceptance_protocol_design_authorized": true,
+    "quality_acceptance_execution_authorized": false,
+    "full_600_case_execution_authorized": false,
+    "paper_claims_authorized": false
+  }
+}
