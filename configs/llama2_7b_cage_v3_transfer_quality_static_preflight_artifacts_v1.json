@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "artifact_id": "llama2-7b-cage-v3-transfer-quality-static-preflight-artifacts-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "execution_source_commit": "ea966b368c63b36ec830b67f3de34f3dea643304",
+  "protocol_sha256": "355d73629dece9015288d10acdd7c95e08da0cff941a38395d54e1868380b654",
+  "preflight": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_static_preflight_ea966b3.json",
+    "sha256": "238508a3a1dbaaf3d81bc1d353c848e46d653c093c3972c4048c19e27c7a22e2",
+    "size_bytes": 4575
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_static_preflight_ea966b3_20260818T204931.log",
+    "sha256": "37ca6bf0d398fa400fef5b41db52335f381d5ce00c1c8114402e49fda1b345b7",
+    "size_bytes": 11752
+  },
+  "decision": {
+    "static_preflight_pass": true,
+    "exact_input_manifest_build_authorized": true,
+    "corpus_access_limited_to_frozen_identity_and_anchor_materialization": true,
+    "model_weights_access_authorized": false,
+    "quality_metrics_authorized": false,
+    "quality_acceptance_execution_authorized": false,
+    "full_600_case_execution_authorized": false
+  }
+}
