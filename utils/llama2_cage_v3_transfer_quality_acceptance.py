@@ -64,6 +64,19 @@ def validate_execution(execution: Mapping[str, Any], *, repo_root: Path) -> None
         "authorization_changed": False,
     }, "acceptance administrative repair changed")
     require(file_sha256(repo_root / repair["failed_attempt_receipt_path"]) == repair["failed_attempt_receipt_sha256"], "failed gate-attempt receipt changed")
+    execution_repair = execution.get("acceptance_execution_repair", {})
+    require(execution_repair == {
+        "reason": "The first Repeat A attempt stopped before logits because deterministic CuBLAS requires CUBLAS_WORKSPACE_CONFIG to be set before importing PyTorch.",
+        "failed_attempt_receipt_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_a_failed_attempt_v1.json",
+        "failed_attempt_receipt_sha256": "ed0995748cdea3f0a9d106349096cba1e962d16c7c19950cf1ed54e0ebcdef2e",
+        "required_cublas_workspace_config": ":4096:8",
+        "candidate_algorithm_changed": False,
+        "input_manifest_changed": False,
+        "method_matrix_changed": False,
+        "scoring_changed": False,
+        "authorization_changed": False,
+    }, "acceptance execution repair changed")
+    require(file_sha256(repo_root / execution_repair["failed_attempt_receipt_path"]) == execution_repair["failed_attempt_receipt_sha256"], "failed Repeat A receipt changed")
     protocol = execution.get("protocol", {})
     require(protocol == {"path": "configs/llama2_7b_cage_v3_transfer_quality_protocol_v1.json", "sha256": PROTOCOL_SHA256}, "acceptance protocol link changed")
     inputs = execution.get("input_artifacts", {})
@@ -98,7 +111,7 @@ def validate_execution(execution: Mapping[str, Any], *, repo_root: Path) -> None
     require(scoring.get("fp16_one_shot_reference") == "diagnostic_only", "FP16 diagnostic boundary changed")
     require(scoring.get("same_token_ids_targets_order_and_reduction_for_all_methods") is True, "scoring equality changed")
     determinism = execution.get("determinism", {})
-    require(determinism == {"seed": 20260817, "torch_deterministic_algorithms": True, "cuda_matmul_allow_tf32": False, "cudnn_allow_tf32": False, "batch_size": 1}, "determinism changed")
+    require(determinism == {"seed": 20260817, "torch_deterministic_algorithms": True, "cublas_workspace_config": ":4096:8", "cuda_matmul_allow_tf32": False, "cudnn_allow_tf32": False, "batch_size": 1}, "determinism changed")
     boundary = execution.get("current_boundary", {})
     for key in ("quality_acceptance_execution_authorized", "full_600_case_execution_authorized", "candidate_tuning_authorized", "paper_main_method_change_authorized", "runtime_claims_authorized"):
         require(boundary.get(key) is False, f"acceptance boundary changed: {key}")

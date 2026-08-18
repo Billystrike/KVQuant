@@ -15,6 +15,13 @@ import time
 from pathlib import Path
 
 
+REQUIRED_CUBLAS_WORKSPACE_CONFIG = ":4096:8"
+if os.environ.get("CUBLAS_WORKSPACE_CONFIG") not in (None, REQUIRED_CUBLAS_WORKSPACE_CONFIG):
+    raise RuntimeError(
+        "CUBLAS_WORKSPACE_CONFIG must equal :4096:8 for the frozen deterministic acceptance"
+    )
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = REQUIRED_CUBLAS_WORKSPACE_CONFIG
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -216,6 +223,11 @@ def main() -> None:
     failures_dir.mkdir(exist_ok=True)
 
     torch.manual_seed(execution["determinism"]["seed"])
+    require(
+        execution["determinism"]["cublas_workspace_config"] == REQUIRED_CUBLAS_WORKSPACE_CONFIG
+        and os.environ.get("CUBLAS_WORKSPACE_CONFIG") == REQUIRED_CUBLAS_WORKSPACE_CONFIG,
+        "deterministic CuBLAS workspace configuration changed",
+    )
     torch.cuda.manual_seed_all(execution["determinism"]["seed"])
     torch.use_deterministic_algorithms(True)
     torch.backends.cuda.matmul.allow_tf32 = False
@@ -271,6 +283,7 @@ def main() -> None:
                     "torch": str(torch.__version__),
                     "transformers": __import__("transformers").__version__,
                     "gpu": torch.cuda.get_device_name(0),
+                    "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
                 },
             }
             validate_completed_case(record, case)
@@ -315,6 +328,12 @@ def main() -> None:
             "candidate_tuning_authorized": False,
             "paper_claims_authorized": False,
             "runtime_claims_authorized": False,
+        },
+        "determinism": {
+            "torch_deterministic_algorithms": True,
+            "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
+            "cuda_matmul_allow_tf32": False,
+            "cudnn_allow_tf32": False,
         },
     }
     require(summary["completed_cases"] == 12 and summary["failure_records"] == 0, "acceptance completion failed")

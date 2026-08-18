@@ -124,6 +124,9 @@ class Llama2CageV3TransferQualityAcceptanceTest(unittest.TestCase):
 
     def test_runner_comparator_and_gate_preserve_execution_boundaries(self):
         runner = RUNNER_PATH.read_text(encoding="utf-8")
+        self.assertLess(runner.index('os.environ["CUBLAS_WORKSPACE_CONFIG"]'), runner.index("import torch"))
+        self.assertIn('REQUIRED_CUBLAS_WORKSPACE_CONFIG = ":4096:8"', runner)
+        self.assertEqual(self.execution["determinism"]["cublas_workspace_config"], ":4096:8")
         self.assertIn("for index in range(63)", runner)
         self.assertIn('"all_target_count": 64', runner)
         self.assertIn("install_llama_cage_v3_config", runner)

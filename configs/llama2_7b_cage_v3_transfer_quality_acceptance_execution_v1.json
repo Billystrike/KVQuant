@@ -14,6 +14,17 @@
     "scoring_changed": false,
     "authorization_changed": false
   },
+  "acceptance_execution_repair": {
+    "reason": "The first Repeat A attempt stopped before logits because deterministic CuBLAS requires CUBLAS_WORKSPACE_CONFIG to be set before importing PyTorch.",
+    "failed_attempt_receipt_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_a_failed_attempt_v1.json",
+    "failed_attempt_receipt_sha256": "ed0995748cdea3f0a9d106349096cba1e962d16c7c19950cf1ed54e0ebcdef2e",
+    "required_cublas_workspace_config": ":4096:8",
+    "candidate_algorithm_changed": false,
+    "input_manifest_changed": false,
+    "method_matrix_changed": false,
+    "scoring_changed": false,
+    "authorization_changed": false
+  },
   "protocol": {
     "path": "configs/llama2_7b_cage_v3_transfer_quality_protocol_v1.json",
     "sha256": "355d73629dece9015288d10acdd7c95e08da0cff941a38395d54e1868380b654"
@@ -82,13 +93,14 @@
   "determinism": {
     "seed": 20260817,
     "torch_deterministic_algorithms": true,
+    "cublas_workspace_config": ":4096:8",
     "cuda_matmul_allow_tf32": false,
     "cudnn_allow_tf32": false,
     "batch_size": 1
   },
   "source_manifest": {
     "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_sources_v1.json",
-    "sha256": "e94cd40de174ab4b7ee15e44ff2515774b6122e1dcf17500bcb97874ec5845b6"
+    "sha256": "6da4cc8348111a95125e29dc908eb4447b14b392e4a31ec60ba6fe743068414a"
   },
   "output": {
     "repeat_a": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_a",

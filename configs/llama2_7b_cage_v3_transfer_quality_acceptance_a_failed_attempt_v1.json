@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "receipt_id": "llama2-7b-cage-v3-transfer-quality-acceptance-a-failed-attempt-v1",
+  "status": "failed_before_first_quality_metric",
+  "claim_eligible": false,
+  "repeat": "a",
+  "source_commit": "37ccbeb49c0de72723de6dbb09304bda3bf80286",
+  "execution_sha256": "96a8ff9ea95847e8209595eee5148d75d28ff0fa3d4b71c98e5fe0770a7480ce",
+  "gate_receipt_sha256": "cbbb3fee0437481e439438fb9d11da34f7cfdaba136126d01358eea43d81dba1",
+  "failure_stage": "first_fp16_one_shot_forward_before_logits",
+  "environment_observation": {
+    "cublas_workspace_config": "UNSET",
+    "gpu_after_failure": "NVIDIA GeForce RTX 4090 D",
+    "gpu_memory_used_after_failure_mib": 1,
+    "gpu_memory_free_after_failure_mib": 24211
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_a_37ccbeb_20260818T213039.log",
+    "sha256": "3b75254beaf10d50954b04c2a0841cbdbcd9f65140c6fe6d29573e918c93f386",
+    "size_bytes": 7922
+  },
+  "output_state": {
+    "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_a_37ccbeb",
+    "case_file_count": 0,
+    "failure_file_count": 1,
+    "summary_exists": false,
+    "run_identity_exists": false,
+    "failure_record": {
+      "relative_path": "failures/ba1246cee28f32b4e3a3e32f.json",
+      "case_id": "ba1246cee28f32b4e3a3e32f",
+      "method_id": "fp16-l1024",
+      "sha256": "2508522db6ce876a546ee59b1edda43e39870b5f7f6450f2174d00f9f3e5e90a",
+      "size_bytes": 602
+    }
+  },
+  "execution_boundary": {
+    "model_weights_loaded": true,
+    "cuda_computation_attempted": true,
+    "token_nll_computed": false,
+    "completed_scientific_case_count": 0,
+    "quality_result_interpretable": false,
+    "full_600_case_execution_authorized": false,
+    "candidate_tuning_authorized": false,
+    "paper_claims_authorized": false
+  },
+  "repair_scope": {
+    "required_cublas_workspace_config": ":4096:8",
+    "must_be_set_before_importing_torch": true,
+    "fresh_output_directory_required_for_retry": true,
+    "candidate_algorithm_changed": false,
+    "input_manifest_changed": false,
+    "method_matrix_changed": false,
+    "scoring_changed": false,
+    "authorization_expanded": false
+  }
+}
