@@ -18,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 from utils.llama2_cage_v3_gpu_execution import full_file_sha256
 from utils.llama2_cage_v3_transfer_quality_acceptance import (
     expand_acceptance_cases,
+    lf_normalized_file_sha256,
     load_execution,
     load_json,
     load_server_input_manifest,
@@ -71,10 +72,11 @@ def main() -> None:
     cases = expand_acceptance_cases(execution=execution, execution_sha256=execution_sha, protocol=protocol, input_manifest=manifest)
     source_manifest = load_json(REPO_ROOT / execution["source_manifest"]["path"])
     require(source_manifest.get("source_id") == "llama2-7b-cage-v3-transfer-quality-acceptance-sources-v1", "source manifest identity changed")
+    require(source_manifest.get("source_identity_mode") == "sha256_after_deterministic_crlf_to_lf_normalization", "source identity mode changed")
     frozen_sources = source_manifest.get("files", {})
     require(bool(frozen_sources), "source manifest is empty")
     for spec in frozen_sources.values():
-        require(file_sha256(REPO_ROOT / spec["path"]) == spec["sha256"], f"frozen source changed: {spec['path']}")
+        require(lf_normalized_file_sha256(REPO_ROOT / spec["path"]) == spec["sha256"], f"frozen source changed: {spec['path']}")
     model_root = Path(execution["model"]["reference"])
     require(file_sha256(model_root / "config.json") == execution["model"]["config_sha256"], "model config changed")
     weight_receipts = []

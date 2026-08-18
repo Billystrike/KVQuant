@@ -3,6 +3,17 @@
   "execution_id": "llama2-7b-cage-v3-transfer-quality-acceptance-v1",
   "status": "frozen_before_any_llama2_v3_quality_metric",
   "claim_eligible": false,
+  "administrative_repair": {
+    "reason": "The first gate attempt exposed Windows-worktree CRLF hashes for five tracked Python sources; static tests stopped before the gate validator, model loading, CUDA computation, or quality scoring.",
+    "failed_attempt_receipt_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_gate_failed_attempt_v1.json",
+    "failed_attempt_receipt_sha256": "c119db81abfdc333c26682e6a57d9b3d86a8659554dc7da3b1ed3d0638794801",
+    "source_identity_mode_after_repair": "sha256_after_deterministic_crlf_to_lf_normalization",
+    "candidate_algorithm_changed": false,
+    "input_manifest_changed": false,
+    "method_matrix_changed": false,
+    "scoring_changed": false,
+    "authorization_changed": false
+  },
   "protocol": {
     "path": "configs/llama2_7b_cage_v3_transfer_quality_protocol_v1.json",
     "sha256": "355d73629dece9015288d10acdd7c95e08da0cff941a38395d54e1868380b654"
@@ -77,7 +88,7 @@
   },
   "source_manifest": {
     "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_sources_v1.json",
-    "sha256": "6d35dc1b7ecb54f0eb4d5689a0523f2f1eb457586fbdfa0a1b2983882a693425"
+    "sha256": "e94cd40de174ab4b7ee15e44ff2515774b6122e1dcf17500bcb97874ec5845b6"
   },
   "output": {
     "repeat_a": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_a",

@@ -1,11 +1,13 @@
 import copy
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
 from utils.llama2_cage_v3_transfer_quality_acceptance import (
     Llama2CageV3TransferQualityAcceptanceError,
     expand_acceptance_cases,
+    lf_normalized_file_sha256,
     validate_completed_case,
     validate_execution,
 )
@@ -47,8 +49,18 @@ class Llama2CageV3TransferQualityAcceptanceTest(unittest.TestCase):
         validate_execution(self.execution, repo_root=REPO_ROOT)
         source = json.loads(SOURCE_PATH.read_text(encoding="utf-8"))
         self.assertEqual(source["source_id"], "llama2-7b-cage-v3-transfer-quality-acceptance-sources-v1")
+        self.assertEqual(source["source_identity_mode"], "sha256_after_deterministic_crlf_to_lf_normalization")
         for spec in source["files"].values():
-            self.assertEqual(file_sha256(REPO_ROOT / spec["path"]), spec["sha256"])
+            self.assertEqual(lf_normalized_file_sha256(REPO_ROOT / spec["path"]), spec["sha256"])
+
+    def test_source_identity_is_stable_across_lf_and_crlf_worktrees(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lf = root / "lf.py"
+            crlf = root / "crlf.py"
+            lf.write_bytes(b"first\nsecond\n")
+            crlf.write_bytes(b"first\r\nsecond\r\n")
+            self.assertEqual(lf_normalized_file_sha256(lf), lf_normalized_file_sha256(crlf))
 
     def test_expands_exact_12_acceptance_cases_in_length_then_role_order(self):
         cases = expand_acceptance_cases(

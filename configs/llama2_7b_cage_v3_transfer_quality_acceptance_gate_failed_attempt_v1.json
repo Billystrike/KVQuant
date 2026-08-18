@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "receipt_id": "llama2-7b-cage-v3-transfer-quality-acceptance-gate-failed-attempt-v1",
+  "status": "expected_rejection_before_gate_execution",
+  "claim_eligible": false,
+  "source_commit": "6c186591e1c9fa4f70c45fd4078769e9d62179b3",
+  "stage_reached": "static_tests",
+  "failure": {
+    "test": "test_execution_and_all_frozen_sources_are_exact",
+    "first_mismatching_path": "models/llama_kivi.py",
+    "frozen_windows_worktree_sha256": "ca1ce3c1ce1db11b13a392f9962d4c2fa0583467ba07f6239b43ff0fd6abb98f",
+    "observed_linux_checkout_sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4",
+    "cause": "tracked text was hashed from a Windows CRLF worktree instead of its canonical Linux/Git LF bytes"
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_gate_6c18659_20260818T211602.log",
+    "sha256": "757268bcd939a66060802299e99422fbccf296f49ad3cdc844e06163ef298aa2",
+    "size_bytes": 6413
+  },
+  "observed_process_status": {
+    "test_status": 1,
+    "run_status": 1,
+    "tee_status": 0
+  },
+  "execution_boundary": {
+    "gate_validator_invoked": false,
+    "model_weights_hashed_by_gate": false,
+    "model_weights_loaded": false,
+    "cuda_computation_performed": false,
+    "quality_metric_computed_or_read": false,
+    "acceptance_execution_authorized": false,
+    "full_600_case_execution_authorized": false
+  },
+  "repair_scope": {
+    "source_identity_mode": "sha256_after_deterministic_crlf_to_lf_normalization",
+    "candidate_algorithm_changed": false,
+    "input_manifest_changed": false,
+    "method_matrix_changed": false,
+    "scoring_changed": false,
+    "authorization_changed": false
+  }
+}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -34,10 +35,35 @@ def load_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def lf_normalized_file_sha256(path: Path) -> str:
+    """Hash tracked text in the repository's canonical Linux/Git form."""
+
+    try:
+        payload = path.read_bytes().replace(b"\r\n", b"\n")
+    except OSError as error:
+        raise Llama2CageV3TransferQualityAcceptanceError(
+            f"cannot read frozen source {path}: {error}"
+        ) from error
+    return hashlib.sha256(payload).hexdigest()
+
+
 def validate_execution(execution: Mapping[str, Any], *, repo_root: Path) -> None:
     require(execution.get("schema_version") == 1 and execution.get("execution_id") == EXECUTION_ID, "acceptance execution identity changed")
     require(execution.get("status") == "frozen_before_any_llama2_v3_quality_metric", "acceptance execution status changed")
     require(execution.get("claim_eligible") is False, "acceptance claim boundary changed")
+    repair = execution.get("administrative_repair", {})
+    require(repair == {
+        "reason": "The first gate attempt exposed Windows-worktree CRLF hashes for five tracked Python sources; static tests stopped before the gate validator, model loading, CUDA computation, or quality scoring.",
+        "failed_attempt_receipt_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_gate_failed_attempt_v1.json",
+        "failed_attempt_receipt_sha256": "c119db81abfdc333c26682e6a57d9b3d86a8659554dc7da3b1ed3d0638794801",
+        "source_identity_mode_after_repair": "sha256_after_deterministic_crlf_to_lf_normalization",
+        "candidate_algorithm_changed": False,
+        "input_manifest_changed": False,
+        "method_matrix_changed": False,
+        "scoring_changed": False,
+        "authorization_changed": False,
+    }, "acceptance administrative repair changed")
+    require(file_sha256(repo_root / repair["failed_attempt_receipt_path"]) == repair["failed_attempt_receipt_sha256"], "failed gate-attempt receipt changed")
     protocol = execution.get("protocol", {})
     require(protocol == {"path": "configs/llama2_7b_cage_v3_transfer_quality_protocol_v1.json", "sha256": PROTOCOL_SHA256}, "acceptance protocol link changed")
     inputs = execution.get("input_artifacts", {})
@@ -81,7 +107,7 @@ def validate_execution(execution: Mapping[str, Any], *, repo_root: Path) -> None
     source = execution.get("source_manifest", {})
     require(source.get("path") == "configs/llama2_7b_cage_v3_transfer_quality_acceptance_sources_v1.json", "source manifest path changed")
     require(isinstance(source.get("sha256"), str) and len(source["sha256"]) == 64 and source["sha256"] != "TO_BE_FILLED", "source manifest hash is not frozen")
-    require(file_sha256(repo_root / source["path"]) == source["sha256"], "source manifest file changed")
+    require(lf_normalized_file_sha256(repo_root / source["path"]) == source["sha256"], "source manifest file changed")
 
 
 def load_execution(path: Path, *, repo_root: Path) -> tuple[dict[str, Any], str]:
@@ -196,7 +222,7 @@ def validate_gate_receipt(
     sources = gate.get("frozen_sources", {})
     require(bool(sources), "acceptance gate source list is empty")
     for spec in sources.values():
-        require(file_sha256(repo_root / spec["path"]) == spec["sha256"], f"acceptance gate source changed: {spec['path']}")
+        require(lf_normalized_file_sha256(repo_root / spec["path"]) == spec["sha256"], f"acceptance gate source changed: {spec['path']}")
 
 
 __all__ = [
@@ -204,6 +230,7 @@ __all__ = [
     "Llama2CageV3TransferQualityAcceptanceError",
     "SCIENTIFIC_FIELDS",
     "expand_acceptance_cases",
+    "lf_normalized_file_sha256",
     "load_execution",
     "load_json",
     "load_server_input_manifest",

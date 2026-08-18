@@ -2,21 +2,22 @@
   "schema_version": 1,
   "source_id": "llama2-7b-cage-v3-transfer-quality-acceptance-sources-v1",
   "status": "frozen_before_acceptance_gate",
+  "source_identity_mode": "sha256_after_deterministic_crlf_to_lf_normalization",
   "files": {
     "protocol_utils": {"path": "utils/llama2_cage_v3_transfer_quality_protocol.py", "sha256": "d4be0e79dd8c0a9919fe4de899ff15e8073d3e01b33028d7b5aa08019ef18693"},
     "manifest_utils": {"path": "utils/llama2_cage_v3_transfer_quality_manifest.py", "sha256": "d576eb6b880282e7dc46b28d835f7638449f994e14f03e1fa28904ea25a47881"},
-    "acceptance_utils": {"path": "utils/llama2_cage_v3_transfer_quality_acceptance.py", "sha256": "9f1f751299894c4e54ccd1746d071901b6aefae6a9027140d8ad5f3066c324f1"},
+    "acceptance_utils": {"path": "utils/llama2_cage_v3_transfer_quality_acceptance.py", "sha256": "4124292a22427292a6918cc21a182d90025f6d7452ed64b5f05f2bafa814f699"},
     "runner": {"path": "scripts/llama2_run_cage_v3_transfer_quality_acceptance.py", "sha256": "07b857e01afa5f9fb59baec8b0145e86f78a19a636aa173bb775c5b2ddae0d06"},
     "comparator": {"path": "scripts/llama2_compare_cage_v3_transfer_quality_acceptance.py", "sha256": "585f7875e33b8ec38afbd332f781e0f5621916a87981bc5bb567dd9339ac6a5b"},
-    "gate_validator": {"path": "scripts/llama2_validate_cage_v3_transfer_quality_acceptance_gate.py", "sha256": "7d17acb70981f68337c608e7ab575f0ee186c067a18a3c588d1683a23d7ec888"},
-    "tests": {"path": "tests/test_llama2_cage_v3_transfer_quality_acceptance.py", "sha256": "14b4993fc170a6f0ef1a805295fdd07c3848a6582e481b5e2e0bef688c3af054"},
+    "gate_validator": {"path": "scripts/llama2_validate_cage_v3_transfer_quality_acceptance_gate.py", "sha256": "e6732bc881f4eaf9aeda3998268534277e145e56901f5d642b8e9b780ccfdfd6"},
+    "tests": {"path": "tests/test_llama2_cage_v3_transfer_quality_acceptance.py", "sha256": "61e754b646e159f0e8db3ededaf104aba985a5e5fa96425e51157780b88f0540"},
     "llama_cage_v3": {"path": "models/llama_cage_v3.py", "sha256": "3633c702596c3223b52be7999f00f40179679a89be6ef27e6620e5f903ce7aa8"},
-    "llama_kivi": {"path": "models/llama_kivi.py", "sha256": "ca1ce3c1ce1db11b13a392f9962d4c2fa0583467ba07f6239b43ff0fd6abb98f"},
-    "cage_importance": {"path": "models/cage_importance.py", "sha256": "fd6e36594b50eb43d519daef034d6d8b771b7ae8c281af024dda34b6e20ce606"},
-    "cage_quant": {"path": "models/cage_quant.py", "sha256": "32617d7b9434699adc331d4dcfba6b333cdeccb578f030e175c413bce466e533"},
+    "llama_kivi": {"path": "models/llama_kivi.py", "sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4"},
+    "cage_importance": {"path": "models/cage_importance.py", "sha256": "d6df97061cae0cb402520a8c802bd4eb2e9cd9f4919b413994651b65fdc18a9b"},
+    "cage_quant": {"path": "models/cage_quant.py", "sha256": "273d9fd8dc2de33de9912cae862c7f01eceb7004fc08fd2011945cc877611fe8"},
     "cage_v2_quant": {"path": "models/cage_v2_quant.py", "sha256": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a"},
     "cage_cache": {"path": "models/cage_cache.py", "sha256": "7dec1820963db9852083684e325ef99b3d3ca11e0065573a00287ac4ae995a49"},
-    "cage_config": {"path": "models/cage_config.py", "sha256": "32f01888d3b9a3d57ba11ade57eb8d4faa3e6b6fd885f5d92dd00d424cde33df"},
-    "experiment_config": {"path": "utils/cage_experiment_config.py", "sha256": "f62362ef1a9c09028cc1bb51b9d6683cb0855564d0bc426ebf7b48c08e5c5ab6"}
+    "cage_config": {"path": "models/cage_config.py", "sha256": "046c8e0456cf5ad7ebb3cc0c73819462863a1abe86adb44f38d6eb99b3b85371"},
+    "experiment_config": {"path": "utils/cage_experiment_config.py", "sha256": "ad1e4243464dedb86f64a8d2b8eee1577be3560f6a11ec627e66f8550a7d6cf1"}
   }
 }
