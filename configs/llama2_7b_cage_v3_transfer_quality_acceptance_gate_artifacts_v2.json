@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "artifact_id": "llama2-7b-cage-v3-transfer-quality-acceptance-gate-artifacts-v2",
+  "status": "pass",
+  "claim_eligible": false,
+  "execution_source_commit": "05b6c6a542a16b2a64cfe558425c8bf58a6b527a",
+  "supersedes_gate_receipt_for_future_acceptance_execution": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_gate_receipt_v1.json",
+  "gate_receipt": {
+    "server_path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_gate_retry2_05b6c6a.json",
+    "checked_in_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_gate_receipt_v2.json",
+    "sha256": "80e2dfe0e5f957b40dda28f3411132917399f0185bc3abfd1587d90b8ede24b5",
+    "size_bytes": 4715
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_gate_retry2_05b6c6a_20260818T213834.log",
+    "sha256": "4ff6902bdd6bf31b3091b6d46bb783f336df05a1b0ce29769b0f0dff916abaff",
+    "size_bytes": 11015
+  },
+  "decision": {
+    "quality_acceptance_execution_authorized": true,
+    "full_600_case_execution_authorized": false,
+    "candidate_tuning_authorized": false,
+    "paper_main_method_change_authorized": false,
+    "runtime_claims_authorized": false
+  }
+}

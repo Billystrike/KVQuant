@@ -1,0 +1,124 @@
+{
+  "case_count_per_repeat": 12,
+  "checks": {
+    "all_64_target_scoring_frozen": true,
+    "all_execution_sources_frozen": true,
+    "exact_12_acceptance_cases": true,
+    "execution_frozen": true,
+    "full_weight_hashes_frozen": true,
+    "input_artifact_frozen_and_passed": true,
+    "input_manifest_frozen_and_valid": true,
+    "model_config_frozen": true,
+    "no_cuda_computation": true,
+    "no_model_weights_loaded": true,
+    "no_quality_metric_computed_or_read": true,
+    "protocol_frozen": true,
+    "python_version": true,
+    "repository_clean": true,
+    "single_expected_gpu": true,
+    "source_manifest_frozen": true,
+    "torch_version": true,
+    "transformers_version": true
+  },
+  "claim_eligible": false,
+  "decision": {
+    "candidate_tuning_authorized": false,
+    "full_600_case_execution_authorized": false,
+    "paper_main_method_change_authorized": false,
+    "quality_acceptance_execution_authorized": true,
+    "runtime_claims_authorized": false
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 4090 D",
+    "python": "3.10.20",
+    "torch": "2.4.1+cu121",
+    "transformers": "4.43.1"
+  },
+  "execution_sha256": "af1ee4e339280b8c97057d02412eab5c2441acfd43cf4f631034396fcabd3fb8",
+  "frozen_sources": {
+    "acceptance_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_acceptance.py",
+      "sha256": "d55dda286682dc8c50be700274b16fc4c479ca02767a4f7c97a1ebf2e429af06"
+    },
+    "cage_cache": {
+      "path": "models/cage_cache.py",
+      "sha256": "7dec1820963db9852083684e325ef99b3d3ca11e0065573a00287ac4ae995a49"
+    },
+    "cage_config": {
+      "path": "models/cage_config.py",
+      "sha256": "046c8e0456cf5ad7ebb3cc0c73819462863a1abe86adb44f38d6eb99b3b85371"
+    },
+    "cage_importance": {
+      "path": "models/cage_importance.py",
+      "sha256": "d6df97061cae0cb402520a8c802bd4eb2e9cd9f4919b413994651b65fdc18a9b"
+    },
+    "cage_quant": {
+      "path": "models/cage_quant.py",
+      "sha256": "273d9fd8dc2de33de9912cae862c7f01eceb7004fc08fd2011945cc877611fe8"
+    },
+    "cage_v2_quant": {
+      "path": "models/cage_v2_quant.py",
+      "sha256": "2fe57d20ccc34506789254183f3da1f82c017b9e0882f0f7c530c589b9569a8a"
+    },
+    "comparator": {
+      "path": "scripts/llama2_compare_cage_v3_transfer_quality_acceptance.py",
+      "sha256": "585f7875e33b8ec38afbd332f781e0f5621916a87981bc5bb567dd9339ac6a5b"
+    },
+    "experiment_config": {
+      "path": "utils/cage_experiment_config.py",
+      "sha256": "ad1e4243464dedb86f64a8d2b8eee1577be3560f6a11ec627e66f8550a7d6cf1"
+    },
+    "gate_validator": {
+      "path": "scripts/llama2_validate_cage_v3_transfer_quality_acceptance_gate.py",
+      "sha256": "e6732bc881f4eaf9aeda3998268534277e145e56901f5d642b8e9b780ccfdfd6"
+    },
+    "llama_cage_v3": {
+      "path": "models/llama_cage_v3.py",
+      "sha256": "3633c702596c3223b52be7999f00f40179679a89be6ef27e6620e5f903ce7aa8"
+    },
+    "llama_kivi": {
+      "path": "models/llama_kivi.py",
+      "sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4"
+    },
+    "manifest_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_manifest.py",
+      "sha256": "d576eb6b880282e7dc46b28d835f7638449f994e14f03e1fa28904ea25a47881"
+    },
+    "protocol_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_protocol.py",
+      "sha256": "d4be0e79dd8c0a9919fe4de899ff15e8073d3e01b33028d7b5aa08019ef18693"
+    },
+    "runner": {
+      "path": "scripts/llama2_run_cage_v3_transfer_quality_acceptance.py",
+      "sha256": "7b6ca04d2819a8b7768ca7c7644d11a14066a189e103c3df7067709412e1fe8e"
+    },
+    "tests": {
+      "path": "tests/test_llama2_cage_v3_transfer_quality_acceptance.py",
+      "sha256": "f84ade1bb2e4de8eefeac8b3126745f413386fa3bf31b26eddeb04d74432ae79"
+    }
+  },
+  "gate_id": "llama2-7b-cage-v3-transfer-quality-acceptance-execution-gate-v1",
+  "input_manifest_sha256": "ef6b3e9c48e219ab09d35dadca4026f2cd99f47c3c922d8a8e1d2b5c4db19d04",
+  "input_manifest_size_bytes": 5160675,
+  "next_step": "check in this exact gate receipt before running acceptance repeat A or B",
+  "protocol_sha256": "355d73629dece9015288d10acdd7c95e08da0cff941a38395d54e1868380b654",
+  "repeat_count": 2,
+  "schema_version": 1,
+  "source_state": {
+    "dirty": false,
+    "git_commit": "05b6c6a542a16b2a64cfe558425c8bf58a6b527a"
+  },
+  "status": "pass",
+  "weight_receipts": [
+    {
+      "name": "model-00001-of-00002.safetensors",
+      "sha256": "4ec71fd53e99766de38f24753b30c9e8942630e9e576a1ba27b0ec531e87be41",
+      "size_bytes": 9976578928
+    },
+    {
+      "name": "model-00002-of-00002.safetensors",
+      "sha256": "41780b5dac322ac35598737e99208d90bdc632a1ba3389ebedbb46a1d8385a7f",
+      "size_bytes": 3500297344
+    }
+  ]
+}
