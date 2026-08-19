@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "artifact_id": "llama2-7b-cage-v3-transfer-quality-acceptance-b-artifacts-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "repeat": "b",
+  "execution_source_commit": "8d8df3411cb0f7dcb1fccfbb1ba6ac0757fc9e1f",
+  "execution_sha256": "af1ee4e339280b8c97057d02412eab5c2441acfd43cf4f631034396fcabd3fb8",
+  "gate_receipt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_gate_receipt_v2.json",
+    "sha256": "80e2dfe0e5f957b40dda28f3411132917399f0185bc3abfd1587d90b8ede24b5"
+  },
+  "repeat_a_artifacts": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_a_artifacts_v1.json",
+    "scientific_payload_sha256": "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592"
+  },
+  "output": {
+    "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_b_8d8df34",
+    "case_count": 12,
+    "failure_count": 0,
+    "run_identity_sha256": "bdc3c44836d421cc1601422342847c50af86d9970868e0bb4a4abad61d1bf4fb",
+    "summary_sha256": "c8e9f131ac343cce74b8d2bcfd792e062dbbea7bbee18ce0b2f0ecf02d70b218",
+    "case_file_hash_manifest_sha256": "d5ea06039b0cac5fdaec0b1caf52d59f2a442fabf96948c52ec41c33f3fcc3b6",
+    "scientific_payload_sha256": "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592",
+    "size_human": "432K"
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_b_8d8df34_20260819T230348.log",
+    "sha256": "2a0adcd31b59c0739b256feecec23d1cf9e9e02b79f012f244788fa6cc67390c",
+    "size_bytes": 12098,
+    "run_status": 0,
+    "tee_status": 0
+  },
+  "coverage": {
+    "prompt_length_counts": {
+      "1024": 4,
+      "2048": 4,
+      "4032": 4
+    },
+    "method_counts": {
+      "cage_v1": 3,
+      "cage_v3": 3,
+      "fp16": 3,
+      "kivi": 3
+    },
+    "target_count_per_case": 64
+  },
+  "determinism": {
+    "cublas_workspace_config": ":4096:8",
+    "torch_deterministic_algorithms": true,
+    "cuda_matmul_allow_tf32": false,
+    "cudnn_allow_tf32": false
+  },
+  "decision": {
+    "repeat_a_pass": true,
+    "repeat_b_pass": true,
+    "reported_scientific_payloads_match": true,
+    "acceptance_comparison_authorized": true,
+    "acceptance_consistency_established": false,
+    "full_600_case_execution_authorized": false,
+    "candidate_tuning_authorized": false,
+    "paper_claims_authorized": false,
+    "runtime_claims_authorized": false
+  }
+}
