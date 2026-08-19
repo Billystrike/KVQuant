@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "artifact_id": "llama2-7b-cage-v3-transfer-quality-acceptance-a-artifacts-v1",
+  "status": "pass",
+  "claim_eligible": false,
+  "repeat": "a",
+  "execution_source_commit": "137a2cbe6fdd48537d6218669c2eee7f3c5981ab",
+  "execution_sha256": "af1ee4e339280b8c97057d02412eab5c2441acfd43cf4f631034396fcabd3fb8",
+  "gate_receipt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_gate_receipt_v2.json",
+    "sha256": "80e2dfe0e5f957b40dda28f3411132917399f0185bc3abfd1587d90b8ede24b5"
+  },
+  "output": {
+    "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_a_retry1_137a2cb",
+    "case_count": 12,
+    "failure_count": 0,
+    "run_identity_sha256": "ff1f8cdeadd2931fc62c349b0296f04a7f8d68036f8ed94f5c7eeb19f10f3623",
+    "summary_sha256": "4b5cad15b56e5123e37b123200441c85d7bc27172d086d6d945e9b0401688053",
+    "case_file_hash_manifest_sha256": "b438390d9c50bf9dc3112dcfbe27ce26528181a3128399bf51fcea7cc150ce2e",
+    "scientific_payload_sha256": "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592",
+    "size_human": "432K"
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_a_retry1_137a2cb_20260819T225444.log",
+    "sha256": "ae5602ad696cb8c84e856d3d046a575536313e08753da8550ac90e1c372b0a9a",
+    "size_bytes": 12356,
+    "run_status": 0,
+    "tee_status": 0
+  },
+  "coverage": {
+    "prompt_length_counts": {
+      "1024": 4,
+      "2048": 4,
+      "4032": 4
+    },
+    "method_counts": {
+      "cage_v1": 3,
+      "cage_v3": 3,
+      "fp16": 3,
+      "kivi": 3
+    },
+    "target_count_per_case": 64
+  },
+  "determinism": {
+    "cublas_workspace_config": ":4096:8",
+    "torch_deterministic_algorithms": true,
+    "cuda_matmul_allow_tf32": false,
+    "cudnn_allow_tf32": false
+  },
+  "decision": {
+    "repeat_a_pass": true,
+    "repeat_b_execution_authorized": true,
+    "acceptance_consistency_established": false,
+    "full_600_case_execution_authorized": false,
+    "candidate_tuning_authorized": false,
+    "paper_claims_authorized": false,
+    "runtime_claims_authorized": false
+  }
+}
