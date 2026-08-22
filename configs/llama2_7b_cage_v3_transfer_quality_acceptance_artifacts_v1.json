@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "artifact_manifest_id": "llama2-7b-cage-v3-transfer-quality-acceptance-artifacts-v1",
+  "status": "frozen_after_two_fresh_bitwise_equal_acceptance_repeats_before_joint_postrun_audit",
+  "claim_eligible": false,
+  "execution_sha256": "af1ee4e339280b8c97057d02412eab5c2441acfd43cf4f631034396fcabd3fb8",
+  "input_manifest_sha256": "ef6b3e9c48e219ab09d35dadca4026f2cd99f47c3c922d8a8e1d2b5c4db19d04",
+  "gate_receipt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_gate_receipt_v2.json",
+    "sha256": "80e2dfe0e5f957b40dda28f3411132917399f0185bc3abfd1587d90b8ede24b5"
+  },
+  "failed_pre_metric_attempt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_a_failed_attempt_v1.json",
+    "sha256": "ed0995748cdea3f0a9d106349096cba1e962d16c7c19950cf1ed54e0ebcdef2e",
+    "completed_scientific_case_count": 0,
+    "token_nll_computed": false
+  },
+  "repeats": {
+    "a": {
+      "artifact_receipt_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_a_artifacts_v1.json",
+      "artifact_receipt_sha256": "02574c3aa1753f17359af272e83d28ed919631b6f3c429668e6a2783b8540fbb",
+      "output_dir": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_a_retry1_137a2cb",
+      "execution_source_commit": "137a2cbe6fdd48537d6218669c2eee7f3c5981ab",
+      "run_identity_sha256": "ff1f8cdeadd2931fc62c349b0296f04a7f8d68036f8ed94f5c7eeb19f10f3623",
+      "summary_sha256": "4b5cad15b56e5123e37b123200441c85d7bc27172d086d6d945e9b0401688053",
+      "case_file_hash_manifest_sha256": "b438390d9c50bf9dc3112dcfbe27ce26528181a3128399bf51fcea7cc150ce2e",
+      "scientific_payload_sha256": "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_a_retry1_137a2cb_20260819T225444.log",
+      "execution_log_sha256": "ae5602ad696cb8c84e856d3d046a575536313e08753da8550ac90e1c372b0a9a",
+      "execution_log_size_bytes": 12356,
+      "start_marker": "=== LLAMA2 CAGE-V3 TRANSFER-QUALITY ACCEPTANCE A RETRY1 START ===",
+      "end_marker": "=== LLAMA2 CAGE-V3 TRANSFER-QUALITY ACCEPTANCE A RETRY1 END ==="
+    },
+    "b": {
+      "artifact_receipt_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_b_artifacts_v1.json",
+      "artifact_receipt_sha256": "4b39aa4df0eef2499f05dc7b82039b063359caac175da166be4e496c1aaf7a1b",
+      "output_dir": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_acceptance_b_8d8df34",
+      "execution_source_commit": "8d8df3411cb0f7dcb1fccfbb1ba6ac0757fc9e1f",
+      "run_identity_sha256": "bdc3c44836d421cc1601422342847c50af86d9970868e0bb4a4abad61d1bf4fb",
+      "summary_sha256": "c8e9f131ac343cce74b8d2bcfd792e062dbbea7bbee18ce0b2f0ecf02d70b218",
+      "case_file_hash_manifest_sha256": "d5ea06039b0cac5fdaec0b1caf52d59f2a442fabf96948c52ec41c33f3fcc3b6",
+      "scientific_payload_sha256": "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592",
+      "execution_log": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_b_8d8df34_20260819T230348.log",
+      "execution_log_sha256": "2a0adcd31b59c0739b256feecec23d1cf9e9e02b79f012f244788fa6cc67390c",
+      "execution_log_size_bytes": 12098,
+      "start_marker": "=== LLAMA2 CAGE-V3 TRANSFER-QUALITY ACCEPTANCE B START ===",
+      "end_marker": "=== LLAMA2 CAGE-V3 TRANSFER-QUALITY ACCEPTANCE B END ==="
+    }
+  },
+  "comparison": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_comparison_bf7ce5a.json",
+    "sha256": "ee92895593bd6f3ae342982c152ed2957d93712a2a7519497a3de35cf9c04177",
+    "size_bytes": 565,
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_comparison_bf7ce5a_20260822T105243.log",
+    "execution_log_sha256": "13e8008206343cc6068319deda47e4a6ab8cf9cf6c8afa714bbcb6012455b467",
+    "execution_log_size_bytes": 5582,
+    "comparator_sha256": "585f7875e33b8ec38afbd332f781e0f5621916a87981bc5bb567dd9339ac6a5b",
+    "scientific_payload_sha256": "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592"
+  },
+  "environment_package_check": {
+    "status": "known_dependency_metadata_incompatibilities_reported_after_successful_comparison",
+    "scientific_comparator_affected": false,
+    "environment_mutation_authorized": false,
+    "full_execution_gate_must_revalidate_required_imports": true,
+    "reported_lines": [
+      "kivi 0.1.0 requires fastchat, which is not installed.",
+      "datasets 5.0.0 has requirement huggingface-hub<2.0,>=0.25.0, but you have huggingface-hub 0.24.7.",
+      "pyproject-api 1.10.1 has requirement packaging>=25, but you have packaging 24.0.",
+      "tox 4.56.4 has requirement packaging>=26, but you have packaging 24.0."
+    ]
+  },
+  "authorization_before_joint_postrun": {
+    "joint_postrun_audit": true,
+    "full_600_case_execution": false,
+    "candidate_tuning": false,
+    "quality_interpretation": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
