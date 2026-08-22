@@ -1,9 +1,14 @@
 import json
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 from utils.llama2_cage_v3_transfer_quality_acceptance import lf_normalized_file_sha256
-from utils.llama2_cage_v3_transfer_quality_full import expand_full_cases
+from utils.llama2_cage_v3_transfer_quality_full import (
+    Llama2CageV3TransferQualityFullError,
+    expand_full_cases,
+    validate_full_gate_receipt,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +90,27 @@ class Llama2CageV3TransferQualityFullTest(unittest.TestCase):
         self.assertTrue(plan["authorization_before_gate"]["full_gate_execution"])
         self.assertFalse(plan["authorization_before_gate"]["full_600_case_execution"])
         self.assertFalse(plan["authorization_before_gate"]["quality_interpretation"])
+
+    def test_checked_in_full_execution_gate_receipt_authorizes_only_execution(self):
+        path = REPO_ROOT / "configs" / "llama2_7b_cage_v3_transfer_quality_full_execution_gate_receipt_v1.json"
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        validate_full_gate_receipt(receipt, repo_root=REPO_ROOT)
+        self.assertEqual(receipt["gate_output"]["sha256"], "4b89dc8755ff09bef701dec5c5d018a7a8ae136bc767592067d7d07013405c9e")
+        self.assertEqual(receipt["execution_log"]["sha256"], "4f5a347b927387f6c22a642d9226390a797886cd6945342691ccd50e3830603a")
+        self.assertTrue(receipt["decision"]["strict_resume_authorized"])
+        self.assertFalse(receipt["decision"]["quality_interpretation_authorized"])
+
+    def test_full_execution_gate_receipt_rejects_failed_check_or_expanded_claims(self):
+        path = REPO_ROOT / "configs" / "llama2_7b_cage_v3_transfer_quality_full_execution_gate_receipt_v1.json"
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        failed = deepcopy(receipt)
+        failed["checks"]["cuda"] = False
+        with self.assertRaises(Llama2CageV3TransferQualityFullError):
+            validate_full_gate_receipt(failed, repo_root=REPO_ROOT)
+        expanded = deepcopy(receipt)
+        expanded["decision"]["paper_claims_authorized"] = True
+        with self.assertRaises(Llama2CageV3TransferQualityFullError):
+            validate_full_gate_receipt(expanded, repo_root=REPO_ROOT)
 
 
 if __name__ == "__main__":
