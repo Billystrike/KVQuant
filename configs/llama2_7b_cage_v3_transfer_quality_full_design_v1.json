@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "design_id": "llama2-7b-cage-v3-transfer-quality-full-design-v1",
+  "status": "frozen_after_acceptance_postrun_before_full_runner_or_gate_implementation",
+  "claim_eligible": false,
+  "protocol": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_protocol_v1.json",
+    "sha256": "355d73629dece9015288d10acdd7c95e08da0cff941a38395d54e1868380b654"
+  },
+  "acceptance_postrun_receipt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_postrun_receipt_v1.json",
+    "sha256": "913a09ca5d7f743a8ad3eb9147ff4193424de89903ecd593afd579ca9559aba4"
+  },
+  "input_manifest": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_input_manifest_68d8bef.json",
+    "sha256": "ef6b3e9c48e219ab09d35dadca4026f2cd99f47c3c922d8a8e1d2b5c4db19d04",
+    "size_bytes": 5160675,
+    "anchor_count": 50,
+    "input_record_count": 150
+  },
+  "quota_plan": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quota_plan_v1.json",
+    "sha256": "6fc7e33a63db5ed4b1e303edd50c306cf91ab07b99dc981b1d6ea91a58f845e8"
+  },
+  "model": {
+    "reference": "/root/autodl-tmp/models/Llama-2-7b-hf",
+    "dtype": "float16",
+    "device": "cuda:0",
+    "config_sha256": "9242e7db1bc2a17873e66084c3b1c6ed10883076e156b338fd6a7775748e2e3c",
+    "weight_files": [
+      {
+        "name": "model-00001-of-00002.safetensors",
+        "sha256": "4ec71fd53e99766de38f24753b30c9e8942630e9e576a1ba27b0ec531e87be41",
+        "size_bytes": 9976578928
+      },
+      {
+        "name": "model-00002-of-00002.safetensors",
+        "sha256": "41780b5dac322ac35598737e99208d90bdc632a1ba3389ebedbb46a1d8385a7f",
+        "size_bytes": 3500297344
+      }
+    ]
+  },
+  "case_matrix": {
+    "prompt_lengths": [1024, 2048, 4032],
+    "method_roles": [
+      "quality_reference",
+      "transfer_candidate",
+      "primary_predecessor",
+      "primary_uniform_baseline"
+    ],
+    "anchor_indices": [
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+      30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+      40, 41, 42, 43, 44, 45, 46, 47, 48, 49
+    ],
+    "method_length_point_count": 12,
+    "anchors_per_point": 50,
+    "full_case_count": 600,
+    "target_count_per_case": 64,
+    "total_target_count": 38400,
+    "execution_order": "prompt_length_then_protocol_method_order_then_anchor_index",
+    "case_id_binding": [
+      "full_execution_sha256",
+      "protocol_sha256",
+      "input_manifest_sha256",
+      "input_id",
+      "method",
+      "prompt_length",
+      "anchor_index"
+    ]
+  },
+  "scoring": {
+    "primary_metric": "cache_conditioned_all_64_target_mean_nll",
+    "boundary_target_count": 1,
+    "single_token_decode_target_count": 63,
+    "target_count_per_case": 64,
+    "fp16_one_shot_reference": "diagnostic_only",
+    "same_token_ids_targets_order_and_reduction_for_all_methods": true
+  },
+  "determinism": {
+    "seed": 20260817,
+    "cublas_workspace_config": ":4096:8",
+    "torch_deterministic_algorithms": true,
+    "cuda_matmul_allow_tf32": false,
+    "cudnn_allow_tf32": false,
+    "batch_size": 1,
+    "per_case_seed_reset_required": true
+  },
+  "output_and_resume": {
+    "output_dir": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_full_v1",
+    "fresh_before_first_attempt": true,
+    "case_write": "atomic_json_after_complete_case_validation",
+    "failure_write": "atomic_json_before_reraise",
+    "resume_policy": "resume_only_completed_case_when_case_id_and_entire_scientific_payload_validate_against_frozen_execution",
+    "summary_write": "only_after_all_600_cases_validate",
+    "existing_failure_record_removed_only_after_same_case_completes": true
+  },
+  "environment": {
+    "python_major_minor": "3.10",
+    "torch": "2.4.1+cu121",
+    "transformers": "4.43.1",
+    "gpu": "NVIDIA GeForce RTX 4090 D",
+    "required_imports": [
+      "torch",
+      "transformers",
+      "models.llama_cage_v3",
+      "models.llama_kivi",
+      "models.cage_cache",
+      "utils.cage_experiment_config"
+    ],
+    "known_pip_check_issues": [
+      "kivi 0.1.0 requires fastchat, which is not installed.",
+      "datasets 5.0.0 has requirement huggingface-hub<2.0,>=0.25.0, but you have huggingface-hub 0.24.7.",
+      "pyproject-api 1.10.1 has requirement packaging>=25, but you have packaging 24.0.",
+      "tox 4.56.4 has requirement packaging>=26, but you have packaging 24.0."
+    ],
+    "pip_check_status_is_not_a_scientific_acceptance_pass": true,
+    "do_not_mutate_frozen_environment_for_metadata_only_warnings": true,
+    "full_gate_must_import_every_required_runtime_module": true
+  },
+  "analysis_boundary": {
+    "read_or_interpret_partial_results": false,
+    "formal_analysis_only_after_600_case_postrun_pass": true,
+    "report_all_lengths_and_unfavorable_results": true,
+    "candidate_or_threshold_change_after_full_execution_starts": false,
+    "kitty_llama_included": false
+  },
+  "authorization": {
+    "static_design_preflight": true,
+    "full_runner_and_gate_implementation_after_design_preflight_pass": true,
+    "full_execution_gate_run": false,
+    "full_600_case_execution": false,
+    "quality_interpretation": false,
+    "candidate_tuning": false,
+    "paper_main_method_change": false,
+    "runtime_claims": false
+  }
+}

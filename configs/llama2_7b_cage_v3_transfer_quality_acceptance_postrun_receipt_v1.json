@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "receipt_id": "llama2-7b-cage-v3-transfer-quality-acceptance-postrun-receipt-v1",
+  "status": "frozen_after_successful_joint_acceptance_postrun_before_full_execution_design",
+  "claim_eligible": false,
+  "postrun_source_commit": "0d22341a51f6915117697f73c2faf1caf025d7fd",
+  "postrun_output": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_postrun_retry1_0d22341.json",
+    "sha256": "048843b173bc83bafa05fc093d3cb5df29880783eaabc41db257c82eac953167",
+    "size_bytes": 5280
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_postrun_retry1_0d22341_20260822T111042.log",
+    "sha256": "86fc704f80c0bdb839e942e689b8f2534c742b02ae2417adce3ee50e446f139a",
+    "size_bytes": 13498,
+    "run_status": 0,
+    "tee_status": 0
+  },
+  "acceptance": {
+    "case_count_per_repeat": 12,
+    "repeat_count": 2,
+    "total_case_file_count": 24,
+    "failure_count": 0,
+    "scientific_payload_sha256": "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592",
+    "repeat_payloads_bitwise_equal": true,
+    "comparison_mismatch_case_ids": [],
+    "interpretation_performed": false
+  },
+  "preserved_history": {
+    "failed_pre_metric_attempt_count": 1,
+    "failed_postrun_attempt_count": 1,
+    "failed_postrun_receipt_path": "configs/llama2_7b_cage_v3_transfer_quality_acceptance_postrun_failed_attempt_v1.json",
+    "failed_postrun_receipt_sha256": "a07c70105b120073d46ec2ce26e8d4f0d0cc89d5e7b7dd6080bcb4b37c457006"
+  },
+  "environment_package_check": {
+    "status": "known_dependency_metadata_incompatibilities_reported_after_successful_comparison",
+    "scientific_acceptance_affected": false,
+    "environment_mutation_authorized": false,
+    "full_execution_gate_must_revalidate_required_imports": true
+  },
+  "decision": {
+    "acceptance_complete": true,
+    "full_execution_design_preflight_authorized": true,
+    "full_runner_implementation_authorized": false,
+    "full_execution_gate_authorized": false,
+    "full_600_case_execution_authorized": false,
+    "candidate_tuning_authorized": false,
+    "quality_interpretation_authorized": false,
+    "paper_claims_authorized": false,
+    "runtime_claims_authorized": false
+  }
+}
