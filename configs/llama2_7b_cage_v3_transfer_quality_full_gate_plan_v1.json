@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "plan_id": "llama2-7b-cage-v3-transfer-quality-full-gate-plan-v1",
+  "status": "frozen_before_full_gate_execution",
+  "claim_eligible": false,
+  "design": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_full_design_v1.json",
+    "sha256": "bda724619ad986703ca359c6a7fa66a44d0d762151689895ce18cd6574483e7a"
+  },
+  "design_preflight_receipt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_full_design_preflight_receipt_v1.json",
+    "sha256": "44cfccd6f2704d7d090fa1d414b23367a48a8d46c7971436856def0202ef222b"
+  },
+  "frozen_sources": {
+    "full_runner": {
+      "path": "scripts/llama2_run_cage_v3_transfer_quality_full.py",
+      "sha256": "56ff2385af0cd8c0861da8f8ffb01c6ec4aa11af4f49bfbf1c3e911820a1c6ee"
+    },
+    "full_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_full.py",
+      "sha256": "6102810778ea9c801a44f048172e0ce8b455d272f453db7f50eace109aac967c"
+    },
+    "full_gate_validator": {
+      "path": "scripts/llama2_validate_cage_v3_transfer_quality_full_gate.py",
+      "sha256": "ec05e8558f5838d975e595eb73f0c9f9f04d5c92a6a6e3537736285dec3735ba"
+    },
+    "acceptance_runtime": {
+      "path": "scripts/llama2_run_cage_v3_transfer_quality_acceptance.py",
+      "sha256": "7b6ca04d2819a8b7768ca7c7644d11a14066a189e103c3df7067709412e1fe8e"
+    },
+    "acceptance_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_acceptance.py",
+      "sha256": "d55dda286682dc8c50be700274b16fc4c479ca02767a4f7c97a1ebf2e429af06"
+    },
+    "full_design_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_full_design.py",
+      "sha256": "8acb9a4b155389a94213e16fa824d377ef28ec44bb1ea27964cd86b4dd6ee060"
+    },
+    "input_manifest_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_manifest.py",
+      "sha256": "d576eb6b880282e7dc46b28d835f7638449f994e14f03e1fa28904ea25a47881"
+    },
+    "protocol_utils": {
+      "path": "utils/llama2_cage_v3_transfer_quality_protocol.py",
+      "sha256": "d4be0e79dd8c0a9919fe4de899ff15e8073d3e01b33028d7b5aa08019ef18693"
+    },
+    "llama_cage_v3": {
+      "path": "models/llama_cage_v3.py",
+      "sha256": "3633c702596c3223b52be7999f00f40179679a89be6ef27e6620e5f903ce7aa8"
+    },
+    "llama_kivi": {
+      "path": "models/llama_kivi.py",
+      "sha256": "fbedf1575a9042ebae9f8301d9ec4cb57225811e1e448ca7a4ffb6fd574413b4"
+    },
+    "cage_cache": {
+      "path": "models/cage_cache.py",
+      "sha256": "7dec1820963db9852083684e325ef99b3d3ca11e0065573a00287ac4ae995a49"
+    },
+    "experiment_config": {
+      "path": "utils/cage_experiment_config.py",
+      "sha256": "ad1e4243464dedb86f64a8d2b8eee1577be3560f6a11ec627e66f8550a7d6cf1"
+    }
+  },
+  "resources": {
+    "minimum_free_disk_bytes": 1073741824,
+    "model_weight_hashing_required": true,
+    "model_weight_loading_forbidden": true
+  },
+  "authorization_before_gate": {
+    "full_gate_execution": true,
+    "full_600_case_execution": false,
+    "quality_interpretation": false,
+    "candidate_tuning": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
