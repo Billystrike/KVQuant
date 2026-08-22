@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "artifact_manifest_id": "llama2-7b-cage-v3-transfer-quality-full-artifacts-v1",
+  "status": "frozen_after_complete_600_case_execution_before_read_only_postrun_audit",
+  "claim_eligible": false,
+  "design": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_full_design_v1.json",
+    "sha256": "bda724619ad986703ca359c6a7fa66a44d0d762151689895ce18cd6574483e7a"
+  },
+  "gate_receipt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_full_execution_gate_receipt_v1.json",
+    "sha256": "47afaf6971fd84e99366380a774bb85d5b59db569b212ffebfe2ddc422a9547f"
+  },
+  "gate_output": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_full_gate_7e0c0fe.json",
+    "sha256": "4b89dc8755ff09bef701dec5c5d018a7a8ae136bc767592067d7d07013405c9e",
+    "size_bytes": 4233
+  },
+  "full_run": {
+    "output_dir": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_full_v1",
+    "execution_source_commit": "f22385c7288b8cbaa0fb04b018f62473a2136995",
+    "run_identity_sha256": "1cf47f577d5d3d7110f561f3ac658cb8e7304e5fcce544c7e64c8114f6bb51dd",
+    "summary_sha256": "02a5c4ff634063676a47d429bc6620923f46489e3461675402817ea15443a567",
+    "case_file_hash_manifest_sha256": "0e3191a3415f37911b0b1d6219cc3853f38470ca238ab62d00a15586be06859e",
+    "scientific_payload_sha256": "e5058f62b3a70f539e540576a9b5eff37a360ad96fb0a0d63685dd5c2f98003b",
+    "case_count": 600,
+    "target_count": 38400,
+    "new_cases": 600,
+    "resumed_cases": 0,
+    "failure_count": 0,
+    "execution_log": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_full_f22385c_20260822T113429.log",
+    "execution_log_sha256": "f9f36ead252117fc9bb8723330c8a0ef755289d2e1754c5190c9ebd818e617bc",
+    "execution_log_size_bytes": 269102,
+    "start_marker": "=== LLAMA2 CAGE-V3 TRANSFER-QUALITY FULL START ===",
+    "end_marker": "=== LLAMA2 CAGE-V3 TRANSFER-QUALITY FULL END ==="
+  },
+  "expected_counts": {
+    "method_counts": {
+      "cage_v1": 150,
+      "cage_v3": 150,
+      "fp16": 150,
+      "kivi": 150
+    },
+    "length_counts": {
+      "1024": 200,
+      "2048": 200,
+      "4032": 200
+    },
+    "target_count_per_case": 64,
+    "total_target_count": 38400
+  },
+  "environment_package_check": {
+    "status": "known_metadata_only_incompatibilities_previously_disclosed_and_required_runtime_imports_passed_full_gate",
+    "environment_mutation_performed": false,
+    "scientific_execution_affected": false,
+    "known_issue_count": 4
+  },
+  "authorization_before_postrun": {
+    "read_only_postrun_audit": true,
+    "frozen_analysis_implementation": false,
+    "quality_interpretation": false,
+    "candidate_tuning": false,
+    "paper_claims": false,
+    "runtime_claims": false
+  }
+}
