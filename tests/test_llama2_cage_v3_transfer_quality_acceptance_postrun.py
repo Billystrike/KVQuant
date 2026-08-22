@@ -6,9 +6,12 @@ import unittest
 from pathlib import Path
 
 from utils.llama2_cage_v3_transfer_quality_acceptance_postrun import (
+    FAILED_POSTRUN_RECEIPT_PATH,
+    FAILED_POSTRUN_RECEIPT_SHA256,
     shell_case_manifest_sha256,
     validate_artifact_manifest,
 )
+from utils.llama2_cage_v3_transfer_quality_acceptance import lf_normalized_file_sha256
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -42,14 +45,23 @@ class Llama2CageV3TransferQualityAcceptancePostrunTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 validate_artifact_manifest(mutation, repo_root=REPO_ROOT)
 
-    def test_shell_case_manifest_uses_sorted_relative_paths(self):
+    def test_failed_path_representation_attempt_is_preserved_without_scientific_change(self):
+        path = REPO_ROOT / FAILED_POSTRUN_RECEIPT_PATH
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(lf_normalized_file_sha256(path), FAILED_POSTRUN_RECEIPT_SHA256)
+        self.assertEqual(receipt["read_only_diagnostic"]["matching_representation"], "absolute")
+        self.assertFalse(receipt["failure"]["scientific_payload_changed"])
+        self.assertFalse(receipt["repair_scope"]["rerun_gpu_cases"])
+        self.assertFalse(receipt["repair_scope"]["authorization_expanded"])
+
+    def test_shell_case_manifest_reproduces_frozen_absolute_path_pipeline(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / "cases").mkdir()
             (root / "cases" / "b.json").write_text("b\n", encoding="utf-8")
             (root / "cases" / "a.json").write_text("a\n", encoding="utf-8")
             lines = "".join(
-                f"{hashlib.sha256((root / 'cases' / name).read_bytes()).hexdigest()}  cases/{name}\n"
+                f"{hashlib.sha256((root / 'cases' / name).read_bytes()).hexdigest()}  {root / 'cases' / name}\n"
                 for name in ("a.json", "b.json")
             )
             self.assertEqual(shell_case_manifest_sha256(root), hashlib.sha256(lines.encode()).hexdigest())

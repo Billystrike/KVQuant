@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "receipt_id": "llama2-7b-cage-v3-transfer-quality-acceptance-postrun-failed-attempt-v1",
+  "status": "failed_during_read_only_case_manifest_path_validation",
+  "claim_eligible": false,
+  "source_commit": "f061b04ac078bc248406f1a46e400b16af077915",
+  "artifact_manifest_sha256": "986673209bf09b479f26e55c952abdf355c9abfe1bc64b2d1d6b61f55e3d4de2",
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_postrun_f061b04_20260822T110434.log",
+    "sha256": "bb2465184032109585ad79148a2c7ad72ad7a53d3491fe535bc5f13f9cf8d652",
+    "size_bytes": 3392,
+    "run_status": 1,
+    "tee_status": 0
+  },
+  "requested_output": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_acceptance_postrun_f061b04.json",
+    "exists": false
+  },
+  "failure": {
+    "stage": "repeat_a_case_file_hash_manifest_validation_after_case_schema_and_numeric_validation",
+    "error": "repeat a case manifest changed",
+    "cause": "The post-run validator reconstructed case-manifest lines with cases/<name> relative paths, while both frozen execution wrappers hashed sha256sum lines containing absolute case-file paths.",
+    "scientific_case_file_changed": false,
+    "scientific_payload_changed": false,
+    "protocol_changed": false,
+    "authorization_changed": false
+  },
+  "read_only_diagnostic": {
+    "repeat_a_frozen_sha256": "b438390d9c50bf9dc3112dcfbe27ce26528181a3128399bf51fcea7cc150ce2e",
+    "repeat_a_absolute_path_sha256": "b438390d9c50bf9dc3112dcfbe27ce26528181a3128399bf51fcea7cc150ce2e",
+    "repeat_a_relative_cases_sha256": "e03792b3de165cb8e7ed84494a73ca08c5eb9abefa8f5c8d34cd37b7162bc379",
+    "repeat_b_frozen_sha256": "d5ea06039b0cac5fdaec0b1caf52d59f2a442fabf96948c52ec41c33f3fcc3b6",
+    "repeat_b_absolute_path_sha256": "d5ea06039b0cac5fdaec0b1caf52d59f2a442fabf96948c52ec41c33f3fcc3b6",
+    "repeat_b_relative_cases_sha256": "eaf2d19f35942df715cc759f6b91e32a6ae8a88b2a7a5f15be77c3cd39649597",
+    "matching_representation": "absolute",
+    "case_count_per_repeat": 12
+  },
+  "repair_scope": {
+    "change": "Reconstruct sha256sum input lines with each absolute case-file path.",
+    "rerun_gpu_cases": false,
+    "rewrite_server_artifacts": false,
+    "candidate_algorithm_changed": false,
+    "input_manifest_changed": false,
+    "method_matrix_changed": false,
+    "scoring_changed": false,
+    "authorization_expanded": false
+  }
+}

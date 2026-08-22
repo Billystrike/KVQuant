@@ -21,6 +21,8 @@ ARTIFACT_MANIFEST_ID = "llama2-7b-cage-v3-transfer-quality-acceptance-artifacts-
 AUDIT_ID = "llama2-7b-cage-v3-transfer-quality-acceptance-postrun-v1"
 ARTIFACT_MANIFEST_SHA256 = "986673209bf09b479f26e55c952abdf355c9abfe1bc64b2d1d6b61f55e3d4de2"
 EXPECTED_SCIENTIFIC_SHA256 = "bf0dcb6deb38bc1b6c7433f911b8abcc0ed819b92dac32ffe9c70f61b285b592"
+FAILED_POSTRUN_RECEIPT_PATH = "configs/llama2_7b_cage_v3_transfer_quality_acceptance_postrun_failed_attempt_v1.json"
+FAILED_POSTRUN_RECEIPT_SHA256 = "a07c70105b120073d46ec2ce26e8d4f0d0cc89d5e7b7dd6080bcb4b37c457006"
 
 
 class Llama2CageV3TransferQualityPostrunError(RuntimeError):
@@ -50,7 +52,7 @@ def _verify_server_file(path: Path, *, sha256: str, size_bytes: int | None = Non
 
 def shell_case_manifest_sha256(root: Path) -> str:
     lines = [
-        f"{file_sha256(path)}  cases/{path.name}\n"
+        f"{file_sha256(path)}  {path}\n"
         for path in sorted((root / "cases").glob("*.json"), key=lambda item: item.name)
     ]
     return hashlib.sha256("".join(lines).encode("utf-8")).hexdigest()
@@ -282,6 +284,11 @@ def build_postrun_audit(manifest_path: str | Path, *, repo_root: Path) -> dict[s
     manifest = _load(source)
     _require(lf_normalized_file_sha256(source) == ARTIFACT_MANIFEST_SHA256, "artifact manifest file hash changed")
     validate_artifact_manifest(manifest, repo_root=repo_root)
+    failed_postrun_receipt = repo_root / FAILED_POSTRUN_RECEIPT_PATH
+    _require(
+        lf_normalized_file_sha256(failed_postrun_receipt) == FAILED_POSTRUN_RECEIPT_SHA256,
+        "failed postrun-attempt receipt changed",
+    )
     execution_path = repo_root / "configs" / "llama2_7b_cage_v3_transfer_quality_acceptance_execution_v1.json"
     execution, execution_sha = load_execution(execution_path, repo_root=repo_root)
     _require(execution_sha == manifest["execution_sha256"], "postrun execution linkage changed")
@@ -319,6 +326,12 @@ def build_postrun_audit(manifest_path: str | Path, *, repo_root: Path) -> dict[s
         "execution_sha256": execution_sha,
         "input_manifest_sha256": manifest["input_manifest_sha256"],
         "failed_pre_metric_attempt_count": 1,
+        "failed_postrun_attempt_count": 1,
+        "failed_postrun_attempt_receipt": {
+            "path": FAILED_POSTRUN_RECEIPT_PATH,
+            "sha256": FAILED_POSTRUN_RECEIPT_SHA256,
+            "scientific_payload_changed": False,
+        },
         "case_count_per_repeat": 12,
         "repeat_count": 2,
         "total_case_file_count": 24,
