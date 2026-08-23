@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "manifest_id": "llama2-7b-cage-v3-transfer-quality-analysis-artifacts-v1",
+  "status": "declared_from_completed_frozen_analysis_before_transfer_closeout",
+  "claim_eligible": false,
+  "analysis_source_commit": "d95691d9f5944b0b04682a279da7f15358e49285",
+  "results_receipt": {
+    "path": "configs/llama2_7b_cage_v3_transfer_quality_results_receipt_v1.json",
+    "sha256": "5bcdccd46565268fc91f98bc7e4351045719618b624787e39ffad1c89fa9905f"
+  },
+  "analysis_manifest": {
+    "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_analysis_v1_d95691d/llama2_cage_v3_transfer_quality_analysis_manifest_v1.json",
+    "sha256": "c2bcacb987f0b099d6d0304306de2f1251b6e8d47e339570a9fa18fea607b817"
+  },
+  "outputs": {
+    "analysis": {
+      "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_analysis_v1_d95691d/llama2_cage_v3_transfer_quality_analysis_v1.json",
+      "sha256": "65e25e494518d6da0754e588a0b46d60ffacad7c186ad1814eaeb5886db109e9",
+      "size_bytes": 28357
+    },
+    "method_length_summary": {
+      "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_analysis_v1_d95691d/llama2_cage_v3_method_length_summary_v1.csv",
+      "sha256": "4ac22cb30cad2550a7ee53939304edd8e65e39fc7bad49963d5c224f376b043c",
+      "size_bytes": 1424
+    },
+    "paired_comparisons": {
+      "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_analysis_v1_d95691d/llama2_cage_v3_paired_comparisons_v1.csv",
+      "sha256": "76bf7c4319a23e06f1361cadda223f6f2e975187c4313f1a7671e16519d0e8e3",
+      "size_bytes": 3293
+    },
+    "decision": {
+      "path": "/root/autodl-tmp/llama2_cage_v3/transfer_quality_analysis_v1_d95691d/llama2_cage_v3_transfer_decision_v1.md",
+      "sha256": "0e70147920ac6fcc6025b1f5241a0489876fad2ab1589c1457fbe98098670ea6",
+      "size_bytes": 805
+    }
+  },
+  "execution_log": {
+    "path": "/root/autodl-tmp/kitty_setup_audit/llama2_cage_v3_transfer_quality_analysis_d95691d_20260823T160121.log",
+    "sha256": "054fc877adb213a1fb79e2753545f2948275a8ec802508d30b37686526557ab0",
+    "size_bytes": 12815
+  },
+  "frozen_decision": {
+    "promotion_pass": false,
+    "candidate_outcome": "do_not_promote_cage_v3_under_frozen_transfer_gate",
+    "llama2_main_method": "cage_v1",
+    "cage_v3_role": "secondary_length_dependent_cross_architecture_refinement"
+  },
+  "frozen_comparisons": {
+    "cage_v1": {
+      "overall_mean_nll_delta": -0.002195055187356736,
+      "overall_relative_ppl_percent": -0.21926478154791648,
+      "overall_ci95": [-0.008740004389911177, 0.0041271427883225725],
+      "per_length_relative_ppl_percent": {
+        "1024": -0.5745819314933981,
+        "2048": 0.6660066788535248,
+        "4032": -0.7432999649384502
+      },
+      "all_lengths_noninferiority_pass": false,
+      "overall_material_superiority_pass": false,
+      "overall_uncertainty_pass": false,
+      "baseline_pass": false
+    },
+    "kivi": {
+      "overall_mean_nll_delta": -0.010057954686851842,
+      "overall_relative_ppl_percent": -1.000754261628389,
+      "overall_ci95": [-0.016450650201249698, -0.0037264755226691262],
+      "per_length_relative_ppl_percent": {
+        "1024": -0.7994042231191415,
+        "2048": 0.8294810634313081,
+        "4032": -2.9950614521093026
+      },
+      "all_lengths_noninferiority_pass": false,
+      "overall_material_superiority_pass": true,
+      "overall_uncertainty_pass": true,
+      "baseline_pass": false
+    },
+    "fp16": {
+      "overall_mean_nll_delta": 0.01390234293327243,
+      "overall_relative_ppl_percent": 1.3999429893141209,
+      "overall_ci95": [0.008932647360329681, 0.01924486043060484],
+      "per_length_relative_ppl_percent": {
+        "1024": 0.7546978980592335,
+        "2048": 1.8821180113410214,
+        "4032": 1.5663539707556005
+      }
+    }
+  },
+  "frozen_memory": {
+    "candidate_relative_bytes_percent_vs_cage_v1": {
+      "1024": -0.052735993571229045,
+      "2048": 0.1383308082471446,
+      "4032": 0.024078474890343315
+    },
+    "candidate_relative_bytes_percent_vs_kivi": {
+      "1024": -3.435559006211175,
+      "2048": -2.651127049180324,
+      "4032": -1.7198815009874968
+    }
+  },
+  "closeout_boundary": {
+    "additional_tuning_on_same_anchors": false,
+    "relax_frozen_promotion_gate": false,
+    "promote_cage_v3_as_universal_main_method": false,
+    "retain_cage_v1_as_llama2_main_method": true,
+    "report_cage_v3_as_secondary_refinement": true,
+    "report_all_lengths_and_unfavorable_results": true,
+    "paper_evidence_packaging_authorized_after_closeout": true,
+    "direct_paper_claims_authorized": false,
+    "runtime_claims_authorized": false,
+    "kitty_llama_port_authorized": false
+  }
+}
